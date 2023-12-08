@@ -124,7 +124,7 @@ class HourglassLayer(Layer):
         x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        intermediate = self._hm_output(x, training=training)
+        intermediate = self._hm_output(x, training=training) # Intermediate Heatmap outputs
         out_tensor = tf.add_n(
             [inputs, self._transit_output(intermediate, training=training), x],
             name=f"{self.name}_OutputAdd",

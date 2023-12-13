@@ -145,7 +145,7 @@ class HTFConfigParser(ObjectLogger):
         self._data = cfg_parser(self._filename)
 
     def _parse_config(self) -> None:
-        self._config = HTFConfig.parse_obj(self._data)
+        self._config = HTFConfig.model_validate(self._data,strict=False)
 
 
 # endregion

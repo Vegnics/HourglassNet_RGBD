@@ -131,7 +131,8 @@ class HTFDatasetHandler(_HTFDatasetHandler):
 
     # region Prepare Dataset Hidden Methods
     def _generate_image_sets(self, images: Set[str]) -> ImageSetsType:
-        # Generate Sets
+        # Images: set of paths to the images.
+        # Generate Image Sets: Train, Test, Validation.
         train = set()
         test = set()
         validation = set()
@@ -227,6 +228,9 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         return filenames, coordinates
 
     def _create_dataset(self, data: HTFDataTypes) -> tf.data.Dataset:
+        """
+        Load images, and apply transformations to the data and annotations.
+        """
         return (
             tf.data.Dataset.from_tensor_slices(
                 self._extract_columns_from_data(data=data)
@@ -280,6 +284,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         )
 
     def generate_datasets(self, *args, **kwargs) -> None:
+        """
+        Generate the dataset for [Train, Test, Validation]: Resized images, squared bboxes,
+        heatmaps.
+        """
         self._train_dataset = self._create_dataset(self._train_set)
         self._test_dataset = self._create_dataset(self._test_set)
         self._validation_dataset = self._create_dataset(self._validation_set)

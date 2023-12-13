@@ -18,6 +18,9 @@ NormalizationModeType = Union[
 
 
 class HTFDatasetSets(HTFConfigField):
+    """
+    Configuration for the Train, Test, Validation sets.
+    """
     split_by_column: bool = False
     column_split: str = "set"
     value_test: str = "TEST"
@@ -49,6 +52,10 @@ class HTFDatasetMetadata(BaseModel):
 
 
 class HTFDatasetConfig(HTFConfigField):
+    """
+    Configuration of the dataset: Image size, Heatmap configuration, Sets configuration, 
+    bounding box configuration.
+    """
     object: Optional[HTFObjectReference] = Field(
         default_factory=HTFObjectReference(
             source="hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"

@@ -62,7 +62,7 @@ class HourglassModel(Model):
         x = self.downsampling(inputs)
         outputs_list = []
         for layer in self.hourglasses:
-            x, y = layer(x)
+            x, y = layer(x) # x is the output features, y is the intermediate output heatmaps
             if self._intermediate_supervision:
                 outputs_list.append(y)
         if self._intermediate_supervision:

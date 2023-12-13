@@ -7,7 +7,8 @@ data:
       foo: bar
   input:
     mode: "RGB"
-    source: data/images.ignore.folder
+    #source: data/images.ignore.folder
+    source: /media/amaranth/AF52-D977/BACKUP_14_01_2023/NDHU_carreer/NDHU_3rd_sem/patient_pose_project/mpii_human_pose_v1
     extensions:
       - png
       - jpeg
@@ -19,10 +20,10 @@ data:
       - set
       - image
       - scale
-      - bbox_tl_x
-      - bbox_tl_y
-      - bbox_br_x
-      - bbox_br_y
+      #- bbox_tl_x
+      #- bbox_tl_y
+      #- bbox_br_x
+      #- bbox_br_y
       - center_x
       - center_y
     column_set: set
@@ -75,7 +76,7 @@ dataset:
       params:
         foo: bar
   sets:
-    split_by_column: true
+    split_by_column: false #true
     column_split: set
     value_train: TRAIN
     value_test: TEST
@@ -88,7 +89,7 @@ dataset:
     ratio_validation: 0.15
   bbox:
     activate: true
-    factor: 1.5
+    factor: 1.2
 
 model:
   object:
@@ -102,7 +103,7 @@ model:
     output_size: 64
     stages: 2
     downsamplings_per_stage: 4
-    stage_filters: 64
+    stage_filters: 32 #64
     output_channels: 16
     name: "HourglassSample"
     intermediate_supervision: true
@@ -181,7 +182,8 @@ train:
     -
       source: "tensorflow.keras.callbacks.ModelCheckpoint"
       params:
-        filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
+        #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
+        filepath: "data/model_t/myModel.{epoch:02d}"
         save_weights_only: false
         save_freq: epoch
         save_best_model: false

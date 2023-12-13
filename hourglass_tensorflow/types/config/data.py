@@ -64,18 +64,19 @@ class HTFDataOutputJointsSuffix(HTFConfigField):
 
 class HTFDataOutputJointsFormat(HTFConfigField):
     id_field: str = "JOINT_ID"
-    SUFFIX: Dict = Field(default_factory={"x": "X", "y": "Y"})
-    # SUFFIX: Optional[HTFDataOutputJointsSuffix] = Field(
+    SUFFIX: Dict = Field(default={"x": "X", "y": "Y"})
+    #SUFFIX: Optional[HTFDataOutputJointsSuffix] = Field(
     #     default_factory=HTFDataOutputJointsSuffix
     # )
 
 
 class HTFDataOutputJoints(HTFConfigField):
     num: int = 16
-    dynamic_fields: List[str] = Field(default_factory=["SUFFIX"])
+    #dynamic_fields: List[str] = Field(default_factory=["SUFFIX"])
+    dynamic_fields: List[str] = Field(default=["SUFFIX"])
     naming_convention: str = "joint_{JOINT_ID}_{SUFFIX}"
     names: List[str] = Field(
-        default_factory=[
+        default=[
             "00_rAnkle",
             "01_rKnee",
             "02_rHip",
@@ -91,10 +92,10 @@ class HTFDataOutputJoints(HTFConfigField):
             "12_rShoulder",
             "13_lShoulder",
             "14_lElbow",
-            "14_lWrist",
+            "15_lWrist",
         ]
     )
-    format: HTFDataOutputJointsFormat = Field(default_factory=HTFDataOutputJointsFormat)
+    format: HTFDataOutputJointsFormat = Field(default=HTFDataOutputJointsFormat)
 
     def VALIDITY_CONDITIONS(self) -> List[bool]:
         return [
@@ -106,23 +107,23 @@ class HTFDataOutputJoints(HTFConfigField):
 class HTFDataOutput(HTFConfigField):
     source: str
     source_prefixed: bool = True
-    prefix_columns: Optional[List[str]] = Field(default_factory=list)
+    prefix_columns: Optional[List[str]] = Field(default=list)
     column_set: str = "set"
     column_source: str = "image"
-    joints: Optional[HTFDataOutputJoints] = Field(default_factory=HTFDataOutputJoints)
+    joints: Optional[HTFDataOutputJoints] = Field(default=HTFDataOutputJoints)
 
 
 class HTFDataInput(HTFConfigField):
     source: str
     mode: ImageMode = ImageMode.RGB
-    extensions: List[str] = Field(default_factory=["png", "jpeg", "jpg"])
+    extensions: List[str] = Field(default=["png", "jpeg", "jpg"])
 
 
 class HTFDataConfig(HTFConfigField):
     input: HTFDataInput
     output: Optional[HTFDataOutput]
     object: Optional[HTFObjectReference] = Field(
-        default_factory=HTFObjectReference(
+        default=HTFObjectReference(
             source="hourglass_tensorflow.data.HTFDataHandler"
         )
     )

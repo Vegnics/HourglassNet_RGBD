@@ -6,6 +6,9 @@ from hourglass_tensorflow.layers.batch_norm_relu_conv import BatchNormReluConvLa
 
 
 class ConvBlockLayer(Layer):
+    """
+    A convolutional block: 1x1 convolution, 3x3 convolution, 1x1 convolution.
+    """
     def __init__(
         self,
         output_filters: int,
@@ -23,6 +26,7 @@ class ConvBlockLayer(Layer):
         self.epsilon = epsilon
         # Create layers
         self.bnrc1 = BatchNormReluConvLayer(
+            # 1x1 convolution
             filters=output_filters // 2,
             kernel_size=1,
             name="BNRC1",
@@ -33,6 +37,7 @@ class ConvBlockLayer(Layer):
             trainable=trainable,
         )
         self.bnrc2 = BatchNormReluConvLayer(
+            # 3x3 convolution
             filters=output_filters // 2,
             kernel_size=3,
             name="BNRC2",
@@ -43,6 +48,7 @@ class ConvBlockLayer(Layer):
             trainable=trainable,
         )
         self.bnrc3 = BatchNormReluConvLayer(
+            # 1x1 convolution
             filters=output_filters,
             kernel_size=1,
             name="BNRC3",

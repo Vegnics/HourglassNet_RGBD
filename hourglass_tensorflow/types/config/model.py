@@ -43,10 +43,10 @@ class HTFModelParams(HTFConfigField):
 
 class HTFModelConfig(HTFConfigField):
     object: Optional[HTFObjectReference] = Field(
-        default_factory=HTFObjectReference(
+        default=HTFObjectReference(
             source="hourglass_tensorflow.handlers.model.HTFModelHandler"
         )
     )
     build_as_model: bool = False
     data_format: DATA_FORMAT = "NHWC"
-    params: Optional[HTFModelParams] = Field(default_factory=HTFModelParams)
+    params: Optional[HTFModelParams] = Field(default=HTFModelParams)

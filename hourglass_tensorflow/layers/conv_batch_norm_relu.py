@@ -4,6 +4,9 @@ from keras.layers import Layer
 
 
 class ConvBatchNormReluLayer(Layer):
+    """
+    This layer performs 2D convolution, Batch Normalization, and ReLU.
+    """
     def __init__(
         self,
         filters: int,

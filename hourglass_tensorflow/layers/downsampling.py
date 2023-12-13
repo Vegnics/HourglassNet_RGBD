@@ -9,6 +9,10 @@ from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLa
 
 
 class DownSamplingLayer(Layer):
+    """
+    This is the downsampling layer. The one which receives the input image with a size of 
+    256x256 and transform it into 256 features of size 64x64.
+    """
     def __init__(
         self,
         input_size: int = 256,

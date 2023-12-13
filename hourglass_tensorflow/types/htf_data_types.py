@@ -1,3 +1,8 @@
+"""
+It contains the classes representing generic points, person bbox, person joint,
+Person data instance (bbox + joint locations).
+"""
+
 from typing import Dict
 from typing import List
 from typing import Type
@@ -35,6 +40,9 @@ class HTFPersonDatapoint(BaseModel):
     def convert_joint(
         self, to=Union[Literal["list"], Literal["dict"], Type[dict], Type[list]]
     ) -> None:
+        """
+        Perform joint locations conversion List <-> Dictionary
+        """
         if to in ["list", list]:
             self._convert_joints_to_list()
         if to in ["dict", dict]:

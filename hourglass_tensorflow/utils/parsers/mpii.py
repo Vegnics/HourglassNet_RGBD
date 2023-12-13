@@ -170,7 +170,15 @@ def generic_condition(obj: MatStruct, key: str) -> bool:
     Returns:
         bool: True is the conditions are met
     """
-    return (key in obj.__dict__) and (0 not in obj.__dict__.get(key).shape)
+    if key in obj.__dict__:
+        #if key == "annopoints":
+        #    print(obj.__dict__.get(key).shape)
+        return 0 not in obj.__dict__.get(key).shape
+    else:
+        #if key == "annopoints":
+        #    print(obj.__dict__)
+        return 0
+    #return (key in obj.__dict__) and (0 not in obj.__dict__.get(key).shape)
 
 
 def remove_null_keys(
@@ -348,12 +356,12 @@ def parse_annorect_item(index: int, person: MatStruct, **kwargs) -> Dict:
             **{
                 "index": index,
                 "annopoints": (
-                    parse_annopoints(person.annopoints[0][0].point[0])
+                    parse_annopoints(person.annopoints[0][0].point[0],**kwargs)
                     if generic_condition(person, "annopoints")
                     else None
                 ),
                 "objpos": (
-                    parse_objpos(person.objpos[0][0])
+                    parse_objpos(person.objpos[0][0],**kwargs)
                     if generic_condition(person, "objpos")
                     else None
                 ),
@@ -375,7 +383,7 @@ def parse_annorect_item(index: int, person: MatStruct, **kwargs) -> Dict:
                     int(person.x2[0][0]) if generic_condition(person, "y2") else None
                 ),
             },
-            **parse_additional_annorect_item(person),
+            **parse_additional_annorect_item(person,**kwargs),
         },
         **kwargs,
     )
@@ -425,7 +433,7 @@ def parse_annolist(annolist: MatStructArray, **kwargs) -> List[Dict]:
                 "annorect": (
                     parse_annorect(
                         item.annorect[0] if 0 not in item.annorect.shape else []
-                    )
+                    ,**kwargs)
                 ),
             },
             **kwargs,
@@ -626,7 +634,7 @@ def parse_mpii(
     # Test if object is parsable as MPIIDataset(BaseModel)
     if test_parsing:
         try:
-            MPIIDataset.parse_obj(mpii_dict)
+            MPIIDataset.model_validate(mpii_dict,strict=False)
         except ValidationError as e:
             raise e
     # Construct return object
@@ -648,11 +656,11 @@ def parse_mpii(
         ]
         if return_as_struct:
             return_obj = [
-                MPIIDatapoint.parse_obj(datapoint) for datapoint in return_obj
+                MPIIDatapoint.model_validate(datapoint,strict=False) for datapoint in return_obj
             ]
     else:
         if return_as_struct:
-            return_obj = MPIIDataset.parse_obj(mpii_dict)
+            return_obj = MPIIDataset.model_validate(mpii_dict,strict=False)
     return return_obj
 
 

@@ -132,7 +132,7 @@ def from_train_mpii_to_htf_data(
                 for joint in person.annopoints
                 if isinstance(joint, mpii.MPIIAnnoPoint)
             ],
-            center=HTFPoint.parse_obj(person.objpos) if person.objpos else None,
+            center=HTFPoint.model_validate(person.objpos.model_dump(),strict=False) if person.objpos else None,
             scale=person.scale,
         )
         for sid, sample in enumerate(train_with_annopoints)

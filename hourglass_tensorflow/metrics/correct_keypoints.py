@@ -143,6 +143,7 @@ class PercentageOfCorrectKeypoints(Metric):
             - ground_truth_joints[:, self.reference[1], :],
             dtype=tf.float32,
         )
+        # Compute the reference distance (It could be the head distance, or torso distance)
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1)
         # We apply the thresholding condition
         condition = tf.cast(

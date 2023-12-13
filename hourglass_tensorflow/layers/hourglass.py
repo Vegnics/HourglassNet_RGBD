@@ -9,9 +9,9 @@ from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLa
 class HourglassLayer(Layer):
     def __init__(
         self,
-        feature_filters: int = 256,
-        output_filters: int = 16,
-        downsamplings: int = 4,
+        feature_filters: int = 256,# Number of feature maps
+        output_filters: int = 16,  # Number of landmark heatmaps
+        downsamplings: int = 4,    # Number of Downsamplings and upsamplings. 
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -26,6 +26,7 @@ class HourglassLayer(Layer):
         self.layers = [{} for i in range(self.downsamplings)]
         # Create Layers
         self._hm_output = ConvBatchNormReluLayer(
+            # Layer for heatmaps output.
             filters=output_filters,
             kernel_size=1,
             name="HeatmapOutput",
@@ -34,6 +35,7 @@ class HourglassLayer(Layer):
             trainable=trainable,
         )
         self._transit_output = ConvBatchNormReluLayer(
+            # 
             filters=feature_filters,
             kernel_size=1,
             name="TransitOutput",

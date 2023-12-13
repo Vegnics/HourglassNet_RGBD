@@ -1,5 +1,5 @@
 mode: train
-
+version: "1.0.0"
 data:
   object:
     source: "hourglass_tensorflow.handlers.data.HTFDataHandler"
@@ -8,13 +8,14 @@ data:
   input:
     mode: "RGB"
     #source: data/images.ignore.folder
-    source: /media/amaranth/AF52-D977/BACKUP_14_01_2023/NDHU_carreer/NDHU_3rd_sem/patient_pose_project/mpii_human_pose_v1
+    source: /home/quinoa/mpii_human_pose_v1
     extensions:
       - png
       - jpeg
       - jpg
   output:
-    source: data/labels.ignore.csv
+    #source: data/labels.ignore.csv
+    source: data/htf.ignore.json
     source_prefixed: false
     prefix_columns:
       - set

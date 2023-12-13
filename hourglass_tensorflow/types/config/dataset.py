@@ -57,13 +57,13 @@ class HTFDatasetConfig(HTFConfigField):
     bounding box configuration.
     """
     object: Optional[HTFObjectReference] = Field(
-        default_factory=HTFObjectReference(
+        default=HTFObjectReference(
             source="hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
         )
     )
     image_size: int = 256
     column_image: str = "image"
-    heatmap: Optional[HTFDatasetHeatmap] = Field(default_factory=HTFDatasetHeatmap)
-    sets: Optional[HTFDatasetSets] = Field(default_factory=HTFDatasetSets)
-    bbox: Optional[HTFDatasetBBox] = Field(default_factory=HTFDatasetBBox)
+    heatmap: Optional[HTFDatasetHeatmap] = Field(default=HTFDatasetHeatmap)
+    sets: Optional[HTFDatasetSets] = Field(default=HTFDatasetSets)
+    bbox: Optional[HTFDatasetBBox] = Field(default=HTFDatasetBBox)
     normalization: Optional[NormalizationModeType] = None

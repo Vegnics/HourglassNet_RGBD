@@ -83,10 +83,7 @@ class _HTFDatasetHandler(_HTFHandler):
     def generate_datasets(self, *args, **kwargs) -> None:
         raise NotImplementedError
 
-    def run(self, *args, **kwargs) -> None:
-        self.prepare_dataset(*args, **kwargs)
-        self.generate_datasets(*args, **kwargs)
-
+        return self._config
 
 # enregion
 

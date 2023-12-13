@@ -22,10 +22,10 @@ class HTFManager(ObjectLogger):
     def __init__(self, filename: str, verbose: bool = True, *args, **kwargs) -> None:
         super().__init__(verbose, *args, **kwargs)
         self._config_file = filename
+        #print(HTFConfigParser.parse(filename=filename, verbose=verbose).model_dump())
         self._config = HTFConfig.model_validate(
-            HTFConfigParser.parse(filename=filename, verbose=verbose),strict=False
+            HTFConfigParser.parse(filename=filename, verbose=verbose).model_dump()
         )
-        print(filename)
         self._metadata = HTFMetadata()
 
     @property

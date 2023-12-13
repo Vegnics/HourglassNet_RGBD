@@ -25,7 +25,7 @@ class HTFConfigField(BaseModel):
 
 class HTFObjectReference(BaseModel, Generic[T]):
     source: str
-    params: Optional[Dict] = Field(default_factory=dict)
+    params: Optional[Dict] = Field(default=dict)
 
     @property
     def object(self) -> Type[T]:

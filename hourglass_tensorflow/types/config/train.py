@@ -20,10 +20,10 @@ class HTFTrainConfig(HTFConfigField):
     learning_rate: Union[HTFObjectReference[LearningRateSchedule], float] = 0.00025
     loss: Union[HTFObjectReference[Loss], str] = "binary_crossentropy"
     optimizer: Union[HTFObjectReference[Optimizer], str] = "rmsprop"
-    callbacks: List[HTFObjectReference[Callback]] = Field(default_factory=list)
-    metrics: List[HTFObjectReference[Metric]] = Field(default_factory=list)
+    callbacks: List[HTFObjectReference[Callback]] = Field(default=list)
+    metrics: List[HTFObjectReference[Metric]] = Field(default=list)
     object: Optional[HTFObjectReference] = Field(
-        default_factory=HTFObjectReference(
+        default=HTFObjectReference(
             source="hourglass_tensorflow.handlers.train.HTFTrainHandler"
         )
     )

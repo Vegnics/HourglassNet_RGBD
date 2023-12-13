@@ -37,5 +37,8 @@ if __name__ == "__main__":
     only_visible_joints_id = [jid for jid, j_visible in joints_id if j_visible]
     print(avg_joints_per_sample,avg_visible_joints_per_sample)
     # Prepare data as table
+    for datap in data[0:10]:
+        print(datap.set)
+
 
     # Write Transformed data

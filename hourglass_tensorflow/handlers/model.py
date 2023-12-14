@@ -91,12 +91,12 @@ class HTFModelHandler(_HTFModelHandler):
         return self._input
 
     def _build_model_as_model(self, *args, **kwargs) -> HourglassModel:
-        self._model = HourglassModel(**self.params.dict())
+        self._model = HourglassModel(**self.params.model_dump())
         self._layered_model = {}
         return self._model
 
     def _build_model_as_layer(self, *args, **kwargs) -> keras.models.Model:
-        self._layered_model = model_as_layers(inputs=self._input, **self.params.dict())
+        self._layered_model = model_as_layers(inputs=self._input, **self.params.model_dump())
         self._output = self._layered_model["outputs"]
         self._model = self._layered_model["model"]
         return self._model

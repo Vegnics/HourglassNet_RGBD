@@ -8,7 +8,7 @@ data:
   input:
     mode: "RGB"
     #source: data/images.ignore.folder
-    source: /media/amaranth/AF52-D977/BACKUP_14_01_2023/NDHU_carreer/NDHU_3rd_sem/patient_pose_project/mpii_human_pose_v1
+    source: /home/quinoa/mpii_human_pose_v1
     extensions:
       - png
       - jpeg
@@ -69,7 +69,7 @@ dataset:
     size: 32 #64
     stacks: 3
     channels: 16
-    stddev: 3.
+    stddev: 1.0
   normalization: "ByMax"
   augmentation:
     - 
@@ -85,8 +85,8 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 0.1
-    ratio_train: 0.4
+    ratio_test: 0.001
+    ratio_train: 0.3
     ratio_validation: 0.1
   bbox:
     activate: true
@@ -115,18 +115,19 @@ train:
     params:
       foo: bar
   epochs: 10
-  epoch_size: 25
-  batch_size: 128
+  epoch_size: 109
+  batch_size: 128 #128
   learning_rate:
     source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     params:
       initial_learning_rate: 0.00025
       decay_steps: 1000
       decay_rate: 0.96
-  loss:
-    source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
-    params:
-      foo: bar
+  #loss:
+  #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
+  #  params:
+  #    foo: bar
+  loss: MeanSquaredError
   optimizer:
     source: "keras.optimizers.RMSprop"
     params:
@@ -153,7 +154,7 @@ train:
         log_dir: logs/myModelLogs
         histogram_freq: 1
         write_graph: true
-        write_grads: true
+        #write_grads: true
         write_images: true
         update_freq: epoch
     -

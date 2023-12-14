@@ -133,6 +133,12 @@ class HTFDataHandler(_HTFDataHandler):
             raise BadConfigurationError(f"Unable to find {self.output_cfg.source}")
         # Read Data
         labels = self._load_labels()
+
+        ##### CHECK THE LABELS ######
+        
+        #print("CHECK LABELS \n",labels)
+        #print(list(labels.columns))
+
         # Validate expected labels columns
         if not self._valid_labels_header(labels, _error=_error):
             self.error("Labels are not matching")

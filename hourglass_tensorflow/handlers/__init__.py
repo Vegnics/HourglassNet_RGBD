@@ -22,7 +22,7 @@ class HTFManager(ObjectLogger):
     def __init__(self, filename: str, verbose: bool = True, *args, **kwargs) -> None:
         super().__init__(verbose, *args, **kwargs)
         self._config_file = filename
-        #print(HTFConfigParser.parse(filename=filename, verbose=verbose).model_dump())
+        #print(list(HTFConfigParser.parse(filename=filename, verbose=verbose).model_dump().keys()))
         self._config = HTFConfig.model_validate(
             HTFConfigParser.parse(filename=filename, verbose=verbose).model_dump()
         )
@@ -95,6 +95,7 @@ class HTFManager(ObjectLogger):
         )
         data = self.DATA().get_data() # Call the HTFDataHandler and invoke get_data() method.
         # Launch Dataset Handler
+        print("OBJ:::",type(obj_dataset))
         self.DATASET = self._import_object(
             obj_dataset,
             config=self._config.dataset,
@@ -118,6 +119,6 @@ class HTFManager(ObjectLogger):
         self.TRAIN(
             model=self.MODEL._model,
             train_dataset=self.DATASET._train_dataset,
-            test_dataset=self.DATASET._test_set,
+            test_dataset=self.DATASET._test_dataset,
             validation_dataset=self.DATASET._validation_dataset,
         )

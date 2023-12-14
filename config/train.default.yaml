@@ -8,23 +8,23 @@ data:
   input:
     mode: "RGB"
     #source: data/images.ignore.folder
-    source: /home/quinoa/mpii_human_pose_v1
+    source: /media/amaranth/AF52-D977/BACKUP_14_01_2023/NDHU_carreer/NDHU_3rd_sem/patient_pose_project/mpii_human_pose_v1
     extensions:
       - png
       - jpeg
       - jpg
   output:
     #source: data/labels.ignore.csv
-    source: data/htf.ignore.json
+    source: data/htf_dataset.ignore.json
     source_prefixed: false
     prefix_columns:
       - set
       - image
       - scale
-      #- bbox_tl_x
-      #- bbox_tl_y
-      #- bbox_br_x
-      #- bbox_br_y
+      - bbox_tl_x
+      - bbox_tl_y
+      - bbox_br_x
+      - bbox_br_y
       - center_x
       - center_y
     column_set: set
@@ -63,13 +63,13 @@ dataset:
     source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
     params:
       foo: bar
-  image_size: 256
+  image_size: 128 #256
   column_image: image
   heatmap:
-    size: 64
-    stacks: 2
+    size: 32 #64
+    stacks: 3
     channels: 16
-    stddev: 5.
+    stddev: 3.
   normalization: "ByMax"
   augmentation:
     - 
@@ -85,9 +85,9 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 0.15
-    ratio_train: 0.7
-    ratio_validation: 0.15
+    ratio_test: 0.1
+    ratio_train: 0.4
+    ratio_validation: 0.1
   bbox:
     activate: true
     factor: 1.2
@@ -100,9 +100,9 @@ model:
   build_as_model : true
   data_format: NHWC
   params:
-    input_size: 256
-    output_size: 64
-    stages: 2
+    input_size: 128 #256
+    output_size: 32 #64
+    stages: 3
     downsamplings_per_stage: 4
     stage_filters: 32 #64
     output_channels: 16
@@ -115,7 +115,7 @@ train:
     params:
       foo: bar
   epochs: 10
-  epoch_size: 1000
+  epoch_size: 25
   batch_size: 128
   learning_rate:
     source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
@@ -138,47 +138,6 @@ train:
       source: "hourglass_tensorflow.metrics.OverallMeanDistance"
       params:
         name: "MeanDistanceInPixel"
-    - 
-      source: "hourglass_tensorflow.metrics.RatioCorrectKeypoints"
-      params:
-        name: "CorrectKeypoints@10px"
-        threshold: 10
-    - 
-      source: "hourglass_tensorflow.metrics.RatioCorrectKeypoints"
-      params:
-        name: "CorrectKeypoints@5px"
-        threshold: 5
-    - 
-      source: "hourglass_tensorflow.metrics.RatioCorrectKeypoints"
-      params:
-        name: "CorrectKeypoints@20px"
-        threshold: 20
-    - 
-      source: "hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints"
-      params:
-        name: "PCKh@0.5"
-        ratio: 0.5
-    - 
-      source: "hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints"
-      params:
-        name: "PCKh@0.75"
-        ratio: 0.75
-    - 
-      source: "hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints"
-      params:
-        name: "PCK@0.75"
-        ratio: 0.75
-        reference:
-          - 6
-          - 8
-    - 
-      source: "hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints"
-      params:
-        name: "PCK@0.5"
-        ratio: 0.5
-        reference:
-          - 6
-          - 8
   callbacks:
     -
       source: "tensorflow.keras.callbacks.ModelCheckpoint"

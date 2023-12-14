@@ -83,7 +83,9 @@ class _HTFDatasetHandler(_HTFHandler):
     def generate_datasets(self, *args, **kwargs) -> None:
         raise NotImplementedError
 
-        return self._config
+    def run(self, *args, **kwargs) -> None:
+        self.prepare_dataset(*args, **kwargs)
+        self.generate_datasets(*args, **kwargs)
 
 # enregion
 
@@ -208,6 +210,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
 
     def prepare_dataset(self, *args, **kwargs) -> None:
         self._split_sets()
+        print(len(self._train_set),len(self._test_set),len(self._validation_set))
 
     # endregion
 
@@ -217,17 +220,20 @@ class HTFDatasetHandler(_HTFDatasetHandler):
     ) -> Tuple[Iterable, Iterable]:
         # Extract coordinates
         filenames = self.engine.to_list(
-            self.engine.get_columns(data=data, columns=self.config.column_image)
+            self.engine.get_columns(data=data, columns=[self.config.column_image])
         )
         coordinates = self.engine.to_list(
             self.engine.get_columns(data=data, columns=self.meta.joint_columns)
         )
+        print("LEN_FILENAMES: ",len(filenames),"LEN_COORDINATES :",len(coordinates))
         return filenames, coordinates
 
     def _create_dataset(self, data: HTFDataTypes) -> tf.data.Dataset:
         """
         Load images, and apply transformations to the data and annotations.
         """
+        #Columns = self._extract_columns_from_data(data=data)
+        #print(Columns[0])
         return (
             tf.data.Dataset.from_tensor_slices(
                 self._extract_columns_from_data(data=data)

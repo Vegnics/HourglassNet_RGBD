@@ -68,7 +68,9 @@ class HTFNumpyEngine(HTFEngine):
 
     def get_columns(self, data: np.ndarray, columns: List[str]) -> np.ndarray:
         idx_columns = [self.metadata.label_mapper[col] for col in columns]
-        return data[:, idx_columns]
+        return data[:, idx_columns]  
+
+        
 
     @staticmethod
     def to_list(data: np.ndarray) -> List:
@@ -93,7 +95,8 @@ class HTFPandasEngine(HTFEngine):
         return data[data[column].isin(image_set)]
 
     def get_columns(self, data: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-        return data[columns]
+        return data[columns] #if len(columns)>1 else data[columns[0]]
+        
 
     @staticmethod
     def to_list(data: pd.DataFrame) -> List:

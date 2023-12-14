@@ -90,6 +90,7 @@ class HTFTrainHandler(_HTFTrainHandler):
         self._callbacks = [obj.init() for obj in self.config.callbacks]
 
     def compile(self, model: Model, *args, **kwargs) -> None:
+        print("COMPILING: ",self._loss)
         model.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss)
 
     def _apply_batch(self, dataset: tf.data.Dataset) -> tf.data.Dataset:

@@ -1,5 +1,6 @@
 import tensorflow as tf
 from keras.metrics import Metric
+from typing import Tuple
 
 from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax
 
@@ -66,10 +67,10 @@ class RatioCorrectKeypoints(Metric):
         self.total_keypoints.assign_add(total_keypoints)
 
     def update_state(self, y_true, y_pred, *args, **kwargs):
-        return self._internal_update()
+        return self._internal_update(y_true, y_pred)
 
     def result(self, *args, **kwargs):
-        return tf.math.divide_no_nan(self.correct_keypoints, self.total_keypoints)
+        return tf.math.divide_no_nan(self.correct_keypoints, self.total_keypoints, *args, **kwargs)
 
     def reset_state(self) -> None:
         self.correct_keypoints.assign(0.0)
@@ -105,7 +106,7 @@ class PercentageOfCorrectKeypoints(Metric):
 
     def __init__(
         self,
-        reference: tuple[int, int] = (8, 9),
+        reference: Tuple[int, int] = (8, 9), # The reference is the joint used for distance reference.
         ratio: float = 0.5,
         name=None,
         dtype=None,
@@ -146,9 +147,13 @@ class PercentageOfCorrectKeypoints(Metric):
         # Compute the reference distance (It could be the head distance, or torso distance)
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1)
         # We apply the thresholding condition
-        condition = tf.cast(
-            distance < (reference_distance * self.ratio), dtype=tf.float32
-        )
+        print(error,reference_distance)
+        condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
+                             dtype=tf.float32)
+
+        #condition = tf.cast(
+        #    distance < (reference_distance * self.ratio), dtype=tf.float32
+        #)
         correct_keypoints = tf.reduce_sum(condition)
         total_keypoints = tf.cast(
             tf.reduce_prod(tf.shape(distance)), dtype=tf.dtypes.float32

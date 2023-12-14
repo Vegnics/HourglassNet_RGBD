@@ -14,7 +14,10 @@ def tf_load_image(filename: tf.Tensor, channels: int = 3, **kwargs) -> tf.Tensor
     Returns:
         tf.Tensor: Image Tensor of shape [HEIGHT, WIDTH, channels]
     """
-    return tf.io.decode_image(tf.io.read_file(filename), channels=channels)
+    print("FILENAME:::",filename)
+    fname = tf.io.read_file(filename)
+    #print("FILENAME:::",fname)
+    return tf.io.decode_image(fname, channels=channels)
 
 
 @tf.function

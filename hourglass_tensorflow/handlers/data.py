@@ -14,7 +14,6 @@ from hourglass_tensorflow.handlers.meta import _HTFHandler
 
 # region Abstract Class
 
-
 class _HTFDataHandler(_HTFHandler):
     def __init__(self, config: HTFDataConfig, *args, **kwargs) -> None:
         super().__init__(config=config, *args, **kwargs)

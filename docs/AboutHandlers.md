@@ -56,7 +56,38 @@
   - Methods:
     - init_handler(): Initialize the test, train, validation datasets (`tf.data.Dataset`) as `None`.
     - prepare_dataset(): Split the main dataset (images + ground truth annotations) into train, test, validation sets (`ndarray` or `pd.DataFrame`).
-    - generate_datasets(): Create `tf.data.Dataset` instances for the train, test, validation sets. Each `tf.data.Dataset` contains the cropped images (according the bounding boxes, _This has to do with the MPII Dataset_), heatmaps for each joint/landmark.
+    - generate_datasets(): Create `tf.data.Dataset` instances for the train, test, validation sets. Each `tf.data.Dataset` contains the cropped images (according the bounding boxes, _This has to do with the MPII Dataset_), heatmaps for each joint/landmark. The `tf.data.Dataset` objects are stored in the `HTFDatasetHandler()` object.
 
+## HTFTrainHandler(_HTFTrainHandler)
 
+- `_HTFTrainHandler()`: Prototype class for the `HTFTrainHandler()`.
+  - Initialization: 
+    - Load the `HTFConfigField` config to _config. 
+    - Set all the Class training parameters to `None` ( _epochs, _epoch_size, _batch_size, _learning_rate, _loss, _optimizer, _metrics, _callbacks).
+    - call the **init_handler()** method.
+  - Properties:
+    - `HTFTrainConfig` config: self._config
+  - Methods: 
+    - **run()**: invoke the methods **compile()**, and **fit()**. 
 
+- `HTFTrainHandler()`: 
+
+  - Methods:
+    - **init_handler**(): Set all the Class training parameters according to the `HTFTrainConfig` _config_ training configuration property.
+    - **compile**(`keras.models.Model` model): compile a keras model according to the _config_ training configuration property ( _optimizer, _metrics, _loss).
+    - **fit**(`keras.models.Model` model, `tf.data.Dataset` train_dataset, `tf.data.Dataset` test_dataset, `tf.data.Dataset` validation_dataset): Train a compiled keras model with the train, test, validation `Dataset`.
+ > **Note**: The `HTFTrainHandler` contains only the configuration data related to the training parameters required to train a `keras.models.Model` with several `tf.data.Dataset`. It does not store any training data or model.
+
+## Transformations (functions used by a `HTFDatasetHandler()`)
+
+- tf_train_map_build_slice
+
+- tf_train_map_squarify
+
+- tf_train_map_resize_data
+
+- tf_train_map_heatmaps
+
+- tf_train_map_normalize
+
+- 

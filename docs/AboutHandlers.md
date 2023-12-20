@@ -32,6 +32,8 @@
 
 ## HTFDatasetHandler(_HTFDatasetHandler)
 
+*hourglass_tensorflow/handlers/dataset.py*
+
 - `_HTFDatasetHandler()`: Prototype handler for the `HTFDatasetHandler()` class.
   - Initialization:
     Set the following attributes.
@@ -60,6 +62,8 @@
 
 ## HTFTrainHandler(_HTFTrainHandler)
 
+*hourglass_tensorflow/handlers/train.py*
+
 - `_HTFTrainHandler()`: Prototype class for the `HTFTrainHandler()`.
   - Initialization: 
     - Load the `HTFConfigField` config to _config. 
@@ -79,15 +83,23 @@
  > **Note**: The `HTFTrainHandler` contains only the configuration data related to the training parameters required to train a `keras.models.Model` with several `tf.data.Dataset`. It does not store any training data or model.
 
 ## Transformations (functions used by a `HTFDatasetHandler()`)
+*hourglass_tensorflow/handlers/_transformation.py*
 
-- tf_train_map_build_slice
+In total, a `HTFDatasetHandler()` instance performs 6 transformations to the raw training data, in order to generate the train, test, validation `tf.data.Dataset` instances.
 
-- tf_train_map_squarify
+- tf_train_map_build_slice(filename,coordinates): Receives an image filename and its coordinates data. Ouputs: image,coordinates,visibility.
 
-- tf_train_map_resize_data
+- tf_train_map_squarify (image, coordinates,visibility): Crop the input image to have a square shape: Returns image (reshaped), coordinates (transformed according to the new image), visibility. 
 
-- tf_train_map_heatmaps
+- tf_train_map_resize_data (image, coordinates, visibility): Resizes the (previously cropped) image to a desired size, and modifies the coordinates to have a value between 0-1. 
 
-- tf_train_map_normalize
+- tf_train_map_heatmaps (image, coordinates, visibility, output_size, stddev): Generate the heatmaps from the coordinates. The size of the heatmaps is determined by the output_size. Whereas, the stddev determines the Bivariate normal PDF used to generate the heatmaps. The image is just passed. 
 
-- 
+- tf_train_map_normalize (image, heatmaps, normalizations): The images and heatmaps are normalized according to a normalization method:
+  - Normal: Values are centered at 0 with a std of 1. Negative and positive values.
+  - ByMax: Values are divided by the maximum value. Taking values between 0-1.
+  - L2: Values are divided by its L2 norm.
+  - FromZero: The minimum value is set to zero. New values are all positives between 0-1.
+  - AroundZero: The elements are linearly mapped to have values between [-1,1] 
+
+- tf_train_map_stacks: Replicates the heatmaps for each Hourglass network. 

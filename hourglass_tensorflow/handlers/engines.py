@@ -41,6 +41,9 @@ class HTFEngine(ABC, ObjectLogger):
     @abstractmethod
     def get_columns(sel, data: Any, columns: List[str]) -> Any:
         raise NotImplementedError
+    def to_list(data: Any) -> List:
+        raise NotImplementedError
+
 
     @staticmethod
     @abstractstaticmethod
@@ -95,12 +98,7 @@ class HTFPandasEngine(HTFEngine):
         return data[data[column].isin(image_set)]
 
     def get_columns(self, data: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-        return data[columns] #if len(columns)>1 else data[columns[0]]
-        
-
-    @staticmethod
-    def to_list(data: pd.DataFrame) -> List:
-        return data.values.tolist()
+        return data[columns] #if len(columnsn charge of receiving the 
 
 
 class HTFTensorflowEngine(HTFEngine):

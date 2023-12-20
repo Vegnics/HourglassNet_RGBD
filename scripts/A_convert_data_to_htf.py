@@ -37,7 +37,7 @@ if __name__ == "__main__":
     
 
     logger.info("Convert from MPII to HTF")
-    htf_data, _ = from_train_mpii_to_htf_data(data=datapoints, require_stats=True)
+    htf_data, stats = from_train_mpii_to_htf_data(data=datapoints, require_stats=True)
     # Write Transform data
     logger.info(f"Write HTF data to {HTF_JSON}")
     common_write(htf_data, HTF_JSON)

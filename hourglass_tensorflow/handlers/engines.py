@@ -72,8 +72,7 @@ class HTFNumpyEngine(HTFEngine):
     def get_columns(self, data: np.ndarray, columns: List[str]) -> np.ndarray:
         idx_columns = [self.metadata.label_mapper[col] for col in columns]
         return data[:, idx_columns]  
-
-        
+    
 
     @staticmethod
     def to_list(data: np.ndarray) -> List:
@@ -99,6 +98,10 @@ class HTFPandasEngine(HTFEngine):
 
     def get_columns(self, data: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
         return data[columns] #if len(columnsn charge of receiving the 
+    
+    @staticmethod
+    def to_list(data: pd.DataFrame) -> List:
+        return data.values.tolist()
 
 
 class HTFTensorflowEngine(HTFEngine):

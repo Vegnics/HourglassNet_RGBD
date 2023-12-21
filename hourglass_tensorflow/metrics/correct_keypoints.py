@@ -36,6 +36,7 @@ class RatioCorrectKeypoints(Metric):
         """See help(RatioCorrectKeypoints)"""
         super().__init__(name, dtype, **kwargs)
         self.threshold = threshold
+        # Metric().add_weight() -> Create a state variable.
         self.correct_keypoints = self.add_weight(
             name="correct_keypoints", initializer="zeros"
         )
@@ -45,10 +46,10 @@ class RatioCorrectKeypoints(Metric):
         self.intermediate_supervision = intermediate_supervision
 
     def argmax_tensor(self, tensor):
-        return tf_dynamic_matrix_argmax(
+       return tf_dynamic_matrix_argmax(
             tensor,
             intermediate_supervision=self.intermediate_supervision,
-            keepdims=True,
+            keepdims=True ,
         )
 
     def _internal_update(self, y_true, y_pred):

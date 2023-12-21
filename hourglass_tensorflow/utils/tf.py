@@ -214,7 +214,7 @@ def tf_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
         tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
     """
     flat_tensor = tf.reshape(tensor, (-1, tf.shape(tensor)[-1]))
-    argmax = tf.cast(tf.argmax(flat_tensor, axis=0), tf.int32)
+    argmax = tf.cast(tf.argmax(flat_tensor, axis=0), tf.int32) # A tensor 1xC
     argmax_x = argmax // tf.shape(tensor)[1]
     argmax_y = argmax % tf.shape(tensor)[1]
     # stack and return 2D coordinates
@@ -246,7 +246,11 @@ def tf_dynamic_matrix_argmax(
         * `2D tensor` A single joint heatmap.
             Function returns a tensor of `dim=2`.
         * `3D tensor` A multiple joint heatmap.
-            Function returns a tensor of `dim=2`.
+            Functionelif len(tf.shape(tensor)) == 5:
+        # Batch of multiple Joint Heatmaps with Intermediate supervision
+        # Considering NSHWC    
+        argmax = tf_batch_matrix_argmax(tensor[:, -1, :, :, :])
+        return argmax # -> Tensor NxCx2 returns a tensor of `dim=2`.
         * `4D tensor` A multiple joints heatmap with intermediate supervision.
             Function returns a tensor of `dim=2`.
             2D Argmax will only be applied on last stage.
@@ -292,16 +296,20 @@ def tf_dynamic_matrix_argmax(
         return tf.expand_dims(argmax, 0) if keepdims else argmax
     elif len(tf.shape(tensor)) == 4 and intermediate_supervision:
         # Multiple Joint Heatmaps with Intermediate supervision
+        # Format SHWC
         argmax = tf_matrix_argmax(tensor[-1, :, :, :])
         return tf.expand_dims(argmax, 0) if keepdims else argmax
     elif len(tf.shape(tensor)) == 4 and not intermediate_supervision:
         # Batch of multiple Joint Heatmaps without Intermediate supervision
+        # Considering NHWC   
         argmax = tf_batch_matrix_argmax(tensor)
-        return argmax
+        return argmax # -> Tensor NxCx2 
     elif len(tf.shape(tensor)) == 5:
         # Batch of multiple Joint Heatmaps with Intermediate supervision
+        # Considering NSHWC
+        print(f"{__name__}, Tensor shape: {tensor.shape.as_list()}")    
         argmax = tf_batch_matrix_argmax(tensor[:, -1, :, :, :])
-        return argmax
+        return argmax # -> Tensor NxCx2
     else:
         raise ValueError(
             f"No argmax operation available for {len(tf.shape(tensor))}D tensor"

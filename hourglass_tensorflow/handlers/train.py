@@ -107,12 +107,17 @@ class HTFTrainHandler(_HTFTrainHandler):
         **kwargs,
     ) -> None:
         _ = self._apply_batch(test_dataset)
+        train_dataset = train_dataset.repeat(2)
+        validation_dataset = validation_dataset.repeat(2)
         batch_train = self._apply_batch(train_dataset)
         batch_validation = self._apply_batch(validation_dataset)
+        batch_num = batch_train.__len__()
+        print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
         model.fit(
             batch_train,
             epochs=self._epochs,
-            steps_per_epoch=self._epoch_size,
+            #steps_per_epoch=self._epoch_size,
+            steps_per_epoch=int(batch_num//self._epochs),
             shuffle=True,
             validation_data=batch_validation,
             callbacks=self._callbacks,

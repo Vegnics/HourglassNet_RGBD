@@ -66,10 +66,10 @@ dataset:
   image_size: 128 #256
   column_image: image
   heatmap:
-    size: 32 #64
+    size: 64 #64
     stacks: 3
     channels: 16
-    stddev: 2.0
+    stddev: 3.0
   normalization: "ByMax"
   augmentation:
     - 
@@ -101,7 +101,7 @@ model:
   data_format: NHWC
   params:
     input_size: 128 #256
-    output_size: 32 #64
+    output_size: 64 #64
     stages: 3
     downsamplings_per_stage: 4
     stage_filters: 32 #64
@@ -120,14 +120,14 @@ train:
   learning_rate:
     source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     params:
-      initial_learning_rate: 0.0005 #0.00025
+      initial_learning_rate: 0.0008 #0.00025
       decay_steps: 1000
       decay_rate: 0.96
-  loss:
-    source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
-    params:
-      foo: bar
-  #loss: MeanSquaredError
+  #loss:
+  #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
+  #  params:
+  #    foo: bar
+  loss: MeanSquaredError
   optimizer:
     source: "keras.optimizers.RMSprop"
     params:
@@ -144,6 +144,11 @@ train:
       params:
         name: "CorrectKpts@3px"
         threshold: 3
+    - 
+      source: "hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints"
+      params:
+        name: "PCKh@1"
+        ratio: 1.0
   callbacks:
     -
       source: "tensorflow.keras.callbacks.ModelCheckpoint"

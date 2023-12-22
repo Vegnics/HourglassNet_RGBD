@@ -147,15 +147,17 @@ class PercentageOfCorrectKeypoints(Metric):
         )
         # Compute the reference distance (It could be the head distance, or torso distance)
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1)
+        max_ref = tf.reduce_max(reference_distance)
+        if hasattr(max_ref,'numpy'):
+            print("MAX REF: ",max_ref.numpy())
         # We apply the thresholding condition
-        print(error,reference_distance)
-        condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
-                             dtype=tf.float32)
-
-        #condition = tf.cast(
-        #    distance < (reference_distance * self.ratio), dtype=tf.float32
-        #)
-        correct_keypoints = tf.reduce_sum(condition)
+        for k in range(distance.shape[1]):
+            condition = tf.cast(tf.math.less(distance[:,k],reference_distance * self.ratio),
+                                dtype=tf.float32)
+            #condition = tf.cast(
+            #    distance < (reference_distance * self.ratio), dtype=tf.float32
+            #)
+            correct_keypoints = tf.reduce_sum(condition) if k==0 else correct_keypoints+tf.reduce_sum(condition)
         total_keypoints = tf.cast(
             tf.reduce_prod(tf.shape(distance)), dtype=tf.dtypes.float32
         )

@@ -10,4 +10,6 @@ class Matros():
 
 a = tf.constant([[[1,2],[3,2],[1,2]],
                  [[3,1],[7,8],[1,1]]],dtype=tf.dtypes.float32)
-print(a[-1,:,:])
+for i in range(3):
+    b = tf.reduce_sum(a) if i==0 else b+tf.reduce_sum(a)
+print(b.tolist())

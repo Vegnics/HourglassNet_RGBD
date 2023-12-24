@@ -58,3 +58,5 @@ class ResidualLayer(Layer):
                 self.skip(inputs, training=training),
             ]
         )
+    def build(self, input_shape):
+        pass

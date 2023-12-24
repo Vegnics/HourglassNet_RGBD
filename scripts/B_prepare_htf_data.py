@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # Prepare data as table
     DATA = []
     for datap in data:
-        if len(datap.joints)==16:
+        if len(datap.joints)>15:
             d = {"set": "TRAIN" if datap.is_train else "VALIDATION",
             "image": datap.source_image,
             "scale":datap.scale,

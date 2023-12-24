@@ -39,3 +39,5 @@ class SkipLayer(Layer):
             return inputs
         else:
             return self.conv(inputs)
+    def build(self, input_shape):
+        pass

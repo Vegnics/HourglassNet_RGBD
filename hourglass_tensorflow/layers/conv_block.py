@@ -74,3 +74,5 @@ class ConvBlockLayer(Layer):
         x = self.bnrc2(x, training=training)
         x = self.bnrc3(x, training=training)
         return x
+    def build(self, input_shape):
+        pass

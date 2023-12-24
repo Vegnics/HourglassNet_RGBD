@@ -9,7 +9,8 @@ from keras.models import Model
 from keras.metrics import Metric
 from keras.callbacks import Callback
 from keras.optimizers import Optimizer
-from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedule
+#from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedule
+from keras.optimizers.schedules import LearningRateSchedule
 
 from hourglass_tensorflow.types.config import HTFTrainConfig
 from hourglass_tensorflow.types.config import HTFObjectReference
@@ -107,8 +108,12 @@ class HTFTrainHandler(_HTFTrainHandler):
         **kwargs,
     ) -> None:
         _ = self._apply_batch(test_dataset)
-        train_dataset = train_dataset.repeat(2)
-        validation_dataset = validation_dataset.repeat(2)
+        train_dataset = train_dataset.repeat(5)
+        tds_card = int(train_dataset.cardinality().numpy())
+        train_dataset = train_dataset.shuffle(int(0.02*tds_card),reshuffle_each_iteration=True)
+        validation_dataset = validation_dataset.repeat(5)
+        vds_card = int(train_dataset.cardinality().numpy())
+        validation_dataset = validation_dataset.shuffle(int(0.02*vds_card),reshuffle_each_iteration=True)
         batch_train = self._apply_batch(train_dataset)
         batch_validation = self._apply_batch(validation_dataset)
         batch_num = batch_train.__len__()

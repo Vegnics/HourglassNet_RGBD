@@ -132,3 +132,5 @@ class HourglassLayer(Layer):
             name=f"{self.name}_OutputAdd",
         )
         return out_tensor, intermediate
+    def build(self, input_shape):
+        pass

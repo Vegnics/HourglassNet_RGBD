@@ -245,15 +245,18 @@ def tf_train_map_normalize(
 
     if normalization is None:
         pass
+    if "Idem" in normalization:
+        image = tf.math.divide_no_nan(
+            image,255.0)
     if "Normal" in normalization:
         image = tf.math.divide_no_nan(
             image - tf.reduce_mean(image, axis=[0, 1]),
             tf.math.reduce_variance(image, axis=[0, 1]),
         )
-        heatmaps = tf.math.divide_no_nan(
-            heatmaps - tf.reduce_mean(heatmaps, axis=[0, 1]),
-            tf.math.reduce_variance(heatmaps, axis=[0, 1]),
-        )
+        #heatmaps = tf.math.divide_no_nan(
+        #    heatmaps - tf.reduce_mean(heatmaps, axis=[0, 1]),
+        #    tf.math.reduce_variance(heatmaps, axis=[0, 1]),
+        #)
     if "ByMax" in normalization:
         image = tf.math.divide_no_nan(
             image,

@@ -8,7 +8,7 @@ data:
   input:
     mode: "RGB"
     #source: data/images.ignore.folder
-    source: /home/ivp_lab/mpii_human_pose_v1
+    source: /home/quinoa/mpii_human_pose_v1
     extensions:
       - png
       - jpeg
@@ -70,7 +70,7 @@ dataset:
     stacks: 3
     channels: 16
     stddev: 2.0
-  normalization: "Normal"
+  normalization: "Idem"
   augmentation:
     - 
       source: ""
@@ -124,11 +124,12 @@ train:
       initial_learning_rate: 0.0003 #0.00025
       decay_steps: 1000
       decay_rate: 0.96
-  #loss:
+  loss:
+    source: "hourglass_tensorflow.losses.MAE_custom"
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
-  #  params:
-  #    foo: bar
-  loss: MeanSquaredError
+    params:
+      foo: bar
+  #loss: MeanSquaredError
   optimizer:
     source: "keras.optimizers.RMSprop"
     params:

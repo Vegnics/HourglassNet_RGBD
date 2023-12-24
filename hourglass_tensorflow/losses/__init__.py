@@ -1,1 +1,2 @@
 from hourglass_tensorflow.losses.sigmoid_cross_entropy import SigmoidCrossEntropyLoss
+from hourglass_tensorflow.losses.mae_custom import MAE_custom

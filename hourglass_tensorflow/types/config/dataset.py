@@ -9,6 +9,7 @@ from hourglass_tensorflow.types.config.fields import HTFConfigField
 from hourglass_tensorflow.types.config.fields import HTFObjectReference
 
 NormalizationModeType = Union[
+    Literal["Idem"],
     Literal["ByMax"],
     Literal["L2"],
     Literal["Normal"],

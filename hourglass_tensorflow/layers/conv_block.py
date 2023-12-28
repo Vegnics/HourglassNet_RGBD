@@ -3,6 +3,7 @@ from keras import layers
 from keras.layers import Layer
 
 from hourglass_tensorflow.layers.batch_norm_relu_conv import BatchNormReluConvLayer
+from hourglass_tensorflow.layers.conv_relu_batch_norm import ConvReluBatchNormLayer
 
 
 class ConvBlockLayer(Layer):
@@ -25,7 +26,8 @@ class ConvBlockLayer(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         # Create layers
-        self.bnrc1 = BatchNormReluConvLayer(
+        #self.bnrc1 = BatchNormReluConvLayer(
+        self.bnrc1 = ConvReluBatchNormLayer(
             # 1x1 convolution
             filters=output_filters // 2,
             kernel_size=1,
@@ -36,7 +38,8 @@ class ConvBlockLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        self.bnrc2 = BatchNormReluConvLayer(
+        #self.bnrc2 = BatchNormReluConvLayer(
+        self.bnrc2 = ConvReluBatchNormLayer(
             # 3x3 convolution
             filters=output_filters // 2,
             kernel_size=3,
@@ -47,7 +50,8 @@ class ConvBlockLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        self.bnrc3 = BatchNormReluConvLayer(
+        #self.bnrc3 = BatchNormReluConvLayer(
+        self.bnrc3 = ConvReluBatchNormLayer(
             # 1x1 convolution
             filters=output_filters,
             kernel_size=1,

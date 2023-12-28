@@ -69,8 +69,8 @@ dataset:
     size: 64 #64
     stacks: 6
     channels: 16
-    stddev: 2.0
-  normalization: "Normal"
+    stddev: 1.0
+  normalization: "Idem"
   augmentation:
     - 
       source: ""
@@ -90,7 +90,7 @@ dataset:
     ratio_validation: 0.25
   bbox:
     activate: true
-    factor: 1.2
+    factor: 1.3
 
 model:
   object:
@@ -116,25 +116,29 @@ train:
       foo: bar
   epochs: 30
   epoch_size: 92
-  batch_size: 70 #128
+  batch_size: 90 #128
   learning_rate:
     #source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     source: "keras.optimizers.schedules.ExponentialDecay"
     params:
-      initial_learning_rate: 0.0003 #0.00025
-      decay_steps: 1000
-      decay_rate: 0.96
-  #loss:
+      initial_learning_rate: 0.0008 #0.00025
+      decay_steps: 900
+      decay_rate: 0.92
+  loss:
+    source: "hourglass_tensorflow.losses.MAE_custom"
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
-  #  params:
-  #    foo: bar
-  loss: MeanSquaredError
-  optimizer:
-    source: "keras.optimizers.RMSprop"
     params:
-      rho: 0.9
-      momentum: 0.0
-      centered: true
+      foo: bar
+  #loss: MeanSquaredError
+  optimizer:
+    source: "keras.optimizers.Adam" #"keras.optimizers.RMSprop"
+    params:
+      beta_1: 0.9
+      beta_2: 0.999
+      epsilon: 0.0000001
+      #rho: 0.9
+      #momentum: 0.0
+      #centered: true
     #source: "keras.optimizers.Adam"
     #params:
     #  beta_1: 0.8

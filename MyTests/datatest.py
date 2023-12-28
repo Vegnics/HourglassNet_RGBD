@@ -12,4 +12,6 @@ a = tf.constant([[[1,2],[3,2],[1,2]],
                  [[3,1],[7,8],[1,1]]],dtype=tf.dtypes.float32)
 for i in range(3):
     b = tf.reduce_sum(a) if i==0 else b+tf.reduce_sum(a)
-print(b.tolist())
+W = tf.constant([1.0,2.0,3.0,4.0,4.0,5.0])
+W = tf.reshape(W,[1,-1,1,1])
+print(W.shape)

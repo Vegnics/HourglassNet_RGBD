@@ -197,9 +197,11 @@ def tf_bivariate_normal_pdf(
             start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
         ),
     )
-    R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
-    factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
-    Z = factor * tf.exp(-0.5 * R)
+    #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
+    R = tf.sqrt(tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1]))
+    #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
+    #Z = factor * tf.exp(-0.5 * R)
+    Z = 10*tf.exp(-1.1*R)
     return Z
 
 

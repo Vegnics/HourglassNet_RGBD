@@ -9,9 +9,16 @@ class MAE_custom(keras.losses.Loss):
         super().__init__(reduction, name)
 
     def call(self, y_true, y_pred):
-        diff = y_true-y_pred
-        mse = tf.reduce_mean(tf.math.abs(diff),axis=[2,3])
-        mse = tf.reduce_sum(mse,axis=2)
+        #01234
+        #NSHWC
+        #NHWC
+        #W = tf.constant([2.0,2.5,3.0,3.0,3.0,8.0],dtype=tf.dtypes.float32)
+        #W = tf.reshape(W,[1,-1,1,1,1])
+        dist = tf.math.abs(y_true-y_pred)#*W
+        #cos = tf.math.greater_equal(y_true*y_pred,0.0)
+        mse = tf.reduce_sum(dist,axis=1)
+        mse = tf.reduce_mean(mse,axis=[1,2])
+        #mse = tf.reduce_sum(mse,axis=[1,2])
         mse = tf.reduce_mean(mse,axis=1)
         #sqr = tf.reduce_sum(tf.math.abs(diff),axis=1)
         #mae = tf.reduce_sum(sqr,axis=3)

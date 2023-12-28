@@ -247,7 +247,7 @@ def tf_train_map_normalize(
         pass
     if "Idem" in normalization:
         image = tf.math.divide_no_nan(
-            image,255.0)
+            image,1.0)
     if "Normal" in normalization:
         image = tf.math.divide_no_nan(
             image - tf.reduce_mean(image, axis=[0, 1]),

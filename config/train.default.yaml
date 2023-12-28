@@ -121,7 +121,7 @@ train:
     #source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     source: "keras.optimizers.schedules.ExponentialDecay"
     params:
-      initial_learning_rate: 0.0008 #0.00025
+      initial_learning_rate: 0.0005 #0.00025
       decay_steps: 900
       decay_rate: 0.92
   loss:

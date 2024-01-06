@@ -32,13 +32,13 @@ class ResidualLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        #self.skip = SkipLayer(
-        #    output_filters=output_filters,
-        #    name="Skip",
-        #    dtype=dtype,
-        #    dynamic=dynamic,
-        #    trainable=trainable,
-        #)
+        self.skip = SkipLayer(
+            output_filters=output_filters,
+            name="Skip",
+            dtype=dtype,
+            dynamic=dynamic,
+            trainable=trainable,
+        )
         self.add = layers.Add(name="Add")
 
     def get_config(self):
@@ -55,8 +55,8 @@ class ResidualLayer(Layer):
         return self.add(
             [
                 self.conv_block(inputs, training=training),
-                #self.skip(inputs, training=training),
-                inputs,
+                self.skip(inputs, training=training),
+                #inputs,
             ]
         )
     def build(self, input_shape):

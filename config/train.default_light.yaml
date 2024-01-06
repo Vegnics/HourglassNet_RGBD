@@ -8,7 +8,7 @@ data:
   input:
     mode: "RGB"
     #source: data/images.ignore.folder
-    source: /home/quinoa/mpii_human_pose_v1
+    source: /home/amaranth/mpii_human_pose_v1
     extensions:
       - png
       - jpeg
@@ -63,7 +63,7 @@ dataset:
     source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
     params:
       foo: bar
-  image_size: 128 #256
+  image_size: 256 #256
   column_image: image
   heatmap:
     size: 64 #64
@@ -86,11 +86,11 @@ dataset:
     train: true
     validation: true
     ratio_test: 0.001
-    ratio_train: 0.35
+    ratio_train: 0.4
     ratio_validation: 0.2
   bbox:
     activate: true
-    factor: 1.2
+    factor: 1.25
 
 model:
   object:
@@ -100,7 +100,7 @@ model:
   build_as_model : true
   data_format: NHWC
   params:
-    input_size: 128 #256
+    input_size: 256 #256
     output_size: 64 #64
     stages: 3
     downsamplings_per_stage: 4
@@ -131,16 +131,16 @@ train:
       foo: bar
   #loss: MeanSquaredError
   optimizer:
-    source: "keras.optimizers.RMSprop"
-    params:
-      rho: 0.9
-      momentum: 0.0
-      centered: true
-    #source: "keras.optimizers.Adam"
+    #source: "keras.optimizers.RMSprop"
     #params:
-    #  beta_1: 0.8
-    #  beta_2: 0.99
-    #  epsilon: 1e-08
+    #  rho: 0.9
+    #  momentum: 0.0
+    #  centered: true
+    source: "keras.optimizers.Adam"
+    params:
+      beta_1: 0.9
+      beta_2: 0.99
+      epsilon: 0.0000001
   metrics:
     #- 
     #  source: "hourglass_tensorflow.metrics.OverallMeanDistance"
@@ -177,7 +177,7 @@ train:
         histogram_freq: 1
         write_graph: true
         #write_grads: true
-        write_images: true
+        write_images: false
         update_freq: epoch
     -
       source: "tensorflow.keras.callbacks.CSVLogger"

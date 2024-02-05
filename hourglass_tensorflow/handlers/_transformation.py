@@ -1,4 +1,7 @@
 import tensorflow as tf
+from typing import List
+import cv2
+import numpy as np
 
 from hourglass_tensorflow.utils.tf import tf_stack
 from hourglass_tensorflow.utils.tf import tf_load_image
@@ -9,8 +12,11 @@ from hourglass_tensorflow.utils.tf import tf_resize_tensor
 from hourglass_tensorflow.utils.tf import tf_bivariate_normal_pdf
 from hourglass_tensorflow.utils.tf import tf_generate_padding_tensor
 from hourglass_tensorflow.utils.tf import tf_compute_padding_from_bbox
+from hourglass_tensorflow.utils.tf import tf_rotate_tensor,tf_rotate_coords,tf_rotate_norm_coords, tf_hm_distance
+from hourglass_tensorflow.utils.tf import tf_squarify_image_scale,tf_squarify_coordinates_scale,tf_expand_bbox_squared
 
 
+@tf.function
 def tf_train_map_build_slice(filename: tf.Tensor, coordinates: tf.Tensor) -> tf.Tensor:
     """First step loader for tf.data.Dataset mapper
 
@@ -29,7 +35,7 @@ def tf_train_map_build_slice(filename: tf.Tensor, coordinates: tf.Tensor) -> tf.
         tf.Tensor: _description_
     """
     # Load Image
-    print("RESHAPED ",tf.squeeze(filename))
+    #print("RESHAPED ",tf.squeeze(filename))
     _fname = tf.squeeze(filename)
     image = tf_load_image(_fname)
     # Shape coordinates
@@ -39,7 +45,129 @@ def tf_train_map_build_slice(filename: tf.Tensor, coordinates: tf.Tensor) -> tf.
     visibility = joints[:, 2]
     return (image, coordinates, visibility)
 
+@tf.function
+def tf_train_map_affine_augmentation(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
 
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    #angles = tf.constant([-30,-15,0,15,30])
+    """
+    affines = tf.constant([[-30,0.9],
+                           [-30,1.0],
+                           [-30,1.1],
+                           [-15,0.9],
+                           [-15,1.0],
+                           [-15,1.1],
+                           [0,0.9],
+                           [0,1.0],
+                           [0,1.1],
+                           [15,0.9],
+                           [15,1.0],
+                           [15,1.1],
+                           [25,0.9],
+                           [25,1.0],
+                           [25,1.1]],dtype=tf.float32)
+    """
+    affines = tf.constant([[-20,0.96],
+                           [-18,0.96],
+                           [-16,0.96],
+                            [-12.0,0.96],
+                            [-10.0,0.98],
+                            [-8.0,1.0],
+                           [0,0.95],
+                           [0,1.0],
+                           [0,1.1],
+                           [12.0,0.96],
+                            [10.0,0.98],
+                            [8.0,1.0],
+                           [20,0.96],
+                           [18,0.96],
+                           [16,0.96]],dtype=tf.float32)
+    #angles = tf.constant([-25,-15,0,15,25])
+    #scale = tf.constant([0.75,1.0,1.25],dtype=tf.float32)
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor(image,
+                                            affine[0],
+                                            affine[1],
+                                            input_size=input_size,
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+    _coordinates = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_norm_coords(coordinates,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float64,
+        parallel_iterations=10,
+    )
+    _visibilities = tf.stack([visibility]*15, axis=0)
+    
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+
+    #return (image,coordinates,visibility)
+    return (_images,_coordinates,_visibilities)
+
+@tf.function
+def tf_train_map_squarify_multiscale(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    scales = tf.constant([1.0,1.25,1.5],dtype=tf.float64) 
+
+    _images = tf.map_fn(
+        fn = (lambda scale:tf_squarify_image_scale(
+                                        image,
+                                        coordinates,
+                                        bbox_factor,
+                                        scale,)
+                                    ),
+        elems=scales,
+        dtype=tf.dtypes.uint8,
+        parallel_iterations=10,)
+    
+    _coordinates = tf.map_fn(
+        fn= (lambda scale: tf_squarify_coordinates_scale(
+                                        coordinates,
+                                        tf.shape(image),
+                                        bbox_factor,
+                                        scale,)
+                                        ),
+        elems=scales,
+        dtype=tf.dtypes.int32,
+        parallel_iterations=10)
+    
+    _visibilities = tf.stack([visibility]*3, axis=0)
+
+    return (_images,_coordinates,_visibilities)
+    
+
+@tf.function
 def tf_train_map_squarify(
     image: tf.Tensor,
     coordinates: tf.Tensor,
@@ -70,7 +198,7 @@ def tf_train_map_squarify(
     """
     if bbox_enabled:
         # Compute Bounding Box
-        bbox = tf_expand_bbox(
+        bbox = tf_expand_bbox_squared(
             tf_compute_bbox(coordinates),
             tf.shape(image),
             bbox_factor=bbox_factor,
@@ -101,7 +229,7 @@ def tf_train_map_squarify(
         visibility,
     )
 
-
+@tf.function
 def tf_train_map_resize_data(
     image: tf.Tensor,
     coordinates: tf.Tensor,
@@ -130,20 +258,26 @@ def tf_train_map_resize_data(
         tf.Tensor: _description_
     """
     # Reshape Image
-    shape = tf.cast(tf.shape(image), dtype=tf.dtypes.float32)
-    image = tf_resize_tensor(image, size=input_size)
+    shape = tf.cast(tf.shape(image), dtype=tf.dtypes.float64)
+    image = tf.cast(tf_resize_tensor(image, size=input_size),dtype=tf.dtypes.uint8)
     # We compute the Height and Width reduction factors
-    h_factor = shape[0] / tf.cast(input_size, tf.dtypes.float32)
-    w_factor = shape[1] / tf.cast(input_size, tf.dtypes.float32)
+    #h_factor = shape[0] / tf.cast(input_size, tf.dtypes.float64)
+    #w_factor = shape[1] / tf.cast(input_size, tf.dtypes.float64)
     # We can recompute relative Coordinates between 0-1 as float
+    """
     coordinates = (
-        tf.cast(coordinates, dtype=tf.dtypes.float32)
+        tf.cast(coordinates, dtype=tf.dtypes.float64)
         / (w_factor, h_factor)
         / input_size
     )
+    """
+    coordinates = (
+        tf.cast(coordinates, dtype=tf.dtypes.float64)
+        / (shape[1], shape[0])
+    )
     return (image, coordinates, visibility)
 
-
+@tf.function
 def tf_train_map_heatmaps(
     image: tf.Tensor,
     coordinates: tf.Tensor,
@@ -174,10 +308,10 @@ def tf_train_map_heatmaps(
         tf.Tensor: _description_
     """
     precision = tf.dtypes.float32
-
     # We move from relative coordinates to absolute ones by
     # multiplying the current coordinates [0-1] by the output_size
-    new_coordinates = coordinates * tf.cast(output_size, dtype=precision)
+    new_coordinates = coordinates * tf.cast(output_size, dtype=tf.float64)
+    new_coordinates = tf.cast(new_coordinates,dtype=precision)
     visibility = tf.cast(tf.reshape(visibility, (-1, 1)), dtype=precision)
 
     # First we concat joint coordinate and visibility
@@ -190,6 +324,8 @@ def tf_train_map_heatmaps(
     shape_tensor = tf.cast([output_size, output_size], dtype=precision)
     stddev_tensor = tf.cast([stddev, stddev], dtype=precision)
     # We generate joint's heatmaps
+    # tf_bivariate_normal_pdf
+    # tf_hm_distance
     heatmaps = tf.map_fn(
         fn=(
             lambda joint: tf_bivariate_normal_pdf(
@@ -197,15 +333,24 @@ def tf_train_map_heatmaps(
             )
             if joint[2] == 1.0
             else tf.zeros(tf.cast(shape_tensor, dtype=tf.dtypes.int32), dtype=precision)
+            #else tf.zeros(tf.cast(shape_tensor, dtype=tf.dtypes.int32), dtype=tf.dtypes.uint8)
         ),
         elems=joints,
         dtype=precision,
+        #dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
     )
+    #_sum = tf.reduce_sum(heatmaps,axis=[0,1,2])
+    #if _sum > 10:
+    #    print("[IMPORTANT] Greater than 10")
+    #"""
+    print("      HEAT   MAP SIZE: ....... ",heatmaps)
     # We Transpose Heatmaps dimensions to have [HEIGHT, WIDTH, CHANNELS] data format
     heatmaps = tf.transpose(heatmaps, [1, 2, 0])
+
     return (image, heatmaps)
 
-
+@tf.function
 def tf_train_map_normalize(
     image: tf.Tensor, heatmaps: tf.Tensor, normalization: str = None
 ) -> tf.Tensor:
@@ -238,16 +383,19 @@ def tf_train_map_normalize(
     Returns:
         tf.Tensor: _description_
     """
-    precision = tf.dtypes.float32
+    #precision = tf.dtypes.float32
+    precision = tf.dtypes.int16
 
-    image = tf.cast(image, dtype=precision)
-    heatmaps = tf.cast(heatmaps, dtype=precision)
+    image = tf.cast(image, dtype=tf.uint8)
+    heatmaps = tf.cast(heatmaps, dtype=tf.float32)
 
     if normalization is None:
         pass
     if "Idem" in normalization:
-        image = tf.math.divide_no_nan(
-            image,1.0)
+        image = tf.cast(tf.math.divide_no_nan(
+            image,1),dtype=tf.uint8)
+        heatmaps = tf.cast(tf.math.divide_no_nan(
+            heatmaps,1),dtype=tf.float32)
     if "Normal" in normalization:
         image = tf.math.divide_no_nan(
             image - tf.reduce_mean(image, axis=[0, 1]),
@@ -295,7 +443,7 @@ def tf_train_map_normalize(
         )
     return (image, heatmaps)
 
-
+@tf.function
 def tf_train_map_stacks(image: tf.Tensor, heatmaps: tf.Tensor, stacks: int = 1):
     """Sixth step tf.data.Dataset mapper to generate stacked hourglass.
 

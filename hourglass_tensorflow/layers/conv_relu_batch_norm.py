@@ -21,6 +21,8 @@ class ConvReluBatchNormLayer(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        use_relu: bool = True,
+        normalized: bool = True,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store Config
@@ -32,14 +34,16 @@ class ConvReluBatchNormLayer(Layer):
         self.kernel_initializer = kernel_initializer
         self.momentum = momentum
         self.epsilon = epsilon
+        self.use_relu = use_relu
+        self.normalized = normalized
         # Create Layers
         self.batch_norm = layers.BatchNormalization(
             axis=-1,
             momentum=momentum,
             epsilon=epsilon,
             trainable=trainable,
-            name="BatchNorm",
-        )
+            name="BatchNorm",) if self.normalized else lambda x,**y:x
+        
         self.conv = layers.Conv2D(
             filters=filters,
             kernel_size=kernel_size,
@@ -48,10 +52,8 @@ class ConvReluBatchNormLayer(Layer):
             name="Conv2D",
             activation=activation,
             kernel_initializer=kernel_initializer,
-        )
-        self.relu = layers.ReLU(
-            name="ReLU",
-        )
+            ) 
+        self.relu = layers.ReLU(name="ReLU",)  if self.use_relu else lambda x:x
 
     def get_config(self):
         return {
@@ -69,9 +71,11 @@ class ConvReluBatchNormLayer(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        x = self.conv(inputs)
+        #x = self.conv(inputs)
+        #x = self.batch_norm(x, training=training)
+        x = self.batch_norm(inputs, training=training)
+        x = self.conv(x)
         x = self.relu(x)
-        x = self.batch_norm(x, training=training)
         return x
     def build(self, input_shape):
         pass

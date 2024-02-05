@@ -5,7 +5,10 @@ from keras import layers
 from keras.layers import Layer
 
 from hourglass_tensorflow.layers.residual import ResidualLayer
+from hourglass_tensorflow.layers.residual_input import ResidualLayerIn
+#from hourglass_tensorflow.layers.residual_2 import ResidualLayerSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
+from hourglass_tensorflow.layers.batch_norm_conv_relu import BatchNormConvReluLayer
 
 
 class DownSamplingLayer(Layer):
@@ -38,6 +41,7 @@ class DownSamplingLayer(Layer):
             if i == 0:
                 self.layers.append(
                     ConvBatchNormReluLayer(
+                    #BatchNormConvReluLayer(
                         filters=(
                             output_filters // 4
                             if self.downsamplings > 1
@@ -53,7 +57,7 @@ class DownSamplingLayer(Layer):
                 )
             elif i == self.downsamplings - 1:
                 self.layers.append(
-                    ResidualLayer(
+                    ResidualLayerIn(
                         output_filters=output_filters,
                         name=f"Residual{i}",
                         dtype=dtype,
@@ -63,7 +67,7 @@ class DownSamplingLayer(Layer):
                 )
             else:
                 self.layers.append(
-                    ResidualLayer(
+                    ResidualLayerIn(
                         output_filters=output_filters // 2,
                         name=f"Residual{i}",
                         dtype=dtype,
@@ -89,7 +93,7 @@ class DownSamplingLayer(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        x = inputs
+        x = tf.cast(inputs,dtype=tf.dtypes.float32)
         for layer in self.layers:
             x = layer(x, training=training)
         return x

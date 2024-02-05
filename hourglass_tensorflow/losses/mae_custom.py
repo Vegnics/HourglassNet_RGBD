@@ -13,23 +13,39 @@ class MAE_custom(keras.losses.Loss):
         #NSHWC
         #NSHW
         #NHW
-        #W = tf.constant([3.0,2.5,2.0,2.0,2.5,3.0],dtype=tf.dtypes.float32)
-        W = tf.constant([3.0,2.0,3.0],dtype=tf.dtypes.float32)
+        #W = tf.constant([0.05,0.1,0.15,0.18,0.22,0.3],dtype=tf.dtypes.float32)
+        #W = tf.constant([0.05,0.15,0.2,0.25,0.3,0.25],dtype=tf.dtypes.float32)
+        #W = tf.constant([3.0,2.0,3.0],dtype=tf.dtypes.float32)
+        #W = tf.constant([0.48,0.52],dtype=tf.dtypes.float32)
+        #W = tf.constant([0.32,0.33,0.35],dtype=tf.dtypes.float32)
+        W = tf.constant([0.31,0.34,0.35],dtype=tf.dtypes.float32)
         W = tf.reshape(W,[1,-1,1,1,1])
-        dist = tf.math.abs(y_true-y_pred)*W
-        #cos = tf.math.greater_equal(y_true*y_pred,0.0)
-        mae = tf.reduce_mean(dist,axis=4)
-        mae = tf.reduce_sum(dist,axis=1)
-        #mse = tf.reduce_mean(mse,axis=[1,2])
-        #mse = tf.reduce_sum(mse,axis=[1,2])
-        #mse = tf.reduce_mean(mse,axis=1)
-        #sqr = tf.reduce_sum(tf.math.abs(diff),axis=1)
-        #mae = tf.reduce_sum(sqr,axis=3)
-        #mae = tf.reduce_mean(mae,axis=[1,2])
-        print(">>>>MAE SHAPE: ",mae.shape)
-        return mae
-        #return tf.nn.sigmoid_cross_entropy_with_logits(
-        #    logits=y_pred,
-        #    labels=y_true,
-        #    name="nn.sigmoid_cross_entropy_with_logits",
-        #)
+        #Rmax = tf.sqrt(tf.constant(2.0,dtype=tf.float32))*tf.constant(64.0,dtype=tf.float32)
+        #cy_true = tf.exp(-0.5*tf.square(Rmax*tf.cast(y_true,dtype=tf.dtypes.float32)/255.0))
+        #cy_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
+        #dist1 = tf.abs(tf.math.square(1.0+(cy_true-y_pred))-1.0)#NSHWC
+        sdiff = tf.math.square((y_true-y_pred))*W
+        #dist1 = (0.3*tf.math.pow(y_true,1/16) + 1.0) * sdiff
+        dist1 = sdiff+1e-6
+        #dist1 = dist1
+        #dist2 = tf.math.abs(cy_true-y_pred)*W
+        #dist1 = dist1 + dist2
+        #dist = tf.debugging.check_numerics(dist, message='Checking DIST')
+        """
+        dist = tf.reduce_mean(dist,axis=1) #NHWC
+        dist= tf.reduce_sum(dist,axis=[1,2])/64.0 #NC
+        dist = tf.reduce_sum(dist,axis=1)# N
+        """
+        dist1 = tf.reduce_sum(dist1,axis=1) #NHWC
+        #dist1 = tf.reduce_sum(dist1,axis=4) #NSHW
+        dist1 = tf.reduce_mean(dist1,axis=3)
+        dist1 = tf.reduce_mean(dist1,axis=[1,2]) #NS
+        #dist1 = tf.reduce_mean(dist1,axis=[1,2]) 
+        #dist1= tf.sqrt(tf.reduce_mean(dist1,axis=[1,2])) #N
+        #dist1 = tf.reduce_sum(dist1,axis=1) #N
+        #dist2 = tf.reduce_sum(dist2,axis=1) #NHWC
+        #dist2 = tf.reduce_sum(dist2,axis=3) #NHW
+        #dist2= tf.reduce_mean(dist2,axis=[1,2]) #N
+
+        #dist = 0.8*dist1 + 0.2*dist2
+        return dist1

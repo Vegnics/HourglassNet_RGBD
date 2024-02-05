@@ -11,18 +11,40 @@ class ResidualLayer(Layer):
         self,
         output_filters: int,
         momentum: float = 0.9,
-        epsilon: float = 1e-5,
+        epsilon: float = 1e-4,
         name: str = None,
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        use_last_relu: bool = True,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config
         self.output_filters = output_filters
         self.momentum = momentum
         self.epsilon = epsilon
-        # Create Layers
+        self.use_last_relu = use_last_relu
+        # Batch Norm layer 
+        #self.batch_norm = layers.BatchNormalization(
+        #    axis=-1,
+        #    momentum=momentum,
+        #    epsilon=epsilon,
+        #    trainable=trainable,
+        #    name="BatchNorm",
+        #)
+
+        # Conv Layer
+        #self.conv_layer = layers.Conv2D(
+        #    filters=self.output_filters,
+        #    kernel_size=1,
+        #    strides=1,
+        #    padding="same",
+        #    name="Conv2D",
+        #    activation=None,
+        #    kernel_initializer="glorot_uniform",
+        #)
+    
+        # Convolutional block
         self.conv_block = ConvBlockLayer(
             output_filters=output_filters,
             momentum=momentum,
@@ -32,15 +54,15 @@ class ResidualLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        self.skip = SkipLayer(
-            output_filters=output_filters,
-            name="Skip",
-            dtype=dtype,
-            dynamic=dynamic,
-            trainable=trainable,
-        )
+        #self.skip = SkipLayer(
+        #    output_filters=output_filters,
+        #    name="Skip",
+        #    dtype=dtype,
+        #    dynamic=dynamic,
+        #    trainable=trainable,
+        #)
         self.add = layers.Add(name="Add")
-
+        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
         return {
             **super().get_config(),
@@ -50,14 +72,17 @@ class ResidualLayer(Layer):
                 "epsilon": self.epsilon,
             },
         }
-
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        return self.add(
+        #_inputs = self.conv_layer(inputs ,training=training)
+        #_inputs = self.batch_norm(_inputs,training=training)
+        #_inputs = self.batch_norm(inputs,training=training)
+        #_inputs = self.conv_layer(_inputs ,training=training)
+        _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
-                self.skip(inputs, training=training),
-                #inputs,
-            ]
-        )
+                #self.skip(inputs, training=training),
+                inputs,
+            ])
+        return self.relu(_sum)
     def build(self, input_shape):
         pass

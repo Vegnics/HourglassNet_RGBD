@@ -1,7 +1,8 @@
 import math as m
-
+from typing import Tuple,List
 import tensorflow as tf
-
+import cv2
+import numpy as np
 
 @tf.function
 def tf_load_image(filename: tf.Tensor, channels: int = 3, **kwargs) -> tf.Tensor:
@@ -64,7 +65,205 @@ def tf_resize_tensor(tensor: tf.Tensor, size: int) -> tf.Tensor:
     Returns:
         tf.Tensor: resized tensor
     """
-    return tf.image.resize(tensor, size=[size, size], method="nearest")
+    return tf.image.resize(tensor, size=[size, size], method="bilinear") # PREVIOSLY nearest
+
+@tf.function
+def tf_rotate_tensor_OLD(tensor: tf.Tensor, angle: tf.Tensor ,tvec: tf.Tensor) -> tf.Tensor:
+    N = tensor.shape[0]
+    K = tf.range(0,N,1)
+    # Compute the rotation matrix and translation vector
+    center = tf.constant([N/2,N/2],dtype=tf.float32)
+    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
+    alpha = tf.math.cos(angle)
+    beta = tf.math.sin(angle)
+    t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
+    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
+    R_inv = tf.linalg.inv(R)
+
+    # Generate pairs of pixel positions
+    I,J = tf.meshgrid(K,K,indexing="ij")
+    I = tf.expand_dims(I,axis=2)
+    J = tf.expand_dims(J,axis=2)
+    indexes = tf.concat([I,J],axis=2)
+    indexes = tf.reshape(indexes,shape=[-1,2])
+    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.float32)
+
+    # Rotate the original pixel positions
+    r_indexes = R@indexes + t
+    # Obtain the new pixel positions whose coordinates are within the image
+    mask_min = tf.math.greater_equal(r_indexes,0.0)
+    mask_max = tf.math.less(r_indexes,1.0*N)
+    r_mask = mask_min[0,:]&mask_min[1,:]&mask_max[0,:]&mask_max[1,:]
+    r_indexes = tf.floor(r_indexes)
+    r_indexes = tf.transpose(r_indexes,perm=[1,0])
+    r_indexes = tf.boolean_mask(r_indexes,r_mask)
+    
+    # Reverse the rotation over the selected pixel positions to sample the image intensity values.
+    r_indexes = tf.transpose(r_indexes,perm=[1,0])
+    inv_ridxs = R_inv@(r_indexes - t)
+    # Obtain the original pixel positions where the original image will be sampled
+    imask_min = tf.math.greater_equal(inv_ridxs,0.0)
+    imask_max = tf.math.less(inv_ridxs,1.0*N)
+    ir_mask = imask_min[0,:]&imask_min[1,:]&imask_max[0,:]&imask_max[1,:]
+    inv_ridxs = tf.floor(inv_ridxs)
+    
+    # The definite original pixel position coordinates 
+    inv_ridxs = tf.transpose(inv_ridxs,perm=[1,0])
+    inv_ridxs = tf.cast(tf.boolean_mask(inv_ridxs,ir_mask),dtype=tf.dtypes.int32) # Px2
+
+    # The definite rotated pixel position coordinates
+    r_indexes = tf.transpose(r_indexes,perm=[1,0])
+    r_indexes = tf.cast(tf.boolean_mask(r_indexes,ir_mask),dtype=tf.dtypes.int32) # Px2
+    
+    # Sample the pixels from the original data
+    # inv_ridxs contains just a few pixel positions
+    pixels_original = tf.gather_nd(tensor,inv_ridxs)
+    
+    # Create a new tensor with the sampled data located at the rotated positions
+    img_rotated = tf.zeros_like(tensor) 
+    img_rotated = tf.tensor_scatter_nd_update(img_rotated, r_indexes, pixels_original)
+    _img_rotated = tf.reshape(img_rotated,shape=[-1,3])
+    zero_mask = tf.equal(_img_rotated,0)
+    zero_mask = zero_mask[:,0]&zero_mask[:,1]&zero_mask[:,2]
+
+    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.int32)
+    zero_idxs = tf.boolean_mask(indexes,zero_mask)
+    filled_vals = tf.map_fn(lambda coord:tf_get_nearest_neighbor(coord,
+                                                                 r_indexes),
+                            elems=zero_idxs,
+                            dtype=tf.dtypes.int32,
+                            parallel_iterations=100
+    )
+    #print(filled_vals)
+    #img_rotated = tf.tensor_scatter_nd_update(img_rotated, zero_idxs, filled_vals)
+    # Get indexes from black dots
+    # apply tf_get_nearest_neighbor to each black dot -> Tensor of values
+    # fill the black dots with the tensor of values
+    return (img_rotated,filled_vals)
+
+
+@tf.function
+def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_size: int=256) -> tf.Tensor:
+    N = float(input_size)
+    K = tf.range(0,N,1)
+    # Compute the rotation matrix and translation vector
+    center = tf.constant([N/2,N/2],dtype=tf.float32)
+    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
+    alpha = scale*tf.math.cos(angle)
+    beta = scale*tf.math.sin(angle)
+    t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
+    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
+    R_inv = tf.linalg.inv(R)
+
+    # Generate pairs of pixel positions for the rotated image
+    I,J = tf.meshgrid(K,K,indexing="ij")
+    I = tf.expand_dims(I,axis=2)
+    J = tf.expand_dims(J,axis=2)
+    indexes = tf.concat([I,J],axis=2)
+    indexes = tf.reshape(indexes,shape=[-1,2])
+    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.float32)
+
+    # Generate indexes from the original image (regarded as the inverse rotation)
+    inv_indexes = R_inv@(indexes - t)
+    inv_indexes = tf.transpose(tf.clip_by_value(inv_indexes,0.0,1.0*(N-1)),perm=[1,0])
+    inv_indexes = tf.cast(inv_indexes,dtype=tf.dtypes.int32)
+    pixels_original = tf.gather_nd(tensor,inv_indexes)
+
+    # Fill the whole rotated image with the data sampled from the inverse-rotated image (original)
+    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.int32)
+    img_rotated = tf.zeros_like(tensor) 
+    img_rotated = tf.tensor_scatter_nd_update(img_rotated, indexes, pixels_original)
+    return img_rotated
+
+def tf_get_nearest_neighbor(coordinate: tf.Tensor, indexes: tf.Tensor):#, values: tf.Tensor):
+    """
+    Args:
+    coordinate: A tensor representing a coordinate (2,)
+    indexes: Tensor with image coords (P,2)
+    values: Tensor with the values sampled from an image (P,3) 
+    """
+    coord = tf.expand_dims(coordinate,axis=0)
+    error = tf.cast(coord-indexes,dtype=tf.dtypes.float32)
+    dist = tf.norm(error,axis=-1)
+    neighbor = tf.argmin(dist)
+    return tf.cast(neighbor,dtype=tf.dtypes.int32)
+
+@tf.function
+def tf_rotate_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor, input_size: int = 256) -> tf.Tensor:
+    N = float(input_size)
+    # Compute the rotation matrix and translation vector
+    center = tf.constant([N/2,N/2],dtype=tf.float32)
+    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
+    alpha = tf.math.cos(angle)
+    beta = tf.math.sin(angle)
+    t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
+    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
+
+    # Compute the rotated coordinates
+    _coordinates = tf.transpose(coordinates,perm=[1,0])
+    rcoordinates = R@tf.cast(_coordinates,dtype=tf.dtypes.float32)+t
+
+    return tf.cast(tf.floor(tf.transpose(rcoordinates,perm=[1,0])),dtype=tf.dtypes.float32)
+
+def tf_rotate_norm_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
+    # Compute the rotation matrix and translation vector
+    #coordinates = tf.cast(coordinates,dtype=tf.float64)
+    scale = tf.cast(scale,dtype=tf.float64)
+    center = tf.constant([1/2,1/2],dtype=tf.float64)
+    angle = tf.cast(angle,dtype=tf.float64)*np.pi/180.0
+    alpha = scale*tf.math.cos(-angle)
+    beta = scale*tf.math.sin(-angle)
+    t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
+    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
+
+    # Compute the rotated coordinates
+    _coordinates = tf.transpose(coordinates,perm=[1,0])
+    rcoordinates = R@tf.cast(_coordinates,dtype=tf.dtypes.float64)+t
+    rcoordinates = tf.cast(tf.clip_by_value(rcoordinates,0.0,1.0),dtype=tf.float64)
+    return tf.transpose(rcoordinates,perm=[1,0])
+
+
+@tf.function
+def tf_squarify_coordinates_scale(coordinates: tf.Tensor, img_shape: tf.Tensor,
+    bbox_factor=1.0,
+    scale: float = 1.0) -> tf.Tensor:
+    bbox = tf_expand_bbox(
+        tf_compute_bbox(coordinates),
+        img_shape,#tf.shape(image),
+        bbox_factor=bbox_factor*scale,
+    )
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    padding = tf_compute_padding_from_bbox(bbox)
+    coordinates = coordinates - (bbox[0] - padding)
+    return coordinates
+
+@tf.function
+def tf_squarify_image_scale(image: tf.Tensor,
+    coordinates: tf.Tensor,
+    bbox_factor=1.0,
+    scale: float = 1.0) -> tf.Tensor:
+
+    bbox = tf_expand_bbox(
+        tf_compute_bbox(coordinates),
+        tf.shape(image),
+        bbox_factor=bbox_factor*scale,
+    )
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    padding = tf_compute_padding_from_bbox(bbox)
+    image = tf.pad(
+        image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :],
+        paddings=tf_generate_padding_tensor(padding),
+    )
+    return image
+
 
 
 @tf.function
@@ -167,10 +366,90 @@ def tf_expand_bbox(
         tf.cast(image_shape[0] - 1, dtype=tf.float64),
         bottom_right_y + height * (bbox_factor - 1.0),
     )
+
+    new_tl_x = tf.math.floor(new_tl_x)
+    new_tl_y = tf.math.floor(new_tl_y)
+    new_br_x = tf.math.floor(new_br_x)
+    new_br_y = tf.math.floor(new_br_y)
+    #new_w = new_br_x -new_tl_x
+    #new_h = 
     return tf.cast(
         tf_reshape_slice([new_tl_x, new_tl_y, new_br_x, new_br_y], shape=2, **kwargs),
         dtype=tf.int32,
     )
+
+@tf.function
+def tf_expand_bbox_squared(
+    bbox: tf.Tensor, image_shape: tf.Tensor, bbox_factor: float = 1.0, **kwargs
+) -> tf.Tensor:
+    """Expand a bounding box area by a given factor
+
+    Args:
+        bbox (tf.Tensor): Bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
+        image_shape (tf.Tensor): Image shape Tensor as [Height, Width, Channels]
+        bbox_factor (float, optional): Expansion factor. Defaults to 1.0.
+
+    Returns:
+        tf.Tensor: Expanded bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
+    """
+    # Unpack BBox
+    top_left = bbox[0]
+    top_left_x, top_left_y = tf.cast(top_left[0], dtype=tf.float64), tf.cast(
+        top_left[1], dtype=tf.float64
+    )
+    bottom_right = bbox[1]
+    bottom_right_x, bottom_right_y = tf.cast(
+        bottom_right[0], dtype=tf.float64
+    ), tf.cast(bottom_right[1], dtype=tf.float64)
+    # Compute Bbox H/W
+    height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
+    # Increase BBox Size
+    new_tl_x = tf.math.maximum(
+        tf.constant(0.0, dtype=tf.float64), top_left_x - width * (bbox_factor - 1.0)
+    )
+    new_tl_y = tf.math.maximum(
+        tf.constant(0.0, dtype=tf.float64), top_left_y - height * (bbox_factor - 1.0)
+    )
+    new_br_x = tf.math.minimum(
+        tf.cast(image_shape[1] - 1, dtype=tf.float64),
+        bottom_right_x + width * (bbox_factor - 1.0),
+    )
+    new_br_y = tf.math.minimum(
+        tf.cast(image_shape[0] - 1, dtype=tf.float64),
+        bottom_right_y + height * (bbox_factor - 1.0),
+    )
+
+    nwidth,nheight = new_br_x-new_tl_x,new_br_y-new_tl_y
+    N = tf.math.maximum(nwidth,nheight)
+    addW = tf.math.maximum(tf.constant(0.0,dtype=tf.float64),N-nwidth)
+    addH = tf.math.maximum(tf.constant(0.0,dtype=tf.float64),N-nheight)
+
+    new_tl_x = tf.math.maximum(
+        tf.constant(0.0, dtype=tf.float64), new_tl_x - addW/2
+    )
+    new_tl_y = tf.math.maximum(
+        tf.constant(0.0, dtype=tf.float64), new_tl_y - addH/2
+    )
+    new_br_x = tf.math.minimum(
+        tf.cast(image_shape[1] - 1, dtype=tf.float64),
+        new_br_x  + addW/2,
+    )
+    new_br_y = tf.math.minimum(
+        tf.cast(image_shape[0] - 1, dtype=tf.float64),
+        new_br_y + addH/2,
+    )
+
+    new_tl_x = tf.math.floor(new_tl_x)
+    new_tl_y = tf.math.floor(new_tl_y)
+    new_br_x = tf.math.floor(new_br_x)
+    new_br_y = tf.math.floor(new_br_y)
+    #new_w = new_br_x -new_tl_x
+    #new_h = 
+    return tf.cast(
+        tf_reshape_slice([new_tl_x, new_tl_y, new_br_x, new_br_y], shape=2, **kwargs),
+        dtype=tf.int32,
+    )
+
 
 
 @tf.function
@@ -197,12 +476,53 @@ def tf_bivariate_normal_pdf(
             start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
         ),
     )
+    mean = tf.round(mean)
     #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
-    R = tf.sqrt(tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1]))
+    R1 = tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1])
+    #R2 = tf.math.square((X - mean[0])/(4.0*stddev[0])) + tf.math.square((Y - mean[1])/(4.0*stddev[1]))
+    #R3 = tf.math.square((X - mean[0])/(16.0*stddev[0])) + tf.math.square((Y - mean[1])/(16.0*stddev[1]))
     #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
     #Z = factor * tf.exp(-0.5 * R)
-    Z = tf.exp(-0.5*R)
+    #Z1 = 0.75*tf.exp(-0.5*R1)
+    #Z2 = 0.16*tf.exp(-0.5*R2)
+    #Z3 = 0.09*tf.exp(-0.5*R3)
+    #Z = tf.cast(tf.math.floor(255.0*tf.exp(-0.5*R)),dtype=tf.dtypes.uint8)
+    #Z = tf.cast(tf.math.floor(255.0*(Z1+Z2+Z3)),dtype=tf.dtypes.uint8)
+    Z = tf.exp(-0.5*R1)
     return Z
+
+@tf.function
+def tf_hm_distance(
+    mean: tf.Tensor, stddev: tf.Tensor, shape: tf.Tensor, precision=tf.dtypes.float32
+) -> tf.Tensor:
+    """Produce a heatmap given a Bivariate normal propability density function
+
+    Args:
+        mean (tf.Tensor): Mean Tensor(tf.dtype.float*) as [m_x, m_y]
+        stddev (tf.Tensor): Standard Deviation Tensor(tf.dtype.float*) as [stdd_x, stdd_y]
+        shape (tf.Tensor): Heatmap shape Tensor(tf.dtype.float*) as [width, height]
+        precision (tf.dtypes, optional): Precision of the output tensor. Defaults to tf.dtypes.float32.
+
+    Returns:
+        tf.Tensor: Heatmap
+    """
+    # Compute Grid
+    X, Y = tf.meshgrid(
+        tf.range(
+            start=0.0, limit=tf.cast(shape[0], precision), delta=1.0, dtype=precision
+        ),
+        tf.range(
+            start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
+        ),
+    )
+    #mean = tf.floor(mean)
+    #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
+    R = tf.sqrt(tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1]))
+    Rmax = tf.sqrt(tf.constant(2.0,dtype=precision))*tf.constant(64.0,dtype=precision)
+    R_d = tf.cast(tf.clip_by_value(255.0*R/Rmax,0.0,255.0),dtype=tf.dtypes.uint8)
+    #Z = tf.cast(tf.math.floor(255.0*(Z1+Z2+Z3)),dtype=tf.dtypes.uint8)
+    #Z = tf.exp(-0.5*R)
+    return R_d
 
 
 @tf.function
@@ -309,7 +629,7 @@ def tf_dynamic_matrix_argmax(
     elif len(tf.shape(tensor)) == 5:
         # Batch of multiple Joint Heatmaps with Intermediate supervision
         # Considering NSHWC
-        print(f"{__name__}, Tensor shape: {tensor.shape.as_list()}")    
+        #print(f"{__name__}, Tensor shape: {tensor.shape.as_list()}")    
         argmax = tf_batch_matrix_argmax(tensor[:, -1, :, :, :])
         return argmax # -> Tensor NxCx2
     else:

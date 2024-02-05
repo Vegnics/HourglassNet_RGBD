@@ -9,7 +9,7 @@ class SkipLayer(Layer):
         output_filters: int,
         name: str = None,
         dtype=None,
-        dynamic=False,
+        dynamic=False, 
         trainable: bool = True,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
@@ -35,9 +35,12 @@ class SkipLayer(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        if inputs.get_shape()[-1] == self.output_filters:
-            return inputs
-        else:
-            return self.conv(inputs)
+        #if inputs.get_shape()[-1] == self.output_filters:
+        #    return inputs
+        #else:
+        #    v = self.conv(inputs)
+        #    return v
+        return self.conv(inputs)
+
     def build(self, input_shape):
         pass

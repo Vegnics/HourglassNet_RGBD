@@ -1,6 +1,8 @@
 import pytest
 import tensorflow as tf
 from loguru import logger
+import os,sys
+sys.path.insert(1,os.getcwd())
 
 from hourglass_tensorflow.utils.tf import tf_stack
 from hourglass_tensorflow.utils.tf import tf_load_image
@@ -394,3 +396,5 @@ def test_tf_dynamic_matrix_argmax_with_unsupported_rank(
         _ = tf_dynamic_matrix_argmax(
             tensor, intermediate_supervision=intermediate_supervision, keepdims=keepdims
         )
+params = {"mean":[10,10],"stddev":[3.0,3.0],"shape":[64,64]}
+test_tf_bivariate_normal_pdf(params)

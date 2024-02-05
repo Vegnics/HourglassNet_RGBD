@@ -3,6 +3,7 @@ from keras.models import Model
 
 from hourglass_tensorflow.types.config import HTFModelAsLayers
 from hourglass_tensorflow.layers.hourglass import HourglassLayer
+from hourglass_tensorflow.layers.hourglass_mod import HourglassLayerLast
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
 
 
@@ -54,13 +55,27 @@ class HourglassModel(Model):
                 dtype=dtype,
                 dynamic=dynamic,
                 trainable=trainable,
+                intermed= True 
             )
-            for i in range(stages)
+            for i in range(stages-1)
         ]
+        self.hourglasses.append(HourglassLayerLast(
+                downsamplings=downsamplings_per_stage,
+                feature_filters=stage_filters,
+                output_filters=output_channels,
+                name=f"Hourglass_LAST",
+                dtype=dtype,
+                dynamic=dynamic,
+                trainable=trainable,
+                intermed= False 
+            )
+        )
 
     def call(self, inputs: tf.Tensor, training=True):
-        x = self.downsampling(inputs)
+        x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))
+        #x = self.downsampling(inputs)
         outputs_list = []
+        """
         for layer in self.hourglasses:
             x, y = layer(x) # x is the output features, y is the intermediate output heatmaps
             if self._intermediate_supervision:
@@ -69,6 +84,12 @@ class HourglassModel(Model):
             self._outputs = tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
         else:
             self._outputs = y
+        return self._outputs
+        """
+        for hglayer in self.hourglasses:
+            x, y = hglayer(x) # x is the output features, y is the intermediate output heatmaps
+            outputs_list.append(y)
+        self._outputs = tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
         return self._outputs
 
 

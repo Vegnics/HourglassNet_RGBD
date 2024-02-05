@@ -91,9 +91,7 @@ class HTFTrainHandler(_HTFTrainHandler):
         self._callbacks = [obj.init() for obj in self.config.callbacks]
 
     def compile(self, model: Model, *args, **kwargs) -> None:
-        print("COMPILING: ",self._loss)
         model.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss)
-
     def _apply_batch(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         if isinstance(dataset, tf.data.Dataset):
             return dataset.batch(self._batch_size)
@@ -111,11 +109,12 @@ class HTFTrainHandler(_HTFTrainHandler):
 
         tds_card = int(train_dataset.cardinality().numpy())
         vds_card = int(train_dataset.cardinality().numpy())
-        train_dataset = train_dataset.shuffle(int(0.19*tds_card),reshuffle_each_iteration=True)
-        validation_dataset = validation_dataset.shuffle(int(0.25*vds_card),reshuffle_each_iteration=True)
-        train_dataset = train_dataset.repeat(10)
-        validation_dataset = validation_dataset.repeat(10)
+        train_dataset = train_dataset.shuffle(int(0.03*tds_card),reshuffle_each_iteration=True)
+        validation_dataset = validation_dataset.shuffle(int(0.03*vds_card),reshuffle_each_iteration=True)
+        train_dataset = train_dataset.repeat(5)
+        validation_dataset = validation_dataset.repeat(2)
         batch_train = self._apply_batch(train_dataset)
+        #print("   ??????    >>>BATCH TRAIN: ",batch_train)
         batch_validation = self._apply_batch(validation_dataset)
         batch_num = batch_train.__len__()
         print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())

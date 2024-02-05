@@ -16,7 +16,7 @@ class ConvBatchNormReluLayer(Layer):
         activation: str = None,
         kernel_initializer: str = "glorot_uniform",
         momentum: float = 0.9,
-        epsilon: float = 1e-5,
+        epsilon: float = 1e-4,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -69,6 +69,7 @@ class ConvBatchNormReluLayer(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
+        # Could it be CONV-> RELU -> BATCH NORM
         x = self.conv(inputs)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)

@@ -44,8 +44,8 @@ class HTFDatasetHeatmap(HTFConfigField):
     size: int = 64
     stacks: int = 3
     channels: int = 16
-    stddev: int = 16
-
+    #stddev: int = 16
+    stddev: float = 16
 
 class HTFDatasetMetadata(BaseModel):
     class Config:

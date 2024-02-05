@@ -26,6 +26,15 @@ from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify
 from hourglass_tensorflow.handlers._transformation import tf_train_map_normalize
 from hourglass_tensorflow.handlers._transformation import tf_train_map_build_slice
 from hourglass_tensorflow.handlers._transformation import tf_train_map_resize_data
+from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation
+from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify_multiscale
+
+def _stack_tensors(x,y):
+    if x==0:
+        print("INITIAL STATE")
+        return y
+    else:
+        return tf.stack([x,y],axis=0)
 
 # region Abstract Class
 
@@ -234,7 +243,102 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         """
         #Columns = self._extract_columns_from_data(data=data)
         #print(Columns[0])
-        return (
+        #gen_dataset = None
+        raw = tf.data.Dataset.from_tensor_slices(self._extract_columns_from_data(data=data)) #fname, coordinates
+        print("-------->RAW 1 :",raw)
+        raw = raw.map(tf_train_map_build_slice)  # Load Images
+        ### >>> HERE PERFORM DATA AUGMENTATION (Rotation)
+
+        print("-------->RAW 2 :",raw) # img, coords, visible
+
+        # Modify tf_train_map_squarify to compute the BBox at several scales  
+        """
+        #TODO
+        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify_multiscale(img,
+                    coord,
+                    vis,
+                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
+                    bbox_factor=self.config.bbox.factor,
+                )
+            ) # Compute BBOX cropping at multiple scales)
+        """
+        #raw = raw.unbatch()
+        #print("AFTER MULTISCALE SQUARIFY", raw)
+
+        #"""
+        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify(
+                    img,
+                    coord,
+                    vis,
+                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
+                    bbox_factor=self.config.bbox.factor,
+                )
+            ) # Compute BBOX cropping
+        #"""
+
+        print("-------->RAW 3 :",raw) # img, coord, vis
+        raw = raw.map(lambda img, coord, vis: tf_train_map_resize_data(
+                    img, coord, vis, input_size=int(self.config.image_size)
+                )
+            )# Resize Image
+        
+        #"""TODO
+        raw = raw.map(lambda img, coord, vis: tf_train_map_affine_augmentation(
+                    img,
+                    coord,
+                    vis,
+                    input_size=int(self.config.image_size)
+                    #rotation_angles=self.config.augmentation.rotation_angles,
+                    #shift_vals=self.config.augmentation.shift_values,
+                    #
+                )
+            )
+        raw = raw.unbatch()
+        #_imgs = _raw.map(lambda img, coord, vis:img)
+        #_coords = _raw.map(lambda img, coord, vis:coord)
+        #_vis = _raw.map(lambda img, coord, vis:vis)
+
+        #_imgs = _imgs.unbatch()
+        #_imgs = tf.convert_to_tensor(list(_imgs))
+        #imgs = imgs.reduce(tf.constant(0,dtype=tf.uint8),_stack_tensors)
+        #
+        #_coords = tf.reshape(tf.convert_to_tensor(list(_coords)),shape=[-1,16,2])
+        #_vis = tf.reshape(tf.convert_to_tensor(list(_vis)),shape=[-1,16])
+        
+        #print("OUT SHAPES ",_imgs.shape)
+
+        #print("NEW SHAPES: ",_imgs.shape,_coords.shape,_vis.shape)
+
+        print("-------->RAW 4 :",raw) # img, coord, vis        
+        raw = raw.map(lambda img, coord, vis: tf_train_map_heatmaps(
+                    img,
+                    coord,
+                    vis,
+                    output_size=int(self.config.heatmap.size),
+                    stddev=self.config.heatmap.stddev,
+                )
+            )# Get Heatmaps
+        print("-------->RAW 5 :",raw) # rimg, hms
+        raw = raw.map(
+                lambda img, hms: tf_train_map_normalize(
+                    img,
+                    hms,
+                    normalization=self.config.normalization,
+                )
+            )# Normalize Data
+        print("-------->RAW 6 :",raw)
+        raw = raw.map(
+                lambda img, hms: tf_train_map_stacks(
+                    img,
+                    hms,
+                    stacks=self.config.heatmap.stacks,
+                )# Stacks
+            )
+        print("-------->RAW 7 :",raw)
+        return raw
+        #"""
+
+        """return (
             tf.data.Dataset.from_tensor_slices(
                 self._extract_columns_from_data(data=data)
             )
@@ -268,14 +372,14 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                     stddev=self.config.heatmap.stddev,
                 )
             )
-            .map(
-                # Normalize Data
-                lambda img, hms: tf_train_map_normalize(
-                    img,
-                    hms,
-                    normalization=self.config.normalization,
-                )
-            )
+            #.map(
+            #    # Normalize Data
+            #    lambda img, hms: tf_train_map_normalize(
+            #        img,
+            #        hms,
+            #        normalization=self.config.normalization,
+            #    )
+            #)
             .map(
                 # Stacks
                 lambda img, hms: tf_train_map_stacks(
@@ -285,6 +389,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                 )
             )
         )
+        """
 
     def generate_datasets(self, *args, **kwargs) -> None:
         """
@@ -292,8 +397,12 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         heatmaps.
         """
         self._train_dataset = self._create_dataset(self._train_set)
+        self._train_dataset.shuffle(self._train_dataset.cardinality(),reshuffle_each_iteration=False)
+        print("TRAIN DATASET: ",self._train_dataset)
         self._test_dataset = self._create_dataset(self._test_set)
+        self._test_dataset.shuffle(self._test_dataset.cardinality(),reshuffle_each_iteration=False)
         self._validation_dataset = self._create_dataset(self._validation_set)
+        self._validation_dataset.shuffle(self._validation_dataset.cardinality(),reshuffle_each_iteration=False)
 
 
 # endregion

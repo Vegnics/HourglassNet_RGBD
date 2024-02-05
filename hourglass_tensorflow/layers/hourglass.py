@@ -3,8 +3,10 @@ from keras import layers
 from keras.layers import Layer
 
 from hourglass_tensorflow.layers.residual import ResidualLayer
+#from hourglass_tensorflow.layers.residual_3 import ResidualLayerNoSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
-
+from hourglass_tensorflow.layers.conv_1 import Conv1Layer
+from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
 
 class HourglassLayer(Layer):
     def __init__(
@@ -16,16 +18,19 @@ class HourglassLayer(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        intermed = False
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store Config
         self.downsamplings = downsamplings
         self.feature_filters = feature_filters
         self.output_filters = output_filters
+        self.intermed = intermed
         # Init parameters
         self.layers = [{} for i in range(self.downsamplings)]
         # Create Layers
-        self._hm_output = ConvBatchNormReluLayer(
+        #ConvBatchNormReluLayer
+        self._hm_output = Conv1Layer(
             # Layer for heatmaps output.
             filters=output_filters,
             kernel_size=1,
@@ -34,7 +39,7 @@ class HourglassLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        self._transit_output = ConvBatchNormReluLayer(
+        self._transit_output = BatchNormConv1Layer(
             # 
             filters=feature_filters,
             kernel_size=1,
@@ -43,6 +48,25 @@ class HourglassLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
+        self.transit_residual = ResidualLayer(output_filters=feature_filters,
+                                            name="Last_residual",
+                                            dtype=dtype,
+                                            dynamic=dynamic,
+                                            trainable=trainable,
+                                            use_last_relu=True,
+        )
+
+        self._last_residual = ResidualLayer(output_filters=feature_filters,
+                                            name="Last_residual",
+                                            dtype=dtype,
+                                            dynamic=dynamic,
+                                            trainable=trainable,
+                                            use_last_relu=True,
+        )
+        self.relu = layers.ReLU(
+            name="ReLU",
+        )
+        
         for i, downsampling in enumerate(self.layers):
             downsampling["up_1"] = ResidualLayer(
                 output_filters=feature_filters,
@@ -84,7 +108,7 @@ class HourglassLayer(Layer):
             downsampling["up_2"] = layers.UpSampling2D(
                 size=(2, 2),
                 data_format=None,
-                interpolation="nearest",
+                interpolation= "nearest", #"nearest",
                 name=f"Step{i}_UpSampling2D",
                 dtype=dtype,
                 dynamic=dynamic,
@@ -122,15 +146,17 @@ class HourglassLayer(Layer):
         out = step_layers["out"]([up_1, up_2], training=training)
         return out
 
-    def call(self, inputs, training=False):
+    def call(self, inputs, training=True):
         x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        intermediate = self._hm_output(x, training=training) # Intermediate Heatmap outputs
+        _x = self.transit_residual(x,training=training)
+        intermediate = self._hm_output(_x, training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
+        _out = self._last_residual(_x,training=training)
         out_tensor = tf.add_n(
-            [inputs, self._transit_output(intermediate, training=training), x],
+            [inputs, self.relu(self._transit_output(intermediate, training=training)), _out],
             name=f"{self.name}_OutputAdd",
         )
-        return out_tensor, intermediate
+        return out_tensor, intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
     def build(self, input_shape):
         pass

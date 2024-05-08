@@ -254,7 +254,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         # Modify tf_train_map_squarify to compute the BBox at several scales  
         """
         #TODO
-        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify_multiscale(img,
+        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify_augmentation(img,
                     coord,
                     vis,
                     bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
@@ -262,27 +262,6 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                 )
             ) # Compute BBOX cropping at multiple scales)
         """
-        #raw = raw.unbatch()
-        #print("AFTER MULTISCALE SQUARIFY", raw)
-
-        #"""
-        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify(
-                    img,
-                    coord,
-                    vis,
-                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
-                    bbox_factor=self.config.bbox.factor,
-                )
-            ) # Compute BBOX cropping
-        #"""
-
-        print("-------->RAW 3 :",raw) # img, coord, vis
-        raw = raw.map(lambda img, coord, vis: tf_train_map_resize_data(
-                    img, coord, vis, input_size=int(self.config.image_size)
-                )
-            )# Resize Image
-        
-        #"""TODO
         raw = raw.map(lambda img, coord, vis: tf_train_map_affine_augmentation(
                     img,
                     coord,
@@ -294,6 +273,31 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                 )
             )
         raw = raw.unbatch()
+        #raw = raw.unbatch()
+        print("AFTER MULTISCALE SQUARIFY", raw)
+
+        """
+        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify(
+                    img,
+                    coord,
+                    vis,
+                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
+                    bbox_factor=self.config.bbox.factor,
+                )
+            ) # Compute BBOX cropping
+        """
+
+        #print("-------->RAW 3 :",raw) # img, coord, vis
+        
+        raw = raw.map(lambda img, coord, vis: tf_train_map_resize_data(
+                    img, coord, vis, input_size=int(self.config.image_size)
+                )
+            )# Resize Image
+        
+        #"""TODO
+        
+        # ->>> train_affine_augmentation
+
         #_imgs = _raw.map(lambda img, coord, vis:img)
         #_coords = _raw.map(lambda img, coord, vis:coord)
         #_vis = _raw.map(lambda img, coord, vis:vis)

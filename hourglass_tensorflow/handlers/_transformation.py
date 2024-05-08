@@ -50,7 +50,7 @@ def tf_train_map_affine_augmentation(
     image: tf.Tensor,
     coordinates: tf.Tensor,
     visibility: tf.Tensor,
-    input_size: int
+    input_size: int = 64
     )-> tf.Tensor:
     """
     Args:
@@ -81,6 +81,130 @@ def tf_train_map_affine_augmentation(
     """
     affines = tf.constant([[-20,0.96],
                            [-18,0.96],
+                           [-16,0.97],
+                            [-12.0,0.97],
+                            [-10.0,0.98],
+                            [-8.0,1.0],
+                           [0,1.0],
+                           [0,1.0],
+                           [0,1.0],
+                           [12.0,0.97],
+                            [10.0,0.98],
+                            [8.0,1.0],
+                           [20,0.96],
+                           [18,0.96],
+                           [16,0.97]],dtype=tf.float32)
+
+    #angles = tf.constant([-25,-15,0,15,25])
+    #scale = tf.constant([0.75,1.0,1.25],dtype=tf.float32)
+    center = 0.5*(tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32))
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor(image,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            #input_size=input_size,
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+    _coordinates = tf.map_fn(
+        fn=(
+            #lambda affine: tf_rotate_norm_coords(coordinates,
+            lambda affine: tf_rotate_coords(coordinates,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        #dtype=tf.dtypes.float64,
+        parallel_iterations=10,
+    )
+    _visibilities = tf.stack([visibility]*15, axis=0)
+
+    _bboxf = tf.constant([1.095,1.08,1.08,1.07,1.05,1.09,1.03,1.08,1.13,1.095,1.08,1.08,1.07,1.05,1.09],
+                         dtype=tf.float32)
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               _bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+
+    #return (image,coordinates,visibility)
+    #return (_images,_coordinates,_visibilities)
+    return (tf.cast(_zipped[0],dtype=tf.uint8),
+            _zipped[1],
+            tf.cast(_zipped[2],dtype=tf.int32))
+
+@tf.function
+def tf_train_map_squarify_multiscale(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    scales = tf.constant([1.0,1.25,1.5],dtype=tf.float64) 
+
+    _images = tf.map_fn(
+        fn = (lambda scale:tf_squarify_image_scale(
+                                        image,
+                                        coordinates,
+                                        bbox_factor,
+                                        scale,)
+                                    ),
+        elems=scales,
+        dtype=tf.dtypes.uint8,
+        parallel_iterations=10,)
+    
+    _coordinates = tf.map_fn(
+        fn= (lambda scale: tf_squarify_coordinates_scale(
+                                        coordinates,
+                                        tf.shape(image),
+                                        bbox_factor,
+                                        scale,)
+                                        ),
+        elems=scales,
+        dtype=tf.dtypes.int32,
+        parallel_iterations=10)
+    
+    _visibilities = tf.stack([visibility]*3, axis=0)
+
+    return (_images,_coordinates,_visibilities)
+
+@tf.function
+def tf_train_map_squarify_augmentation(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    """
+    Perform augmentation and squarify to a predefined shape (1024,1024)
+    Rotate respect to 
+    """
+    affines = tf.constant([[-20,0.96],
+                           [-18,0.96],
                            [-16,0.96],
                             [-12.0,0.96],
                             [-10.0,0.98],
@@ -94,50 +218,6 @@ def tf_train_map_affine_augmentation(
                            [20,0.96],
                            [18,0.96],
                            [16,0.96]],dtype=tf.float32)
-    #angles = tf.constant([-25,-15,0,15,25])
-    #scale = tf.constant([0.75,1.0,1.25],dtype=tf.float32)
-    _images = tf.map_fn(
-        fn=(
-            lambda affine: tf_rotate_tensor(image,
-                                            affine[0],
-                                            affine[1],
-                                            input_size=input_size,
-            )
-        ),
-        elems=affines,
-        dtype=tf.dtypes.uint8,
-        parallel_iterations=10,
-    )
-    _coordinates = tf.map_fn(
-        fn=(
-            lambda affine: tf_rotate_norm_coords(coordinates,
-                                            affine[0],
-                                            affine[1],
-            )
-        ),
-        elems=affines,
-        dtype=tf.dtypes.float64,
-        parallel_iterations=10,
-    )
-    _visibilities = tf.stack([visibility]*15, axis=0)
-    
-    """
-    _images: a Tensor (R,H,W,3) of several images.
-    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
-    _visibilities: a Tensor (R,C), just copy the visibility values
-    """
-
-    #return (image,coordinates,visibility)
-    return (_images,_coordinates,_visibilities)
-
-@tf.function
-def tf_train_map_squarify_multiscale(
-    image: tf.Tensor,
-    coordinates: tf.Tensor,
-    visibility: tf.Tensor,
-    bbox_enabled=False,
-    bbox_factor=1.0,
-) -> tf.Tensor:
     scales = tf.constant([1.0,1.25,1.5],dtype=tf.float64) 
 
     _images = tf.map_fn(
@@ -218,14 +298,22 @@ def tf_train_map_squarify(
         image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :],
         paddings=tf_generate_padding_tensor(padding),
     )
+    nshape = tf.shape(image)
+    scale = 512.0/tf.cast(nshape[0],dtype=tf.dtypes.float32)
+    
     # Recompute coordinates
     # Given the padding and eventual bounding box
     # we need to recompute the coordinates from
     # a new origin
-    coordinates = coordinates - (bbox[0] - padding)
+    
+    #coordinates = coordinates - (bbox[0] - padding)
+    
+    coordinates = scale*(coordinates - tf.cast(bbox[0] - padding,dtype=tf.dtypes.float32))
+    
     return (
-        image,
+        tf_resize_tensor(image,512),
         coordinates,
+        visibility,
         visibility,
     )
 

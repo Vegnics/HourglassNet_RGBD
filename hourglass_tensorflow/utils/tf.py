@@ -143,11 +143,17 @@ def tf_rotate_tensor_OLD(tensor: tf.Tensor, angle: tf.Tensor ,tvec: tf.Tensor) -
 
 
 @tf.function
-def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_size: int=256) -> tf.Tensor:
-    N = float(input_size)
-    K = tf.range(0,N,1)
+#def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_size: int=256) -> tf.Tensor:
+def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
+    #N = float(input_size)
+    N = tensor.shape[0]
+    M = tensor.shape[1]
+    #K = tf.range(0,N,1)
+    Ki = tf.range(0,N,1)
+    Kj = tf.range(0,M,1)
     # Compute the rotation matrix and translation vector
-    center = tf.constant([N/2,N/2],dtype=tf.float32)
+    #center = tf.constant([N/2,N/2],dtype=tf.float32)
+    center = tf.cast(center,dtype=tf.float32)
     angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
     alpha = scale*tf.math.cos(angle)
     beta = scale*tf.math.sin(angle)
@@ -156,7 +162,8 @@ def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_
     R_inv = tf.linalg.inv(R)
 
     # Generate pairs of pixel positions for the rotated image
-    I,J = tf.meshgrid(K,K,indexing="ij")
+    #I,J = tf.meshgrid(K,K,indexing="ij")
+    I,J = tf.meshgrid(Ki,Kj,indexing="ij")
     I = tf.expand_dims(I,axis=2)
     J = tf.expand_dims(J,axis=2)
     indexes = tf.concat([I,J],axis=2)
@@ -189,13 +196,15 @@ def tf_get_nearest_neighbor(coordinate: tf.Tensor, indexes: tf.Tensor):#, values
     return tf.cast(neighbor,dtype=tf.dtypes.int32)
 
 @tf.function
-def tf_rotate_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor, input_size: int = 256) -> tf.Tensor:
-    N = float(input_size)
+#def tf_rotate_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor, input_size: int = 256) -> tf.Tensor:
+def tf_rotate_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
+    #N = float(input_size)
     # Compute the rotation matrix and translation vector
-    center = tf.constant([N/2,N/2],dtype=tf.float32)
+    #center = tf.constant([N/2,N/2],dtype=tf.float32)
+    center = 0.5*tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32)
     angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
-    alpha = tf.math.cos(angle)
-    beta = tf.math.sin(angle)
+    alpha = scale*tf.math.cos(-angle)
+    beta = scale*tf.math.sin(-angle)
     t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
     R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
 
@@ -392,6 +401,7 @@ def tf_expand_bbox_squared(
     Returns:
         tf.Tensor: Expanded bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
     """
+    bbox_factor = tf.cast(bbox_factor,tf.float64)
     # Unpack BBox
     top_left = bbox[0]
     top_left_x, top_left_y = tf.cast(top_left[0], dtype=tf.float64), tf.cast(

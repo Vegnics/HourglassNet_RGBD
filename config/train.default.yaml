@@ -8,7 +8,7 @@ data:
   input:
     mode: "RGB"
     #source: data/images.ignore.folder
-    source: /home/ivp_lab/mpii_human_pose_v1
+    source: ../mpii_human_pose_v1
     extensions:
       - png
       - jpeg

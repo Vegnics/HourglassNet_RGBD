@@ -72,12 +72,14 @@ shifts = [-10,0,10]
 coordinates = tf.convert_to_tensor(LM_POS)
 visibility = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
 A = tf_train_map_affine_augmentation(img_tf,coordinates,visibility)#,angles,shifts,256)
-print(A[1])
+print(tf.shape(A[0]))
+
 for img,coord in zip(A[0],A[1]):
     _img = img.numpy()
     _coord = coord.numpy()
     for pnt in _coord:
-        cv2.circle(_img,pnt,3,(255,0,0),-1) 
+        print(pnt)
+        cv2.circle(_img,(int(pnt[0]),int(pnt[1])),3,(255,0,0),-1) 
     plt.imshow(_img)
     plt.show()
 """

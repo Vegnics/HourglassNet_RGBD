@@ -38,17 +38,19 @@ def tf_train_map_build_slice(filename: tf.Tensor, coordinates: tf.Tensor) -> tf.
     #print("RESHAPED ",tf.squeeze(filename))
     _fname = tf.squeeze(filename)
     image = tf_load_image(_fname)
+    img_shape = tf.shape(image)
     print(image)
     # Shape coordinates
     joints = tf_reshape_slice(coordinates, shape=3)
     # Extract coordinates and visibility from joints
     coordinates = joints[:, :2]
     visibility = joints[:, 2]
-    return (image, coordinates, visibility)
+    return (image, coordinates, visibility,img_shape)
 
 @tf.function
 def tf_train_map_affine_augmentation(
     image: tf.Tensor,
+    img_shape: tf.Tensor,
     coordinates: tf.Tensor,
     visibility: tf.Tensor,
     input_size: int = 64
@@ -102,6 +104,7 @@ def tf_train_map_affine_augmentation(
     _images = tf.map_fn(
         fn=(
             lambda affine: tf_rotate_tensor(image,
+                                            img_shape,
                                             affine[0],
                                             affine[1],
                                             center,

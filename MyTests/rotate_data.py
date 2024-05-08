@@ -71,7 +71,7 @@ angles = [-15,0,15]
 shifts = [-10,0,10]
 coordinates = tf.convert_to_tensor(LM_POS)
 visibility = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
-A = tf_train_map_affine_augmentation(img_tf,coordinates,visibility)#,angles,shifts,256)
+A = tf_train_map_affine_augmentation(img_tf,img_tf.shape,coordinates,visibility)#,angles,shifts,256)
 print(tf.shape(A[0]))
 
 for img,coord in zip(A[0],A[1]):

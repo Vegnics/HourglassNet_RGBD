@@ -144,12 +144,14 @@ def tf_rotate_tensor_OLD(tensor: tf.Tensor, angle: tf.Tensor ,tvec: tf.Tensor) -
 
 @tf.function
 #def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_size: int=256) -> tf.Tensor:
-def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
+def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
     #N = float(input_size)
-    print("ROTATEEERR:",tensor)
+    print("ROTATEEERR:",tshape)
     print(tf.shape(tensor))
-    N = tensor.shape[0]
-    M = tensor.shape[1]
+    #N = tensor.shape[0]
+    #M = tensor.shape[1]
+    N = tshape[0]
+    M = tshape[1]
     #K = tf.range(0,N,1)
     Ki = tf.range(0,N,1)
     print(Ki)
@@ -175,7 +177,10 @@ def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center
 
     # Generate indexes from the original image (regarded as the inverse rotation)
     inv_indexes = R_inv@(indexes - t)
-    inv_indexes = tf.transpose(tf.clip_by_value(inv_indexes,0.0,1.0*(N-1)),perm=[1,0])
+    inv_indexes = tf.transpose(tf.clip_by_value(inv_indexes,
+                                                0.0,
+                                                1.0*(tf.cast(N,dtype=tf.float32)-1.0)),
+                                                perm=[1,0])
     inv_indexes = tf.cast(inv_indexes,dtype=tf.dtypes.int32)
     pixels_original = tf.gather_nd(tensor,inv_indexes)
 

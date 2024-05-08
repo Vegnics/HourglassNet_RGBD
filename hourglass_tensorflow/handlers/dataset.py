@@ -251,7 +251,8 @@ class HTFDatasetHandler(_HTFDatasetHandler):
 
         print("-------->RAW 2 :",raw) # img, coords, visible
 
-        # Modify tf_train_map_squarify to compute the BBox at several scales  
+        # Modify tf_train_map_squarify to compute the BBox at several scales
+          
         """
         #TODO
         raw = raw.map(lambda img, coord, vis: tf_train_map_squarify_augmentation(img,
@@ -262,8 +263,9 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                 )
             ) # Compute BBOX cropping at multiple scales)
         """
-        raw = raw.map(lambda img, coord, vis: tf_train_map_affine_augmentation(
+        raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation(
                     img,
+                    ishape,
                     coord,
                     vis,
                     input_size=int(self.config.image_size)

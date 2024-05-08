@@ -146,11 +146,13 @@ def tf_rotate_tensor_OLD(tensor: tf.Tensor, angle: tf.Tensor ,tvec: tf.Tensor) -
 #def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_size: int=256) -> tf.Tensor:
 def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
     #N = float(input_size)
-    print("ROTATEEE:",tensor)
+    print("ROTATEEERR:",tensor)
+    print(tf.shape(tensor))
     N = tensor.shape[0]
     M = tensor.shape[1]
     #K = tf.range(0,N,1)
     Ki = tf.range(0,N,1)
+    print(Ki)
     Kj = tf.range(0,M,1)
     # Compute the rotation matrix and translation vector
     #center = tf.constant([N/2,N/2],dtype=tf.float32)

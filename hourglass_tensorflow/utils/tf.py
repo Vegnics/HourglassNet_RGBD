@@ -146,7 +146,7 @@ def tf_rotate_tensor_OLD(tensor: tf.Tensor, angle: tf.Tensor ,tvec: tf.Tensor) -
 #def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,input_size: int=256) -> tf.Tensor:
 def tf_rotate_tensor(tensor: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
     #N = float(input_size)
-    print("ROTATEEE:",tf.shape(tensor))
+    print("ROTATEEE:",tensor)
     N = tensor.shape[0]
     M = tensor.shape[1]
     #K = tf.range(0,N,1)

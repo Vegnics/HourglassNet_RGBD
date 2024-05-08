@@ -107,10 +107,13 @@ class HTFTrainHandler(_HTFTrainHandler):
     ) -> None:
         _ = self._apply_batch(test_dataset)
 
-        tds_card = int(train_dataset.cardinality().numpy())
-        vds_card = int(train_dataset.cardinality().numpy())
-        train_dataset = train_dataset.shuffle(int(0.03*tds_card),reshuffle_each_iteration=True)
-        validation_dataset = validation_dataset.shuffle(int(0.03*vds_card),reshuffle_each_iteration=True)
+        #tds_card = int(train_dataset.cardinality().numpy())
+        #vds_card = int(train_dataset.cardinality().numpy())
+        #print("CARDINALITY",tds_card,vds_card)
+        #int(0.03*tds_card)
+        #int(0.03*vds_card)
+        train_dataset = train_dataset.shuffle(2000,reshuffle_each_iteration=True)
+        validation_dataset = validation_dataset.shuffle(1000,reshuffle_each_iteration=True)
         train_dataset = train_dataset.repeat(5)
         validation_dataset = validation_dataset.repeat(2)
         batch_train = self._apply_batch(train_dataset)

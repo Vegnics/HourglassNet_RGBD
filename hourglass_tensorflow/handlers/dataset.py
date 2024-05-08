@@ -249,7 +249,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         raw = raw.map(tf_train_map_build_slice)  # Load Images
         ### >>> HERE PERFORM DATA AUGMENTATION (Rotation)
 
-        print("-------->RAW 2 :",raw) # img, coords, visible
+        print("-------->RAW 2 :",raw,raw.cardinality()) # img, coords, visible
 
         # Modify tf_train_map_squarify to compute the BBox at several scales
           
@@ -274,9 +274,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                     #
                 )
             )
-        raw = raw.unbatch()
         #raw = raw.unbatch()
-        print("AFTER MULTISCALE SQUARIFY", raw)
+        print("AFTER MULTISCALE SQUARIFY", raw,raw.cardinality())
+        raw = raw.unbatch()
+        print("AFTER UNBATCH", raw,raw.cardinality())
 
         """
         raw = raw.map(lambda img, coord, vis: tf_train_map_squarify(

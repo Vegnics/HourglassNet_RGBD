@@ -115,6 +115,7 @@ def tf_train_map_affine_augmentation(
         dtype=tf.dtypes.uint8,
         parallel_iterations=10,
     )
+
     _coordinates = tf.map_fn(
         fn=(
             #lambda affine: tf_rotate_norm_coords(coordinates,
@@ -152,12 +153,13 @@ def tf_train_map_affine_augmentation(
     _coordinates: a Tensor (R,C,2) of coordinates for several rotations
     _visibilities: a Tensor (R,C), just copy the visibility values
     """
-
+    print("ZIPPED",_zipped[0].shape,type(_zipped),type(_zipped[0]))
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.uint8),[15,512,512,3])
+    _coords = tf.reshape(_zipped[1],[15,16,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[15,16])
     #return (image,coordinates,visibility)
     #return (_images,_coordinates,_visibilities)
-    return (tf.cast(_zipped[0],dtype=tf.uint8),
-            _zipped[1],
-            tf.cast(_zipped[2],dtype=tf.int32))
+    return (_images,_coords,_visibilities)
 
 @tf.function
 def tf_train_map_squarify_multiscale(

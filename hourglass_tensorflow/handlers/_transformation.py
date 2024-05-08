@@ -38,6 +38,7 @@ def tf_train_map_build_slice(filename: tf.Tensor, coordinates: tf.Tensor) -> tf.
     #print("RESHAPED ",tf.squeeze(filename))
     _fname = tf.squeeze(filename)
     image = tf_load_image(_fname)
+    print(image)
     # Shape coordinates
     joints = tf_reshape_slice(coordinates, shape=3)
     # Extract coordinates and visibility from joints

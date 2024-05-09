@@ -81,8 +81,8 @@ class Conv1Layer(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         #x = self.conv1(inputs)
-        x = self.batch_norm(inputs,training=training)
-        x = self.conv2(x)
+        x = self.conv2(inputs)
+        x = self.batch_norm(x,training=training)
         #x = self.batch_norm(x)
         return self.relu(x)
     def build(self, input_shape):

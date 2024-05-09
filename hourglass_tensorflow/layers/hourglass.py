@@ -49,7 +49,7 @@ class HourglassLayer(Layer):
             trainable=trainable,
         )
         self.transit_residual = ResidualLayer(output_filters=feature_filters,
-                                            name="Last_residual",
+                                            name="Transit_residual",
                                             dtype=dtype,
                                             dynamic=dynamic,
                                             trainable=trainable,
@@ -61,7 +61,7 @@ class HourglassLayer(Layer):
                                             dtype=dtype,
                                             dynamic=dynamic,
                                             trainable=trainable,
-                                            use_last_relu=True,
+                                            use_last_relu=False,
         )
         self.relu = layers.ReLU(
             name="ReLU",
@@ -154,9 +154,9 @@ class HourglassLayer(Layer):
         intermediate = self._hm_output(_x, training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
         _out = self._last_residual(_x,training=training)
         out_tensor = tf.add_n(
-            [inputs, self.relu(self._transit_output(intermediate, training=training)), _out],
+            [inputs, self._transit_output(intermediate, training=training), _out],
             name=f"{self.name}_OutputAdd",
         )
-        return out_tensor, intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
+        return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
     def build(self, input_shape):
         pass

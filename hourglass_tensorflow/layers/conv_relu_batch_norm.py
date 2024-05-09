@@ -71,11 +71,11 @@ class ConvReluBatchNormLayer(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        #x = self.conv(inputs)
+        x = self.conv(inputs)
         #x = self.batch_norm(x, training=training)
-        x = self.batch_norm(inputs, training=training)
-        x = self.conv(x)
+        #x = self.conv(x)
         x = self.relu(x)
+        x = self.batch_norm(x, training=training)
         return x
     def build(self, input_shape):
         pass

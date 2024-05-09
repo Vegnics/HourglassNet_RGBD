@@ -63,7 +63,7 @@ class ConvBlockLayer(Layer):
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-            use_relu=False,
+            use_relu=True,
             normalized = True, # Previous True
         )
 

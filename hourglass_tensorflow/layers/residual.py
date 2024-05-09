@@ -79,7 +79,7 @@ class ResidualLayer(Layer):
         #_inputs = self.conv_layer(_inputs ,training=training)
         _sum = self.add(
             [
-                self.conv_block(inputs, training=training),
+                self.conv_block(_inputs, training=training),
                 #self.skip(inputs, training=training),
                 inputs,
             ])

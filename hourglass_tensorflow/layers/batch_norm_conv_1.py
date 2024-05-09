@@ -74,10 +74,10 @@ class BatchNormConv1Layer(Layer):
         x = self.batch_norm(x,training=training)
         """
         # Previously BN -> CONV
-        #x = self.batch_norm(inputs,training=training) 
-        #x = self.conv(x)
-        x = self.conv(inputs)
-        x = self.batch_norm(x,training=training) 
+        x = self.batch_norm(inputs,training=training) 
+        x = self.conv(x)
+        #x = self.conv(inputs)
+        #x = self.batch_norm(x,training=training) 
         x = self.relu(x)
         return x
     def build(self, input_shape):

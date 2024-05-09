@@ -61,7 +61,7 @@ class HourglassLayer(Layer):
                                             dtype=dtype,
                                             dynamic=dynamic,
                                             trainable=trainable,
-                                            use_last_relu=False,
+                                            use_last_relu=True,
         )
         self.relu = layers.ReLU(
             name="ReLU",

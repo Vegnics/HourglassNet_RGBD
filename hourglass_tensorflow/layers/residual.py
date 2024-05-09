@@ -74,7 +74,7 @@ class ResidualLayer(Layer):
         }
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         #_inputs = self.conv_layer(inputs ,training=training)
-        _inputs = self.batch_norm(_inputs,training=training)
+        _inputs = self.batch_norm(inputs,training=training)
         #_inputs = self.batch_norm(inputs,training=training)
         #_inputs = self.conv_layer(_inputs ,training=training)
         _sum = self.add(

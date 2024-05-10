@@ -24,7 +24,7 @@ class MAE_custom(keras.losses.Loss):
         #cy_true = tf.exp(-0.5*tf.square(Rmax*tf.cast(y_true,dtype=tf.dtypes.float32)/255.0))
         #cy_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
         #dist1 = tf.abs(tf.math.square(1.0+(cy_true-y_pred))-1.0)#NSHWC
-        sdiff = tf.abs(y_true-y_pred)*W +1e-10
+        sdiff = (tf.abs(y_true-y_pred)+1e-10)*W
         #dist1 = (0.3*tf.math.pow(y_true,1/16) + 1.0) * sdiff
         dist1 = sdiff
         #dist1 = dist1

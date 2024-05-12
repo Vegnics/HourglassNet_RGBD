@@ -25,13 +25,13 @@ class ResidualLayer(Layer):
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
         # Batch Norm layer 
-        #self.batch_norm = layers.BatchNormalization(
-        #    axis=-1,
-        #    momentum=momentum,
-        #    epsilon=epsilon,
-        #    trainable=trainable,
-        #    name="BatchNorm",
-        #)
+        self.batch_norm = layers.BatchNormalization(
+            axis=-1,
+            momentum=momentum,
+            epsilon=epsilon,
+            trainable=trainable,
+            name="BatchNorm",
+        )
 
         # Conv Layer
         #self.conv_layer = layers.Conv2D(
@@ -74,14 +74,14 @@ class ResidualLayer(Layer):
         }
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         #_inputs = self.conv_layer(inputs ,training=training)
-        #_inputs = self.batch_norm(inputs,training=training)
+        _inputs = self.batch_norm(inputs,training=training)
         #_inputs = self.batch_norm(inputs,training=training)
         #_inputs = self.conv_layer(_inputs ,training=training)
         _sum = self.add(
             [
-                self.conv_block(inputs, training=training),
+                self.conv_block(_inputs, training=training),
                 #self.skip(inputs, training=training),
-                inputs,
+                _inputs,
             ])
         return self.relu(_sum)
     def build(self, input_shape):

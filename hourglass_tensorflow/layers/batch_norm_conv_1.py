@@ -50,9 +50,9 @@ class BatchNormConv1Layer(Layer):
             activation=activation,
             kernel_initializer=kernel_initializer,
         )
-        self.relu =layers.ReLU(
-            name="ReLU",
-        ) #<- lambda x:x
+        #self.relu =layers.ReLU(
+        #    name="ReLU",
+        #) #<- lambda x:x
     def get_config(self):
         return {
             **super().get_config(),
@@ -78,7 +78,7 @@ class BatchNormConv1Layer(Layer):
         x = self.conv(x)
         #x = self.conv(inputs)
         #x = self.batch_norm(x,training=training) 
-        x = self.relu(x)
+        #x = self.relu(x)
         return x
     def build(self, input_shape):
         pass

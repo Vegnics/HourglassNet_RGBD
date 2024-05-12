@@ -155,31 +155,33 @@ def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale:
     Kj = tf.range(0,M,1)
     # Compute the rotation matrix and translation vector
     #center = tf.constant([N/2,N/2],dtype=tf.float32)
-    center = tf.cast(center,dtype=tf.float32)
-    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
-    alpha = scale*tf.math.cos(angle)
-    beta = scale*tf.math.sin(angle)
+    center = tf.cast(center,dtype=tf.float64)
+    _center2 = tf.reshape(tf.cast(tshape[0:1],dtype=tf.float64)/2.0,[-1,1])
+    angle = tf.cast(angle,dtype=tf.float64)*np.pi/180.0
+    alpha = tf.cast(scale,dtype=tf.float64)*tf.math.cos(angle)
+    beta = -1.0*tf.cast(scale,dtype=tf.float64)*tf.math.sin(angle)
     t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
+    #R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
     R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
-    R_inv = tf.linalg.inv(R)
+    #R_inv = tf.linalg.inv(R)
 
     # Generate pairs of pixel positions for the rotated image
     #I,J = tf.meshgrid(K,K,indexing="ij")
-    I,J = tf.meshgrid(Ki,Kj,indexing="ij")
-    I = tf.expand_dims(I,axis=2)
-    J = tf.expand_dims(J,axis=2)
-    indexes = tf.concat([I,J],axis=2)
-    indexes = tf.reshape(indexes,shape=[-1,2])
-    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.float32)
-
+    I,J = tf.meshgrid(Ki,Kj,indexing="ij") #("yx")
+    I = tf.expand_dims(I,axis=2) #Y
+    J = tf.expand_dims(J,axis=2) #X
+    indexes = tf.concat([I,J],axis=2) # (Y,X)s
+    indexes = tf.reshape(indexes,shape=[-1,2]) #Nx2
+    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.float64) #2xN
+    _center = tf.reshape([center[1],center[0]],[-1,1])
     # Generate indexes from the original image (regarded as the inverse rotation)
-    inv_indexes = R_inv@(indexes - t)
+    inv_indexes = R@(indexes - _center)+_center
     #inv_indexes_x = tf.transpose(tf.clip_by_value(inv_indexes,
     #                                            0.0,
     #                                            1.0*(tf.cast(N,dtype=tf.float32)-1.0)),
     #                                            perm=[1,0])
-    inv_indexes_col = tf.clip_by_value(inv_indexes[1],0.0,1.0*(tf.cast(M,dtype=tf.float32)-1.0))
-    inv_indexes_row = tf.clip_by_value(inv_indexes[0],0.0,1.0*(tf.cast(N,dtype=tf.float32)-1.0))
+    inv_indexes_col = tf.clip_by_value(inv_indexes[1],0.0,1.0*(tf.cast(M,dtype=tf.float64)-1.0))
+    inv_indexes_row = tf.clip_by_value(inv_indexes[0],0.0,1.0*(tf.cast(N,dtype=tf.float64)-1.0))
     
     inv_indexes_col = tf.expand_dims(inv_indexes_col,axis=0)
     inv_indexes_row = tf.expand_dims(inv_indexes_row,axis=0)
@@ -209,22 +211,23 @@ def tf_get_nearest_neighbor(coordinate: tf.Tensor, indexes: tf.Tensor):#, values
 
 @tf.function
 #def tf_rotate_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor, input_size: int = 256) -> tf.Tensor:
-def tf_rotate_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
+def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
     #N = float(input_size)
     # Compute the rotation matrix and translation vector
     #center = tf.constant([N/2,N/2],dtype=tf.float32)
-    center = 0.5*tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32)
-    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
-    alpha = scale*tf.math.cos(-angle)
-    beta = scale*tf.math.sin(-angle)
+    _center2 = tf.reshape(tf.cast(tshape[0:1],dtype=tf.float64)/2.0,[-1,1])
+    center = tf.floor(0.5*tf.cast(coordinates[2]+coordinates[3],dtype=tf.float64))
+    angle = tf.cast(angle,dtype=tf.float64)*np.pi/180.0
+    alpha = tf.cast(scale,dtype=tf.float64)*tf.math.cos(angle)
+    beta = -1.0*tf.cast(scale,dtype=tf.float64)*tf.math.sin(angle)
     t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
-    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
-
+    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])  
     # Compute the rotated coordinates
     _coordinates = tf.transpose(coordinates,perm=[1,0])
-    rcoordinates = R@tf.cast(_coordinates,dtype=tf.dtypes.float32)+t
+    _center = tf.reshape(center,shape=(-1,1))
+    rcoordinates = R@(tf.cast(_coordinates,dtype=tf.dtypes.float64)-_center)+_center#-diff
 
-    return tf.cast(tf.floor(tf.transpose(rcoordinates,perm=[1,0])),dtype=tf.dtypes.float32)
+    return tf.cast(tf.transpose(rcoordinates,perm=[1,0]),dtype=tf.dtypes.float32)
 
 def tf_rotate_norm_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
     # Compute the rotation matrix and translation vector
@@ -345,6 +348,35 @@ def tf_compute_bbox(coordinates: tf.Tensor, **kwargs) -> tf.Tensor:
     maxx, minx = tf.reduce_max(Xs), tf.reduce_min(Xs)
     maxy, miny = tf.reduce_max(Ys), tf.reduce_min(Ys)
     return tf_reshape_slice([minx, miny, maxx, maxy], shape=2, **kwargs)
+
+def tf_compute_bbox_bc(coordinates: tf.Tensor, imgshape:tf.Tensor, **kwargs) -> tf.Tensor:
+    """From a 2D coordinates tensor compute the bounding box (body centered)
+
+    Args:
+        coordinates (tf.Tensor): Joint coordinates 2D tensor
+
+    Returns:
+        tf.Tensor: Bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
+    """
+    bcenter = 0.5*tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32)
+    dists = tf.abs(tf.cast(coordinates,tf.float32)-bcenter) 
+    dxs = dists[:, 0]
+    dys = dists[:, 1]
+    maxx = tf.reduce_max(dxs)
+    maxy = tf.reduce_max(dys)
+    """
+    bminx = tf.cast(bcenter[0]-maxx,tf.int32)
+    bmaxx = tf.cast(bcenter[0]+maxx,tf.int32)
+    bminy = tf.cast(bcenter[1]-maxy,tf.int32)
+    bmaxy = tf.cast(bcenter[1]+maxy,tf.int32)
+    print(bminx>0,bmaxx>0,bminy>0,bmaxy>0)
+    """
+    bminx = tf.cast(tf.maximum(bcenter[0]-maxx,0.0),tf.int32)
+    bmaxx = tf.cast(tf.minimum(bcenter[0]+maxx,tf.cast(imgshape[1]-1,tf.float32)),tf.int32)
+    bminy = tf.cast(tf.maximum(bcenter[1]-maxy,0.0),tf.int32)
+    bmaxy = tf.cast(tf.minimum(bcenter[1]+maxy,tf.cast(imgshape[0]-1,tf.float32)),tf.int32)
+    return tf_reshape_slice([bminx, bminy, bmaxx, bmaxy], shape=2, **kwargs)
+
 
 
 @tf.function

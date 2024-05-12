@@ -21,6 +21,8 @@ class BatchNormReluConvLayer(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        use_relu: bool = True,
+        normalized: bool = True,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store Config
@@ -32,6 +34,8 @@ class BatchNormReluConvLayer(Layer):
         self.kernel_initializer = kernel_initializer
         self.momentum = momentum
         self.epsilon = epsilon
+        self.use_relu = use_relu
+        self.normalized = normalized
         # Create Layers
         self.batch_norm = layers.BatchNormalization(
             axis=-1,

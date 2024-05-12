@@ -6,7 +6,7 @@ import numpy as np
 from hourglass_tensorflow.utils.tf import tf_stack
 from hourglass_tensorflow.utils.tf import tf_load_image
 from hourglass_tensorflow.utils.tf import tf_expand_bbox
-from hourglass_tensorflow.utils.tf import tf_compute_bbox
+from hourglass_tensorflow.utils.tf import tf_compute_bbox,tf_compute_bbox_bc
 from hourglass_tensorflow.utils.tf import tf_reshape_slice
 from hourglass_tensorflow.utils.tf import tf_resize_tensor
 from hourglass_tensorflow.utils.tf import tf_bivariate_normal_pdf
@@ -82,25 +82,32 @@ def tf_train_map_affine_augmentation(
                            [25,1.0],
                            [25,1.1]],dtype=tf.float32)
     """
-    affines = tf.constant([[-20,0.96],
-                           [-18,0.96],
-                           [-16,0.97],
-                            [-12.0,0.97],
-                            [-10.0,0.98],
+    affines = tf.constant([[-20,1.0],
+                           [-18,1.0],
+                           [-16,1.0],
+                            [-12.0,1.0],
+                            [-10.0,1.0],
                             [-8.0,1.0],
                            [0,1.0],
                            [0,1.0],
                            [0,1.0],
-                           [12.0,0.97],
-                            [10.0,0.98],
-                            [8.0,1.0],
-                           [20,0.96],
-                           [18,0.96],
-                           [16,0.97]],dtype=tf.float32)
+                           [8.0,1.0],
+                            [10.0,1.0],
+                            [12.0,1.0],
+                           [16,1.0],
+                           [18,1.0],
+                           [20,1.0]],dtype=tf.float32)
 
     #angles = tf.constant([-25,-15,0,15,25])
     #scale = tf.constant([0.75,1.0,1.25],dtype=tf.float32)
-    center = 0.5*(tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32))
+    bbox = tf_expand_bbox_squared(
+            tf_compute_bbox(coordinates),
+            img_shape,
+            1.03,
+        )
+    
+    center = tf.floor(0.5*(tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32)))
+    #center = tf.floor(0.5*(tf.cast(bbox[0]+bbox[1],dtype=tf.float32)))
     _images = tf.map_fn(
         fn=(
             lambda affine: tf_rotate_tensor(image,
@@ -120,6 +127,7 @@ def tf_train_map_affine_augmentation(
         fn=(
             #lambda affine: tf_rotate_norm_coords(coordinates,
             lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
                                             affine[0],
                                             affine[1],
             )
@@ -131,8 +139,10 @@ def tf_train_map_affine_augmentation(
     )
     _visibilities = tf.stack([visibility]*15, axis=0)
 
-    _bboxf = tf.constant([1.095,1.08,1.08,1.07,1.05,1.09,1.03,1.08,1.13,1.095,1.08,1.08,1.07,1.05,1.09],
-                         dtype=tf.float32)
+    #_bboxf = tf.constant([1.095,1.08,1.08,1.07,1.05,1.09,1.03,1.08,1.13,1.095,1.08,1.08,1.07,1.05,1.09],
+    #                     dtype=tf.float32)
+    _bboxf = tf.constant([1.08,1.075,1.08,1.08,1.08,1.08,1.05,1.09,1.075,1.08,1.07,1.075,1.07,1.07,1.075],
+                         dtype=tf.float32) - 0.031
     _zipped = tf.map_fn(
         fn=(
             lambda imgncoords: tf_train_map_squarify(imgncoords[0],
@@ -153,10 +163,12 @@ def tf_train_map_affine_augmentation(
     _coordinates: a Tensor (R,C,2) of coordinates for several rotations
     _visibilities: a Tensor (R,C), just copy the visibility values
     """
-    print("ZIPPED",_zipped[0].shape,type(_zipped),type(_zipped[0]))
+    #print("ZIPPED",_zipped[0].shape,type(_zipped),type(_zipped[0]))
+    
     _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.uint8),[15,512,512,3])
     _coords = tf.reshape(_zipped[1],[15,16,2])
     _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[15,16])
+    
     #return (image,coordinates,visibility)
     #return (_images,_coordinates,_visibilities)
     return (_images,_coords,_visibilities)
@@ -285,6 +297,7 @@ def tf_train_map_squarify(
     if bbox_enabled:
         # Compute Bounding Box
         bbox = tf_expand_bbox_squared(
+            #tf_compute_bbox_bc(coordinates,tf.shape(image)),
             tf_compute_bbox(coordinates),
             tf.shape(image),
             bbox_factor=bbox_factor,
@@ -298,6 +311,7 @@ def tf_train_map_squarify(
     # how much V/H padding should be applied
     # Padding is necessary to conserve proportions
     # when resizing
+    print(bbox)
     padding = tf_compute_padding_from_bbox(bbox)
     # Generate Squared Image with Padding
     image = tf.pad(
@@ -305,7 +319,7 @@ def tf_train_map_squarify(
         paddings=tf_generate_padding_tensor(padding),
     )
     nshape = tf.shape(image)
-    scale = 512.0/tf.cast(nshape[0],dtype=tf.dtypes.float32)
+    scale = 512.0/tf.cast(nshape[1],dtype=tf.dtypes.float32)
     
     # Recompute coordinates
     # Given the padding and eventual bounding box

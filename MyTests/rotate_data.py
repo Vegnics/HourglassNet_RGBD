@@ -43,6 +43,25 @@ LM_POS = [ (49,220),
 (146,94),
 (180,94)]
 
+LM_POS =[ #swimmer
+(480, 456),
+(460, 446),
+(397, 390),
+(484, 347),
+(536, 456),
+(545, 427),
+(457, 379),
+(417, 294),
+(405, 261),
+(361, 146),
+(278, 133),
+(275, 208),
+(330, 238),
+(470, 213),
+(515, 262),
+(539, 331)
+]
+
 """
 tofloat = lambda x:(float(x[0]),float(x[1]))
 center = tofloat(LM_POS[5])
@@ -66,11 +85,12 @@ cx = _center[0]
 cy = _center[1]
 #cx = 128
 #cy = 128
-img_tf = tf_load_image("data/test_tennis.png")
+img_tf = tf_load_image("data/test_swimmer.png")
 angles = [-15,0,15]
 shifts = [-10,0,10]
 coordinates = tf.convert_to_tensor(LM_POS)
 visibility = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
+print(img_tf.shape)
 A = tf_train_map_affine_augmentation(img_tf,img_tf.shape,coordinates,visibility)#,angles,shifts,256)
 print(tf.shape(A[0]))
 
@@ -79,7 +99,7 @@ for img,coord in zip(A[0],A[1]):
     _coord = coord.numpy()
     for pnt in _coord:
         print(pnt)
-        cv2.circle(_img,(int(pnt[0]),int(pnt[1])),3,(255,0,0),-1) 
+        cv2.circle(_img,(int(pnt[0]),int(pnt[1])),5,(255,0,0),-1) 
     plt.imshow(_img)
     plt.show()
 """

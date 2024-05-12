@@ -26,7 +26,7 @@ LM_NAMES = [ "rAnkle",
             "lElbow",
             "lWrist"]
 
-LM_POS = [ 
+LM_POS = [# tennis
 (483, 572),
 (524, 443),
 (519, 299),
@@ -45,7 +45,7 @@ LM_POS = [
 (714, 276)
 ]
 
-LM_POS =[
+LM_POS =[ #swimmer
 (480, 456),
 (460, 446),
 (397, 390),
@@ -64,6 +64,25 @@ LM_POS =[
 (539, 331)
 ]
 
+LM_POS1 =[ #basket
+(162, 291),
+(207, 336),
+(163, 203),
+(220, 193),
+(262, 298),
+(248, 408),
+(200, 196),
+(223, 135),
+(217, 83),
+(239, 33),
+(69, 101),
+(115, 101),
+(180, 90),
+(262, 88),
+(322, 79),
+(291, 84)
+]
+
 #"""
 img_tf = tf_load_image("data/test_swimmer.png")
 #"""
@@ -71,19 +90,20 @@ img_tf = tf_load_image("data/test_swimmer.png")
 coordinates = tf.convert_to_tensor(LM_POS,dtype=tf.int32)
 #rcoordinates = tf.convert_to_tensor(LM_POS,dtype=tf.float32)/256.0
 visibility = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
-img,coords,vis = tf_train_map_squarify(img_tf,coordinates,visibility,bbox_enabled=True,bbox_factor=1.14)
-img,coords,vis = tf_train_map_resize_data(img,coords,vis,input_size=256)
-imgs,coords,vis = tf_train_map_affine_augmentation(img,coords,vis,input_size=256)
+#img,coords,vis = tf_train_map_squarify(img_tf,coordinates,visibility,bbox_enabled=True,bbox_factor=1.14)
+imgs,coords,vis = tf_train_map_affine_augmentation(img_tf,img_tf.shape,coordinates,visibility)
+
 for i in range(imgs.shape[0]):
-    r_img = imgs[i].numpy()
+    _img,_coords,_vis = tf_train_map_resize_data(imgs[i],coords[i],vis[i],input_size=400)
+    r_img = _img.numpy()
     #bbox = tf_compute_bbox(256.0*coords[i])
     #bbox = tf_expand_bbox_squared(bbox,tf.constant([256,256,3],dtype=tf.int32),1.155)
     #tx,ty,bx,by = int(bbox[0,0]),int(bbox[0,1]),int(bbox[1,0]),int(bbox[1,1])
     #cv2.rectangle(r_img,(tx,ty),(bx,by),(0,0,255),2)
-    r_coords = 256.0*coords[i].numpy()
+    r_coords = 400.0*_coords.numpy()
     for pnt in r_coords:
         center = (int(pnt[0]),int(pnt[1]))
-        cv2.circle(r_img,center,3,(255,0,0),-1)
+        cv2.circle(r_img,center,5,(255,0,0),-1)
     plt.imshow(r_img)
     plt.show() 
 #"""

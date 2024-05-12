@@ -62,7 +62,7 @@ class ResidualLayerIn(Layer):
         #    trainable=trainable,
         #)
         self.add = layers.Add(name="Add")
-        self.relu_prior = layers.ReLU(name="ReLU_prior",)
+        #self.relu_prior = layers.ReLU(name="ReLU_prior",)
         self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
         return {
@@ -76,7 +76,7 @@ class ResidualLayerIn(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         _inputs = self.batch_norm(inputs,training=training)
-        _inputs = self.relu_prior(self.conv_layer(_inputs))
+        _inputs = self.conv_layer(_inputs)
         #skip = self.conv_layer(_inputs)
         _sum = self.add(
             [

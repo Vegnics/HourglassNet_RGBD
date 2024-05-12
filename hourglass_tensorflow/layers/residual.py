@@ -25,13 +25,13 @@ class ResidualLayer(Layer):
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
         # Batch Norm layer 
-        self.batch_norm = layers.BatchNormalization(
-            axis=-1,
-            momentum=momentum,
-            epsilon=epsilon,
-            trainable=trainable,
-            name="BatchNorm",
-        )
+        #self.batch_norm = layers.BatchNormalization(
+        #    axis=-1,
+        #    momentum=momentum,
+        #    epsilon=epsilon,
+        #    trainable=trainable,
+        #    name="BatchNorm",
+        #)
 
         # Conv Layer
         #self.conv_layer = layers.Conv2D(

@@ -43,7 +43,7 @@ class BatchNormReluConvLayer(Layer):
             epsilon=epsilon,
             trainable=trainable,
             name="BatchNorm",
-        )
+        ) if self.normalized else lambda x,**y:x
         self.conv = layers.Conv2D(
             filters=filters,
             kernel_size=kernel_size,
@@ -55,7 +55,7 @@ class BatchNormReluConvLayer(Layer):
         )
         self.relu = layers.ReLU(
             name="ReLU",
-        )
+        ) if self.use_relu else lambda x:x
 
     def get_config(self):
         return {

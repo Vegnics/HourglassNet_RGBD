@@ -81,7 +81,7 @@ class ResidualLayer(Layer):
             [
                 self.conv_block(_inputs, training=training),
                 #self.skip(inputs, training=training),
-                _inputs,
+                inputs,
             ])
         return self.relu(_sum)
     def build(self, input_shape):

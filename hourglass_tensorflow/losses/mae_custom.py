@@ -18,7 +18,7 @@ class MAE_custom(keras.losses.Loss):
         #W = tf.constant([3.0,2.0,3.0],dtype=tf.dtypes.float32)
         #W = tf.constant([0.48,0.52],dtype=tf.dtypes.float32)
         #W = tf.constant([0.32,0.33,0.35],dtype=tf.dtypes.float32)
-        W = tf.constant([0.31,0.34,0.36],dtype=tf.dtypes.float32)
+        W = tf.constant([0.33,0.34,0.35],dtype=tf.dtypes.float32)
         W = tf.reshape(W,[1,-1,1,1,1])
         #Rmax = tf.sqrt(tf.constant(2.0,dtype=tf.float32))*tf.constant(64.0,dtype=tf.float32)
         #cy_true = tf.exp(-0.5*tf.square(Rmax*tf.cast(y_true,dtype=tf.dtypes.float32)/255.0))

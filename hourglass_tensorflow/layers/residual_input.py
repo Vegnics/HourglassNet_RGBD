@@ -55,7 +55,7 @@ class ResidualLayerIn(Layer):
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-            use_relu=True,
+            use_relu=False,
             normalized = True, # Previous True
         )
 

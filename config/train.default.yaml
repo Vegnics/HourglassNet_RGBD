@@ -69,7 +69,7 @@ dataset:
     size: 64 #64
     stacks: 3
     channels: 16
-    stddev: 1.12
+    stddev: 1.5
   normalization: "Idem"
   augmentation:
     - 

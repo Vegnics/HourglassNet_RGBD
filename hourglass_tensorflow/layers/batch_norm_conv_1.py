@@ -78,7 +78,7 @@ class BatchNormConv1Layer(Layer):
         #x = self.conv(x)
         x = self.conv(inputs)
         x = self.batch_norm(x,training=training) 
-        #x = self.relu(x)
+        x = self.relu(x)
         return x
     def build(self, input_shape):
         pass

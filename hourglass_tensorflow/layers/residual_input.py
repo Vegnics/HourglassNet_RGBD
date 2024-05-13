@@ -96,7 +96,7 @@ class ResidualLayerIn(Layer):
         _inputs = self.match_layer(inputs,training=training)
         _sum = self.add(
             [
-                self.conv_block(_inputs, training=training),
+                self.conv_block(inputs, training=training),
                 #self.skip(inputs, training=training),
                 _inputs,#skip,
             ])

@@ -52,7 +52,7 @@ class Conv1Layer(Layer):
             kernel_initializer=kernel_initializer,
         )
         """
-        self.conv2 = layers.Conv2D(
+        self.conv = layers.Conv2D(
             filters=filters,
             kernel_size=kernel_size,
             strides=strides,
@@ -80,9 +80,9 @@ class Conv1Layer(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        #x = self.conv1(inputs)
-        x = self.batch_norm(inputs,training=training)
-        x = self.conv2(x)
+        x = self.conv(inputs)
+        x = self.batch_norm(x,training=training)
+        #x = self.conv(x)
         #x = self.batch_norm(x)
         return self.relu(x)
     def build(self, input_shape):

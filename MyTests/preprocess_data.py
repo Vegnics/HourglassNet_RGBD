@@ -83,8 +83,27 @@ LM_POS1 =[ #basket
 (291, 84)
 ]
 
+LM_POS =[ #tennis_wide
+(777,639),
+(817,524),
+(743,420),
+(703,385),
+(731,494),
+(652,581),
+(724,369),
+(785,322),
+(816,248),
+(865,183),
+(917,249),
+(857,313),
+(809,261),
+(834,256),
+(924,301),
+(984,263)
+]
+
 #"""
-img_tf = tf_load_image("data/test_swimmer.png")
+img_tf = tf_load_image("data/tennis_wide.jpg")
 #"""
 #H,W,_ = img_tf.shape()
 coordinates = tf.convert_to_tensor(LM_POS,dtype=tf.int32)

@@ -40,11 +40,11 @@ LM_POS =[ #swimmer
 (539, 331)
 ]
 
-img = cv2.imread("./data/test_swimmer.png")
+img = cv2.imread("./data/tennis_wide.jpg")
 
-for pnt in LM_POS:
-    center = (pnt[0],pnt[1])
-    cv2.circle(img,center,3,(255,0,0),-1)
+#for pnt in LM_POS:
+#    center = (pnt[0],pnt[1])
+#    cv2.circle(img,center,3,(255,0,0),-1)
 
 plt.imshow(img[:,:,::-1])
 plt.show()

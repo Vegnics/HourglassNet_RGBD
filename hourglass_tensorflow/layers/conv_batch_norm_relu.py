@@ -21,6 +21,8 @@ class ConvBatchNormReluLayer(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        use_relu: bool = True,
+        normalized: bool = True,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config
@@ -32,6 +34,8 @@ class ConvBatchNormReluLayer(Layer):
         self.kernel_initializer = kernel_initializer
         self.momentum = momentum
         self.epsilon = epsilon
+        self.use_relu = use_relu
+        self.normalized = normalized
         # Create layers
         self.batch_norm = layers.BatchNormalization(
             axis=-1,
@@ -39,7 +43,8 @@ class ConvBatchNormReluLayer(Layer):
             epsilon=epsilon,
             trainable=trainable,
             name="BatchNorm",
-        )
+        ) if self.normalized else lambda x,**y:x
+        
         self.conv = layers.Conv2D(
             filters=filters,
             kernel_size=kernel_size,
@@ -51,7 +56,7 @@ class ConvBatchNormReluLayer(Layer):
         )
         self.relu = layers.ReLU(
             name="ReLU",
-        )
+        ) if self.use_relu else lambda x:x
 
     def get_config(self):
         return {

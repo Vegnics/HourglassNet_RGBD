@@ -63,9 +63,9 @@ class HourglassLayer(Layer):
                                             trainable=trainable,
                                             use_last_relu=True,
         )
-        self.relu = layers.ReLU(
-            name="ReLU",
-        )
+        #self.relu = layers.ReLU(
+        #    name="ReLU",
+        #)
         
         for i, downsampling in enumerate(self.layers):
             downsampling["up_1"] = ResidualLayer(
@@ -157,7 +157,7 @@ class HourglassLayer(Layer):
             [inputs, self._transit_output(intermediate, training=training), _out],
             name=f"{self.name}_OutputAdd",
         )
-        return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
-        #return out_tensor, intermediate
+        #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
+        return out_tensor, intermediate
     def build(self, input_shape):
         pass

@@ -4,7 +4,7 @@ from keras.layers import Layer
 
 from hourglass_tensorflow.layers.skip import SkipLayer
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
-
+from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 
 class ResidualLayerIn(Layer):
     def __init__(
@@ -25,25 +25,40 @@ class ResidualLayerIn(Layer):
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
         # Batch Norm layer 
-        self.batch_norm = layers.BatchNormalization(
-            axis=-1,
-            momentum=momentum,
-            epsilon=epsilon,
-            trainable=trainable,
-            name="BatchNorm",
-        )
+        #self.batch_norm = layers.BatchNormalization(
+        #    axis=-1,
+        #    momentum=momentum,
+        #    epsilon=epsilon,
+        #    trainable=trainable,
+        #    name="BatchNorm",
+        #)
 
         # Conv Layer
-        self.conv_layer = layers.Conv2D(
-            filters=self.output_filters,
+        #self.conv_layer = layers.Conv2D(
+        #    filters=self.output_filters,
+        #    kernel_size=1,
+        #    strides=1,
+        #    padding="same",
+        #    name="Conv2D",
+        #    activation=None, #"relu"
+        #    kernel_initializer="glorot_uniform",
+        #)
+
+        # Input layer (used just to match the dimensionality)
+        self.match_layer = ConvBatchNormReluLayer(
+            # 1x1 convolution
+            filters=output_filters,
             kernel_size=1,
-            strides=1,
-            padding="same",
-            name="Conv2D",
-            activation=None, #"relu"
-            kernel_initializer="glorot_uniform",
+            name="CBNR_match",
+            momentum=momentum,
+            epsilon=epsilon,
+            dtype=dtype,
+            dynamic=dynamic,
+            trainable=trainable,
+            use_relu=True,
+            normalized = True, # Previous True
         )
-    
+
         # Convolutional block
         self.conv_block = ConvBlockLayer(
             output_filters=output_filters,
@@ -62,7 +77,6 @@ class ResidualLayerIn(Layer):
         #    trainable=trainable,
         #)
         self.add = layers.Add(name="Add")
-        self.relu_prior = layers.ReLU(name="ReLU_prior",)
         self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
         return {
@@ -75,10 +89,11 @@ class ResidualLayerIn(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        _inputs = self.batch_norm(inputs,training=training)
-        _inputs = self.conv_layer(_inputs)
-        _inputs = self.relu_prior(_inputs)
+        #_inputs = self.batch_norm(inputs,training=training)
+        #_inputs = self.conv_layer(_inputs)
+        #_inputs = self.relu_prior(_inputs)
         #skip = self.conv_layer(_inputs)
+        _inputs = self.match_layer(inputs,training=training)
         _sum = self.add(
             [
                 self.conv_block(_inputs, training=training),

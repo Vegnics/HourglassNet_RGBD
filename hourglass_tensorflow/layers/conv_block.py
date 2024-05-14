@@ -27,8 +27,8 @@ class ConvBlockLayer(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         # Create layers
-        #self.bnrc1 = BatchNormReluConvLayer(
-        self.bnrc1 = ConvBatchNormReluLayer(
+        self.bnrc1 = BatchNormReluConvLayer(
+        #self.bnrc1 = ConvBatchNormReluLayer(
             # 1x1 convolution
             filters=output_filters // 2,
             kernel_size=1,
@@ -41,8 +41,8 @@ class ConvBlockLayer(Layer):
             use_relu=True,
             normalized = True,
         )
-        #self.bnrc2 = BatchNormReluConvLayer(
-        self.bnrc2 = ConvBatchNormReluLayer(
+        self.bnrc2 = BatchNormReluConvLayer(
+        #self.bnrc2 = ConvBatchNormReluLayer(
             # 3x3 convolution
             filters=output_filters // 2,
             kernel_size=3,
@@ -55,8 +55,8 @@ class ConvBlockLayer(Layer):
             use_relu=True,
             normalized = True,
         )
-        #self.bnrc3 = BatchNormReluConvLayer(
-        self.bnrc3 = ConvBatchNormReluLayer(
+        self.bnrc3 = BatchNormReluConvLayer(
+        #self.bnrc3 = ConvBatchNormReluLayer(
             # 1x1 convolution
             filters=output_filters,
             kernel_size=1,
@@ -66,7 +66,7 @@ class ConvBlockLayer(Layer):
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-            use_relu=False,
+            use_relu=True,
             normalized = True, # Previous True
         )
 

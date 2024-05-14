@@ -11,8 +11,8 @@ class ResidualLayer(Layer):
     def __init__(
         self,
         output_filters: int,
-        momentum: float = 0.9,
-        epsilon: float = 1e-4,
+        momentum: float = 0.92,
+        epsilon: float = 8e-6,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -63,7 +63,7 @@ class ResidualLayer(Layer):
         #    trainable=trainable,
         #)
         self.add = layers.Add(name="Add")
-        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        #self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
         return {
             **super().get_config(),
@@ -83,6 +83,6 @@ class ResidualLayer(Layer):
                 #self.skip(inputs, training=training),
                 inputs,
             ])
-        return self.relu(_sum)
+        return _sum #self.relu(_sum)
     def build(self, input_shape):
         pass

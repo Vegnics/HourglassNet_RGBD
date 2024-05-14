@@ -77,7 +77,7 @@ class ResidualLayerIn(Layer):
         #    trainable=trainable,
         #)
         self.add = layers.Add(name="Add")
-        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        #self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
         return {
             **super().get_config(),
@@ -100,6 +100,6 @@ class ResidualLayerIn(Layer):
                 #self.skip(inputs, training=training),
                 _inputs,#skip,
             ])
-        return self.relu(_sum)
+        return _sum#self.relu(_sum)
     def build(self, input_shape):
         pass

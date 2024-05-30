@@ -537,7 +537,7 @@ def tf_train_map_normalize(
     if "AroundZero" in normalization:
         image = 2 *(
             tf.math.divide_no_nan(
-                image,255.0))- 1.0
+                tf.cast(image,dtype=tf.float32),255.0))- 1.0
         heatmaps = tf.cast(tf.math.divide_no_nan(
             heatmaps,1),dtype=tf.float32)
         #heatmaps = 2 * (

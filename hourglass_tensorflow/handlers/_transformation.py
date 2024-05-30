@@ -141,7 +141,7 @@ def tf_train_map_affine_augmentation(
 
     #_bboxf = tf.constant([1.095,1.08,1.08,1.07,1.05,1.09,1.03,1.08,1.13,1.095,1.08,1.08,1.07,1.05,1.09],
     #                     dtype=tf.float32)
-    _bboxf = tf.constant([1.08,1.075,1.08,1.08,1.08,1.08,1.05,1.09,1.075,1.08,1.07,1.075,1.07,1.07,1.075],
+    _bboxf = tf.constant([1.08,1.075,1.08,1.08,1.08,1.08,1.06,1.09,1.12,1.08,1.07,1.075,1.07,1.07,1.075],
                          dtype=tf.float32) - 0.031
     _zipped = tf.map_fn(
         fn=(
@@ -535,20 +535,18 @@ def tf_train_map_normalize(
             tf.reduce_max(heatmaps, axis=[0, 1]),
         )
     if "AroundZero" in normalization:
-        image = 2 * (
+        image = 2 *(
             tf.math.divide_no_nan(
-                image - tf.reduce_min(image, axis=[0, 1]),
-                tf.reduce_max(image, axis=[0, 1]),
-            )
-            - 0.5
-        )
-        heatmaps = 2 * (
-            tf.math.divide_no_nan(
-                heatmaps - tf.reduce_min(heatmaps, axis=[0, 1]),
-                tf.reduce_max(heatmaps, axis=[0, 1]),
-            )
-            - 0.5
-        )
+                image),255)- 1.0
+        heatmaps = tf.cast(tf.math.divide_no_nan(
+            heatmaps,1),dtype=tf.float32)
+        #heatmaps = 2 * (
+        #    tf.math.divide_no_nan(
+        #        heatmaps - tf.reduce_min(heatmaps, axis=[0, 1]),
+        #        tf.reduce_max(heatmaps, axis=[0, 1]),
+        #    )
+        #    - 0.5
+        #)
     return (image, heatmaps)
 
 @tf.function

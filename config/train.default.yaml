@@ -121,7 +121,7 @@ train:
     #source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     source: "keras.optimizers.schedules.ExponentialDecay"
     params:
-      initial_learning_rate: 0.0008 #0.00025
+      initial_learning_rate: 0.0005 #0.00025
       decay_steps: 3000
       decay_rate: 0.998
   loss:
@@ -134,7 +134,7 @@ train:
     source: "keras.optimizers.Adam" #"keras.optimizers.RMSprop" # "keras.optimizers.RMSprop"
     params:
       beta_1: 0.9
-      beta_2: 0.945
+      beta_2: 0.94
       epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
     #  rho: 0.9
     #  momentum: 0.00000001
@@ -171,7 +171,7 @@ train:
         filepath: "data/model_t/myModel_c"
         save_weights_only: false
         save_freq: epoch
-        monitor: val_CorrectKpts@6px
+        monitor: val_PCK@0.2 #val_CorrectKpts@6px
         save_best_model: true
     -
       source: "tensorflow.keras.callbacks.TensorBoard"

@@ -134,8 +134,8 @@ train:
     source: "keras.optimizers.Adam" #"keras.optimizers.RMSprop" # "keras.optimizers.RMSprop"
     params:
       beta_1: 0.9
-      beta_2: 0.99
-      epsilon: 0.000005 #0.00000001 #0.000000005 #0.0000001 #0.00001
+      beta_2: 0.945
+      epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
     #  rho: 0.9
     #  momentum: 0.00000001
     #  centered: true

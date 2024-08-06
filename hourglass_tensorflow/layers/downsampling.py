@@ -53,6 +53,7 @@ class DownSamplingLayer(Layer):
                         dtype=dtype,
                         dynamic=dynamic,
                         trainable=trainable,
+                        use_relu=True,
                     )
                 )
             elif i == self.downsamplings - 1:

@@ -5,13 +5,14 @@ from keras.layers import Layer
 from hourglass_tensorflow.layers.skip import SkipLayer
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
+from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
 
 class ResidualLayerIn(Layer):
     def __init__(
         self,
         output_filters: int,
-        momentum: float = 0.9,
-        epsilon: float = 1e-4,
+        momentum: float = 0.98,
+        epsilon: float = 0.001,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -45,7 +46,8 @@ class ResidualLayerIn(Layer):
         #)
 
         # Input layer (used just to match the dimensionality)
-        self.match_layer = ConvBatchNormReluLayer(
+        #self.match_layer = ConvBatchNormReluLayer(
+        self.match_layer =   BatchNormConv1Layer(
             # 1x1 convolution
             filters=output_filters,
             kernel_size=1,
@@ -55,8 +57,8 @@ class ResidualLayerIn(Layer):
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-            use_relu=False,
-            normalized = True, # Previous True
+            #use_relu=True,
+            #normalized = True, # Previous True
         )
 
         # Convolutional block
@@ -77,7 +79,7 @@ class ResidualLayerIn(Layer):
         #    trainable=trainable,
         #)
         self.add = layers.Add(name="Add")
-        #self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
         return {
             **super().get_config(),
@@ -100,6 +102,6 @@ class ResidualLayerIn(Layer):
                 #self.skip(inputs, training=training),
                 _inputs,#skip,
             ])
-        return _sum#self.relu(_sum)
+        return self.relu(_sum)
     def build(self, input_shape):
         pass

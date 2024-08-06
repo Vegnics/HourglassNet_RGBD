@@ -39,6 +39,7 @@ class HourglassLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
+
         self._transit_output = BatchNormConv1Layer(
             # 
             filters=feature_filters,
@@ -48,13 +49,13 @@ class HourglassLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        self.transit_residual = ResidualLayer(output_filters=feature_filters,
-                                            name="Transit_residual",
-                                            dtype=dtype,
-                                            dynamic=dynamic,
-                                            trainable=trainable,
-                                            use_last_relu=True,
-        )
+        #self.transit_residual = ResidualLayer(output_filters=feature_filters,
+        #                                    name="Transit_residual",
+        #                                    dtype=dtype,
+        #                                    dynamic=dynamic,
+        #                                    trainable=trainable,
+        #                                    use_last_relu=True,
+        #)
 
         self._last_residual = ResidualLayer(output_filters=feature_filters,
                                             name="Last_residual",
@@ -62,6 +63,9 @@ class HourglassLayer(Layer):
                                             dynamic=dynamic,
                                             trainable=trainable,
                                             use_last_relu=True,
+
+                                            epsilon=0.001,
+                                            momentum=0.97,
         )
         #self.relu = layers.ReLU(
         #    name="ReLU",
@@ -147,10 +151,10 @@ class HourglassLayer(Layer):
         return out
 
     def call(self, inputs, training=True):
-        x = self._recursive_call(
+        _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        _x = self.transit_residual(x,training=training)
+        #_x = self.transit_residual(x,training=training)
         intermediate = self._hm_output(_x, training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
         _out = self._last_residual(_x,training=training)
         out_tensor = tf.add_n(

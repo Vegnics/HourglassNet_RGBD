@@ -9,8 +9,8 @@ from keras.models import Model
 from keras.metrics import Metric
 from keras.callbacks import Callback
 from keras.optimizers import Optimizer
-#from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedule
-from keras.optimizers.schedules import LearningRateSchedule
+from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedule
+#from keras.optimizers.schedules import LearningRateSchedule
 
 from hourglass_tensorflow.types.config import HTFTrainConfig
 from hourglass_tensorflow.types.config import HTFObjectReference
@@ -95,7 +95,6 @@ class HTFTrainHandler(_HTFTrainHandler):
     def _apply_batch(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         if isinstance(dataset, tf.data.Dataset):
             return dataset.batch(self._batch_size)
-
     def fit(
         self,
         model: Model,
@@ -105,29 +104,32 @@ class HTFTrainHandler(_HTFTrainHandler):
         *args,
         **kwargs,
     ) -> None:
-        _ = self._apply_batch(test_dataset)
+        with tf.device('/GPU:0'):
+            _ = self._apply_batch(test_dataset)
 
-        tds_card = int(train_dataset.cardinality().numpy())
-        vds_card = int(validation_dataset.cardinality().numpy())
-        #print("CARDINALITY",tds_card,vds_card)
-        train_dataset = train_dataset.shuffle(int(0.03*tds_card),reshuffle_each_iteration=True)
-        validation_dataset = validation_dataset.shuffle(int(0.03*vds_card),reshuffle_each_iteration=True)
-        train_dataset = train_dataset.repeat(5)
-        validation_dataset = validation_dataset.repeat(2)
-        batch_train = self._apply_batch(train_dataset)
-        #print("   ??????    >>>BATCH TRAIN: ",batch_train)
-        batch_validation = self._apply_batch(validation_dataset)
-        batch_num = batch_train.__len__()
-        print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
-        model.fit(
-            batch_train,
-            epochs=self._epochs,
-            #steps_per_epoch=self._epoch_size,
-            steps_per_epoch=int(batch_num//self._epochs),
-            shuffle=True,
-            validation_data=batch_validation,
-            callbacks=self._callbacks,
-        )
+            #tds_card = int(train_dataset.cardinality().numpy())
+            #vds_card = int(validation_dataset.cardinality().numpy())
+            #print("CARDINALITY",tds_card,vds_card)
+            tds_card = 2000
+            vds_card = 300
+            train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
+            validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
+            train_dataset = train_dataset.repeat(4)
+            #validation_dataset = validation_dataset.repeat(2)
+            batch_train = self._apply_batch(train_dataset)
+            #print("   ??????    >>>BATCH TRAIN: ",batch_train)
+            batch_validation = validation_dataset.batch(400)#self._apply_batch(validation_dataset)
+            batch_num = batch_train.__len__()
+            print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
+            model.fit(
+                batch_train,
+                epochs=self._epochs,
+                #steps_per_epoch=self._epoch_size,
+                steps_per_epoch=int(batch_num//self._epochs),
+                shuffle=True,
+                validation_data=batch_validation,
+                callbacks=self._callbacks,
+            )
 
 
 # endregion

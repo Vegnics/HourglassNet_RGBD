@@ -11,6 +11,7 @@ from hourglass_tensorflow.types.config import HTFDataInput
 from hourglass_tensorflow.types.config import HTFDataConfig
 from hourglass_tensorflow.types.config import HTFDataOutput
 from hourglass_tensorflow.handlers.meta import _HTFHandler
+from hourglass_tensorflow.types.config.data import ImageMode
 
 # region Abstract Class
 
@@ -117,6 +118,9 @@ class HTFDataHandler(_HTFDataHandler):
         # in case the source_prefix attribute is set to false
         folder_prefix = self.input_cfg.source
         source_column = self.output_cfg.column_source
+        source_depth_column = self.output_cfg.column_source_depth
+
+        #Prefix RGB images
         df = df.assign(
             **{
                 source_column: df[source_column].apply(
@@ -124,6 +128,15 @@ class HTFDataHandler(_HTFDataHandler):
                 )
             }
         )
+        #Prefix the depth images in case of using RGBD images
+        if self.input_cfg.mode == ImageMode.RGBD:
+            df = df.assign(
+                **{
+                    source_depth_column: df[source_depth_column].apply(
+                        lambda x: os.path.join(folder_prefix, x)
+                    )
+                }
+            )
         return df
 
     def _read_labels(self, _error: bool = False) -> bool:
@@ -178,7 +191,7 @@ class HTFDataHandler(_HTFDataHandler):
         self._metadata.joint_columns = self._get_joint_columns()
         self._validate_joints(_error=_error)
         self._read_labels(_error=_error)
-
+        
     def get_data(self) -> pd.DataFrame:
         return self._labels_df
 

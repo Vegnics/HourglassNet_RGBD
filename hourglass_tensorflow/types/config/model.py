@@ -34,6 +34,7 @@ class HTFModelParams(HTFConfigField):
     name: str = "HourglassNetwork"
     input_size: int = 256
     output_size: int = 64
+    channel_number: int = 3
     stages: int = 4
     stage_filters: int = 128
     output_channels: int = 16

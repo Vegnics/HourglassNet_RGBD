@@ -57,3 +57,35 @@ class HTFPersonDatapoint(BaseModel):
         if isinstance(self.joints, list):
             return
         self.joints = [j for j in self.joints.values()]
+
+class HTFPersonDatapointRGBD(BaseModel):
+    is_train: int
+    image_id: int
+    person_id: int
+    cover: str
+    source_image_rgb: str
+    source_image_depth: str
+    bbox: HTFPersonBBox
+    joints: Union[List[HTFPersonJoint], Dict[int, HTFPersonJoint]]
+    scale: float
+
+    def convert_joint(
+        self, to=Union[Literal["list"], Literal["dict"], Type[dict], Type[list]]
+    ) -> None:
+        """
+        Perform joint locations conversion List <-> Dictionary
+        """
+        if to in ["list", list]:
+            self._convert_joints_to_list()
+        if to in ["dict", dict]:
+            self._convert_joints_to_dict()
+
+    def _convert_joints_to_dict(self) -> None:
+        if isinstance(self.joints, dict):
+            return
+        self.joints = {j.id: j for j in self.joints}
+
+    def _convert_joints_to_list(self) -> None:
+        if isinstance(self.joints, list):
+            return
+        self.joints = [j for j in self.joints.values()]

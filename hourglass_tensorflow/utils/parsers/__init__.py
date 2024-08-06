@@ -9,3 +9,4 @@ from hourglass_tensorflow.utils.parsers._parse_import import _get_object
 
 from . import htf
 from . import mpii
+from . import slp

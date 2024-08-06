@@ -44,8 +44,11 @@ class HTFDatasetHeatmap(HTFConfigField):
     size: int = 64
     stacks: int = 3
     channels: int = 16
-    #stddev: int = 16
     stddev: float = 16
+
+class HTFDatasetHipIndexes(HTFConfigField):
+    Lhip: int = 3
+    Rhip:int = 2
 
 class HTFDatasetMetadata(BaseModel):
     class Config:
@@ -64,7 +67,10 @@ class HTFDatasetConfig(HTFConfigField):
     )
     image_size: int = 256
     column_image: str = "image"
+    column_depth_image: Optional[str] = Field(default="depth") # ADDED FOR THE RGBD VERSION
+    data_mode: Optional[str] = Field(default="RGB") # ADDED FOR THE RGBD VERSION
     heatmap: Optional[HTFDatasetHeatmap] = Field(default=HTFDatasetHeatmap)
+    hip_idxs: Optional[HTFDatasetHipIndexes] = Field(default=HTFDatasetHipIndexes)
     sets: Optional[HTFDatasetSets] = Field(default=HTFDatasetSets)
     bbox: Optional[HTFDatasetBBox] = Field(default=HTFDatasetBBox)
     normalization: Optional[NormalizationModeType] = None

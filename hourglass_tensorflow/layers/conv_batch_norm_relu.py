@@ -14,9 +14,9 @@ class ConvBatchNormReluLayer(Layer):
         strides: int = 1,
         padding: str = "same",
         activation: str = None,
-        kernel_initializer: str = "glorot_uniform",
+        kernel_initializer: str = "glorot_normal",
         momentum: float = 0.9,
-        epsilon: float = 1e-4,
+        epsilon: float = 0.001,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -47,12 +47,13 @@ class ConvBatchNormReluLayer(Layer):
         
         self.conv = layers.Conv2D(
             filters=filters,
-            kernel_size=kernel_size,
-            strides=strides,
+            kernel_size=(4,4),#kernel_size,
+            strides=(2,2),#strides,
             padding=padding,
             name="Conv2D",
             activation=activation,
             kernel_initializer=kernel_initializer,
+            input_shape = (256,256,4),
         )
         self.relu = layers.ReLU(
             name="ReLU",

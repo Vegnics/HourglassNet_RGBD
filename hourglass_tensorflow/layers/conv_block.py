@@ -15,7 +15,7 @@ class ConvBlockLayer(Layer):
         self,
         output_filters: int,
         momentum: float = 0.9,
-        epsilon: float = 0.9,
+        epsilon: float = 1e-5,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -66,7 +66,7 @@ class ConvBlockLayer(Layer):
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-            use_relu=True,
+            use_relu=False,
             normalized = True, # Previous True
         )
 

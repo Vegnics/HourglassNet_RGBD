@@ -17,6 +17,7 @@ RE_FSTRING = re.compile(CAPTURE_FSTRING)
 
 CHANNELS_PER_MODE = {
     "RGB": 3,
+    "RGBD": 4,
     "rgb": 3,
     "RGBA": 4,
     "rgba": 4,
@@ -32,6 +33,7 @@ CHANNELS_PER_MODE = {
 
 ImageModesType = Union[
     Literal["RGB"],
+    Literal["RGBD"],
     Literal["rgb"],
     Literal["RGBA"],
     Literal["rgba"],
@@ -48,6 +50,7 @@ ImageModesType = Union[
 
 class ImageMode(enum.Enum):
     RGB = "RGB"
+    RGBD = "RGBD"
     BGR = "BGR"
     GRAY = "GRAY"
     RGBA = "RGBA"
@@ -110,6 +113,7 @@ class HTFDataOutput(HTFConfigField):
     prefix_columns: Optional[List[str]] = Field(default=list)
     column_set: str = "set"
     column_source: str = "image"
+    column_source_depth: Optional[str] = Field(default="depth") #Added to the original one for RGB-D images
     joints: Optional[HTFDataOutputJoints] = Field(default=HTFDataOutputJoints)
 
 
@@ -117,6 +121,7 @@ class HTFDataInput(HTFConfigField):
     source: str
     mode: ImageMode = ImageMode.RGB
     extensions: List[str] = Field(default=["png", "jpeg", "jpg"])
+
 
 
 class HTFDataConfig(HTFConfigField):

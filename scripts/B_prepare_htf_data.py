@@ -36,11 +36,26 @@ if __name__ == "__main__":
     ## Joint ID distribution
     joints_id = [(j.id, j.visible) for d in data for j in d.joints]
     only_visible_joints_id = [jid for jid, j_visible in joints_id if j_visible]
+    #Forced joint IDs
+    forced_ids = [1,2,3,4,6,7,8,9,12,13]
     print(avg_joints_per_sample,avg_visible_joints_per_sample)
     # Prepare data as table
     DATA = []
     for datap in data:
-        if len(datap.joints)>15:
+        cntVis = 0
+        jids = [j.id for j in datap.joints]
+        jxs = [j.x for j in datap.joints]
+        jys = [j.y for j in datap.joints]
+        jvis = [j.visible for j in datap.joints]
+        #print(list(zip(jids,jvis)))
+        if 2 in jids and 3 in jids:
+            hipVis = True
+        else: 
+            hipVis = False
+        for j in datap.joints:
+            if j.visible:
+                cntVis += 1
+        if len(datap.joints)>13 and hipVis and cntVis>5 and 6 in jids and 8 in jids:
             d = {"set": "TRAIN" if datap.is_train else "VALIDATION",
             "image": datap.source_image,
             "scale":datap.scale,
@@ -51,10 +66,21 @@ if __name__ == "__main__":
             "center_x": datap.center.x,
             "center_y": datap.center.y,
             }
-            for j in datap.joints:
-                d[f"joint_{j.id}_X"] = j.x
-                d[f"joint_{j.id}_Y"] = j.y
-                d[f"joint_{j.id}_visible"] = j.visible
+            for jid in range(16):
+                if jid in jids :#and jid in forced_ids:
+                    k = jids.index(jid)
+                    d[f"joint_{jid}_X"] = jxs[k]
+                    d[f"joint_{jid}_Y"] = jys[k]
+                    d[f"joint_{jid}_visible"] = True #jvis[k]#
+                #elif jid in jids and jid not in forced_ids:
+                #    k = jids.index(jid)
+                #    d[f"joint_{jid}_X"] = jxs[k]
+                #    d[f"joint_{jid}_Y"] = jys[k]
+                #    d[f"joint_{jid}_visible"] = jvis[k]#
+                else:
+                    d[f"joint_{jid}_X"] = -5
+                    d[f"joint_{jid}_Y"] = -5
+                    d[f"joint_{jid}_visible"] = False
             DATA.append(d)
     # Write Transformed data
     with open(HTF_DATASET_JSON,"w") as file:

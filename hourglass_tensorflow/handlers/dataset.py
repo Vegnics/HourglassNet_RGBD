@@ -24,9 +24,10 @@ from hourglass_tensorflow.handlers._transformation import tf_train_map_stacks
 from hourglass_tensorflow.handlers._transformation import tf_train_map_heatmaps
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify
 from hourglass_tensorflow.handlers._transformation import tf_train_map_normalize
-from hourglass_tensorflow.handlers._transformation import tf_train_map_build_slice
+from hourglass_tensorflow.handlers._transformation import tf_train_map_build_slice_RGB,tf_train_map_build_slice_RGBD
 from hourglass_tensorflow.handlers._transformation import tf_train_map_resize_data
-from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation
+from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGB,tf_train_map_affine_woaugment_RGB
+from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGBD,tf_train_map_affine_woaugment_RGBD
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify_multiscale
 
 def _stack_tensors(x,y):
@@ -125,6 +126,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
     @property
     def ratio_validation(self) -> float:
         return self.sets.ratio_validation if self.has_validation else 0.0
+
+    @property
+    def data_mode(self) -> str:  #ADDED FOR THE RGBD VERSION
+        return self.config.data_mode
 
     def init_handler(self, *args, **kwargs) -> None:
         self.splitted = False
@@ -226,16 +231,26 @@ class HTFDatasetHandler(_HTFDatasetHandler):
     # region Generate Datasets Hidden Methods
     def _extract_columns_from_data(
         self, data: HTFDataTypes
-    ) -> Tuple[Iterable, Iterable]:
-        # Extract coordinates
-        filenames = self.engine.to_list(
-            self.engine.get_columns(data=data, columns=[self.config.column_image])
-        )
+    ) -> Union[Tuple[Iterable, Iterable],Tuple[Iterable,Iterable,Iterable]]:
+        # Extract the columns containing the joints' locations
         coordinates = self.engine.to_list(
             self.engine.get_columns(data=data, columns=self.meta.joint_columns)
         )
-        print("LEN_FILENAMES: ",len(filenames),"LEN_COORDINATES :",len(coordinates))
-        return filenames, coordinates
+
+        # Extract the columns containing the filenames of the RGB images
+        rgb_filenames = self.engine.to_list(
+            self.engine.get_columns(data=data, columns=[self.config.column_image])
+        )
+        if self.data_mode == "RGB":
+            print("LEN_FILENAMES: ",len(rgb_filenames),"LEN_COORDINATES :",len(coordinates))
+            return rgb_filenames, coordinates
+        elif self.data_mode == "RGBD":
+            depth_filenames = self.engine.to_list(
+                self.engine.get_columns(data=data, columns=[self.config.column_depth_image])
+            )
+            return rgb_filenames,depth_filenames,coordinates
+        else:
+            raise Exception(f"The data_mode {self.data_mode } is not valid.")
 
     def _create_dataset(self, data: HTFDataTypes) -> tf.data.Dataset:
         """
@@ -244,36 +259,41 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         #Columns = self._extract_columns_from_data(data=data)
         #print(Columns[0])
         #gen_dataset = None
+        #raw = tf.data.Dataset.from_tensor_slices(self._extract_columns_from_data(data=data[120:130])) #fname, coordinates
         raw = tf.data.Dataset.from_tensor_slices(self._extract_columns_from_data(data=data)) #fname, coordinates
-        print("-------->RAW 1 :",raw)
-        raw = raw.map(tf_train_map_build_slice)  # Load Images
+        print("-------->RAW 1 :",raw,raw.cardinality())
+        if self.config.data_mode == "RGB":
+            raw = raw.map(tf_train_map_build_slice_RGB)  # Load Images
+        elif self.config.data_mode == "RGBD":
+            raw = raw.map(tf_train_map_build_slice_RGBD)  # Load Images RGBD version
         ### >>> HERE PERFORM DATA AUGMENTATION (Rotation)
 
         print("-------->RAW 2 :",raw,raw.cardinality()) # img, coords, visible
 
         # Modify tf_train_map_squarify to compute the BBox at several scales
           
-        """
-        #TODO
-        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify_augmentation(img,
-                    coord,
-                    vis,
-                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
-                    bbox_factor=self.config.bbox.factor,
+        if self.config.data_mode == "RGB":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation_RGB(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                    )
                 )
-            ) # Compute BBOX cropping at multiple scales)
-        """
-        raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation(
-                    img,
-                    ishape,
-                    coord,
-                    vis,
-                    input_size=int(self.config.image_size)
-                    #rotation_angles=self.config.augmentation.rotation_angles,
-                    #shift_vals=self.config.augmentation.shift_values,
-                    #
+        elif self.config.data_mode == "RGBD":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation_RGBD(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                    )
                 )
-            )
         #raw = raw.unbatch()
         print("AFTER MULTISCALE SQUARIFY", raw,raw.cardinality())
         raw = raw.unbatch()
@@ -334,15 +354,117 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                 )
             )# Normalize Data
         print("-------->RAW 6 :",raw)
-        raw = raw.map(
-                lambda img, hms: tf_train_map_stacks(
-                    img,
-                    hms,
-                    stacks=self.config.heatmap.stacks,
-                )# Stacks
-            )
+        #raw = raw.map(
+        #        lambda img, hms: tf_train_map_stacks(
+        #            img,
+        #            hms,
+        #            stacks=self.config.heatmap.stacks,
+        #        )# Stacks
+        #    )
         print("-------->RAW 7 :",raw)
         return raw
+    
+    def _create_dataset_orig(self, data: HTFDataTypes) -> tf.data.Dataset:
+        """
+        Load images, and apply transformations to the data and annotations.
+        """
+        raw = tf.data.Dataset.from_tensor_slices(self._extract_columns_from_data(data=data)) #fname, coordinates
+        if self.config.data_mode == "RGB":
+            raw = raw.map(tf_train_map_build_slice_RGB)  # Load Images
+        elif self.config.data_mode == "RGBD":
+            raw = raw.map(tf_train_map_build_slice_RGBD)  # Load Images RGBD version
+        print("-------->RAW 1 :",raw,raw.cardinality())
+        ### >>> HERE PERFORM DATA AUGMENTATION (Rotation)
+
+        print("-------->RAW 2 :",raw,raw.cardinality()) # img, coords, visible
+
+        # Modify tf_train_map_squarify to compute the BBox at several scales
+          
+        """
+        #TODO
+        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify_augmentation(img,
+                    coord,
+                    vis,
+                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
+                    bbox_factor=self.config.bbox.factor,
+                )
+            ) # Compute BBOX cropping at multiple scales)
+        """
+        if self.config.data_mode == "RGB":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_woaugment_RGB(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                )
+            )
+        
+        elif self.config.data_mode == "RGBD":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_woaugment_RGBD(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                    )
+                )
+
+        #raw = raw.unbatch()
+        print("AFTER MULTISCALE SQUARIFY", raw,raw.cardinality())
+        raw = raw.unbatch()
+        print("AFTER UNBATCH", raw,raw.cardinality())
+
+        """
+        raw = raw.map(lambda img, coord, vis: tf_train_map_squarify(
+                    img,
+                    coord,
+                    vis,
+                    bbox_enabled=self.config.bbox.activate, # If set to True, it computes the BBox from the landmarks
+                    bbox_factor=self.config.bbox.factor,
+                )
+            ) # Compute BBOX cropping
+        """
+
+        #print("-------->RAW 3 :",raw) # img, coord, vis
+        
+        raw = raw.map(lambda img, coord, vis: tf_train_map_resize_data(
+                    img, coord, vis, input_size=int(self.config.image_size)
+                )
+            )# Resize Image
+
+        print("-------->RAW 4 :",raw) # img, coord, vis        
+        raw = raw.map(lambda img, coord, vis: tf_train_map_heatmaps(
+                    img,
+                    coord,
+                    vis,
+                    output_size=int(self.config.heatmap.size),
+                    stddev=self.config.heatmap.stddev,
+                )
+            )# Get Heatmaps
+        print("-------->RAW 5 :",raw) # rimg, hms
+        raw = raw.map(
+                lambda img, hms: tf_train_map_normalize(
+                    img,
+                    hms,
+                    normalization=self.config.normalization,
+                )
+            )# Normalize Data
+        print("-------->RAW 6 :",raw)
+        #raw = raw.map(
+        #        lambda img, hms: tf_train_map_stacks(
+        #            img,
+        #            hms,
+        #            stacks=self.config.heatmap.stacks,
+        #        )# Stacks
+        #    )
+        print("-------->RAW 7 :",raw)
+        return raw
+
         #"""
 
         """return (
@@ -405,11 +527,11 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         """
         self._train_dataset = self._create_dataset(self._train_set)
         self._train_dataset.shuffle(self._train_dataset.cardinality(),reshuffle_each_iteration=False)
-        print("TRAIN DATASET: ",self._train_dataset)
-        self._test_dataset = self._create_dataset(self._test_set)
-        self._test_dataset.shuffle(self._test_dataset.cardinality(),reshuffle_each_iteration=False)
-        self._validation_dataset = self._create_dataset(self._validation_set)
-        self._validation_dataset.shuffle(self._validation_dataset.cardinality(),reshuffle_each_iteration=False)
+        #print("TRAIN DATASET: ",self._train_dataset)
+        self._test_dataset = self._create_dataset_orig(self._test_set)
+        #self._test_dataset.shuffle(self._test_dataset.cardinality(),reshuffle_each_iteration=False)
+        self._validation_dataset = self._create_dataset_orig(self._validation_set)
+        #self._validation_dataset.shuffle(self._validation_dataset.cardinality(),reshuffle_each_iteration=False)
 
 
 # endregion

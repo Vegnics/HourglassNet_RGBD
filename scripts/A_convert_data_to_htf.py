@@ -15,7 +15,8 @@ from hourglass_tensorflow.utils.writers import common_write
 from hourglass_tensorflow.utils.parsers.htf import from_train_mpii_to_htf_data
 
 #MAT_FILE = "data/mpii.ignore.mat"
-MAT_FILE = "data/mpii_human_pose.mat"
+#MAT_FILE = "data/mpii_human_pose.mat"
+MAT_FILE = os.path.abspath("../mpii_human_pose_v1.mat")
 HTF_JSON = "data/htf.ignore.json"
 
 if __name__ == "__main__":
@@ -31,11 +32,10 @@ if __name__ == "__main__":
     )
     # Cast records as List[MPIIDatapoint]
     logger.info("Cast data as record of structures")
-    print(data[0])
-
+    
+    #data is a list of Dicts containing mpii data points
     datapoints = [MPIIDatapoint.model_validate(datapoint,strict=False) for datapoint in data] # a datapoint is a Dict
     
-
     logger.info("Convert from MPII to HTF")
     htf_data, stats = from_train_mpii_to_htf_data(data=datapoints, require_stats=True)
     # Write Transform data

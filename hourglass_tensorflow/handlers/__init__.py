@@ -1,6 +1,10 @@
 from typing import Union
 from typing import TypeVar
+from matplotlib import pyplot as plt
+import numpy as np
+import cv2
 
+import tensorflow as tf
 from hourglass_tensorflow.utils import ObjectLogger
 from hourglass_tensorflow.utils import BadConfigurationError
 from hourglass_tensorflow.types.config import HTFConfig
@@ -14,6 +18,7 @@ from hourglass_tensorflow.handlers.meta import _HTFHandler
 from hourglass_tensorflow.handlers.model import HTFModelHandler
 from hourglass_tensorflow.handlers.train import HTFTrainHandler
 from hourglass_tensorflow.handlers.dataset import HTFDatasetHandler
+from hourglass_tensorflow.utils.tf import tf_matrix_argmax,tf_batch_matrix_argmax
 
 T = TypeVar("T")
 
@@ -95,7 +100,6 @@ class HTFManager(ObjectLogger):
         )
         data = self.DATA().get_data() # Call the HTFDataHandler and invoke get_data() method.
         # Launch Dataset Handler
-        print("OBJ:::",type(obj_dataset))
         self.DATASET = self._import_object(
             obj_dataset,
             config=self._config.dataset,
@@ -103,6 +107,47 @@ class HTFManager(ObjectLogger):
             data=data,
         )
         self.DATASET()
+        """
+        train_dataset=self.DATASET._train_dataset
+        test_dataset=self.DATASET._test_dataset
+        validation_dataset = self.DATASET._validation_dataset
+        for data in train_dataset:
+            img = data[0].numpy()
+            #img = np.uint8(np.copy(img[:,:,0:3]))
+
+            img = np.copy(img[:,:,3])
+            print(img.shape,img.dtype)
+            hmp = tf.expand_dims(data[1],axis=0)#.numpy()
+            cntld = 0
+            print(np.max(img),np.min(img))
+            for i in range(14):
+                val = np.max(hmp[0,:,:,i])
+                if val>0.01:
+                    cntld += 1
+
+            depth = img*255.0/3.5
+            depth = np.clip(depth,0,255)
+            depth= np.uint8(depth)
+            depth = cv2.applyColorMap(depth,cv2.COLORMAP_JET)
+            img = np.copy(depth)
+
+            if cntld < 14 or True: 
+                _maxargs = tf_batch_matrix_argmax(hmp[:,0,:,:,:])
+                for i in range(14):
+                    _maxidx = _maxargs[0,i,:]
+                    print(_maxidx)
+                    #_maxidx = np.argmax(hmp[0,:,:,i])
+                    x = _maxidx[0].numpy()#_maxidx%64
+                    y = _maxidx[1].numpy()#_maxidx//64
+                    val = hmp[0,0,y,x,i]
+                    if val>0.01:
+                        center = (int(4*x),int(4*y))
+                        cv2.circle(img,center,5,(255,0,0),-1)
+                        cv2.putText(img,"{:2d}".format(i),center,cv2.FONT_HERSHEY_PLAIN,1.2,(0,0,255))
+                plt.imshow(img)
+                plt.show() 
+        """
+        #"""
         # Launch Model Handler
         self.MODEL = self._import_object(
             obj_model,
@@ -122,3 +167,4 @@ class HTFManager(ObjectLogger):
             test_dataset=self.DATASET._test_dataset,
             validation_dataset=self.DATASET._validation_dataset,
         )
+        #"""

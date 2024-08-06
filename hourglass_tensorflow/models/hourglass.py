@@ -13,6 +13,7 @@ class HourglassModel(Model):
         input_size: int = 256,
         output_size: int = 64,
         stages: int = 4,
+        channel_number: int = 3,
         downsamplings_per_stage: int = 4,
         stage_filters: int = 256,
         output_channels: int = 16,
@@ -70,6 +71,12 @@ class HourglassModel(Model):
                 intermed= False 
             )
         )
+
+    def build(self, input_shape = (None, 256, 256, 4)):
+        # You can print the input shape to verify it
+        print(f'Building model with input shape: {input_shape}')
+        # Optionally, you can use the input_shape to dynamically define layers
+        super(HourglassModel, self).build(input_shape)
 
     def call(self, inputs: tf.Tensor, training=True):
         x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))

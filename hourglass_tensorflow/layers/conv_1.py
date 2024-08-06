@@ -15,7 +15,7 @@ class Conv1Layer(Layer):
         strides: int = 1,
         padding: str = "same",
         activation: str = None,
-        kernel_initializer: str = "glorot_uniform",
+        kernel_initializer: str = "glorot_normal",
         momentum: float = 0.9,
         epsilon: float = 1e-3,
         name: str = None,
@@ -41,17 +41,7 @@ class Conv1Layer(Layer):
             trainable=trainable,
             name="BatchNorm",
         )
-        """
-        self.conv1 = layers.Conv2D(
-            filters=int(filters*4),
-            kernel_size=3,
-            strides=strides,
-            padding=padding,
-            name="Conv2D",
-            activation=activation,
-            kernel_initializer=kernel_initializer,
-        )
-        """
+
         self.conv = layers.Conv2D(
             filters=filters,
             kernel_size=kernel_size,
@@ -61,9 +51,11 @@ class Conv1Layer(Layer):
             activation=activation,
             kernel_initializer=kernel_initializer,
         )
-        self.relu = layers.ReLU(
+        self.relu = layers.ReLU(max_value=1.0,
             name="ReLU",
         )
+        #self.relu = layers.
+        
     def get_config(self):
         return {
             **super().get_config(),
@@ -79,11 +71,9 @@ class Conv1Layer(Layer):
             },
         }
 
-    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        x = self.conv(inputs)
-        x = self.batch_norm(x,training=training)
-        #x = self.conv(x)
-        #x = self.batch_norm(x)
+    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
+        x = self.batch_norm(inputs,training=training)
+        x = self.conv(x)
         return self.relu(x)
     def build(self, input_shape):
         pass

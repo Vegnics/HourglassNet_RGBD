@@ -53,15 +53,15 @@ class RatioCorrectKeypoints(Metric):
         )
 
     def _internal_update(self, y_true, y_pred):
-        _y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
-        ground_truth_joints = self.argmax_tensor(_y_true) #NxCx2
+        #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
+        ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
         predicted_joints = self.argmax_tensor(y_pred) #NxCx2
         distance = ground_truth_joints - predicted_joints #NxCx2
         #gt_zeros = tf.cast(tf.reduce_sum(tf.cast(y_true == 0, dtype=tf.dtypes.int32)),tf.dtypes.float32)
         #pred_zeros = tf.cast(tf.reduce_sum(tf.cast(y_pred[:,-1,:,:,:] == 0.0, dtype=tf.dtypes.int32)),dtype=tf.dtypes.float32)/(90.0*16.0*64.0*64.0)
         #pred_zeros = pred_zeros
         #rt = tf.cast(1.0-pred_zeros,dtype=tf.dtypes.float32)
-        norms = tf.norm(tf.cast(distance, dtype=tf.dtypes.float32), ord=2, axis=-1)
+        norms = tf.norm(tf.cast(distance, dtype=tf.dtypes.float32), ord=2, axis=-1)#NxC
         correct_keypoints = tf.cast(
             tf.reduce_sum(tf.cast(norms < self.threshold, dtype=tf.dtypes.int32)),
             dtype=tf.dtypes.float32,
@@ -139,9 +139,9 @@ class PercentageOfCorrectKeypoints(Metric):
         )
 
     def _internal_update(self, y_true, y_pred):
-        _y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
-        ground_truth_joints = self.argmax_tensor(_y_true)
-        predicted_joints = self.argmax_tensor(y_pred)
+        #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
+        ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
+        predicted_joints = self.argmax_tensor(y_pred) #NxCx2
         # We compute distance between ground truth and prediction
         error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32)
         distance = tf.norm(error, ord=2, axis=-1) #NxC
@@ -154,6 +154,7 @@ class PercentageOfCorrectKeypoints(Metric):
         # Compute the reference distance (It could be the head distance, or torso distance)
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
         #max_ref = tf.reduce_max(reference_distance)
+        
         reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
         # We apply the thresholding condition
         condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),

@@ -17,7 +17,7 @@ class BatchNormConv1Layer(Layer):
         activation: str = None,
         kernel_initializer: str = "glorot_uniform",
         momentum: float = 0.9,
-        epsilon: float = 1e-3,
+        epsilon: float = 1e-5,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -68,7 +68,7 @@ class BatchNormConv1Layer(Layer):
             },
         }
 
-    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
+    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: #Training = True
         """
         x = self.conv(inputs)
         x = self.batch_norm(x,training=training)
@@ -76,8 +76,8 @@ class BatchNormConv1Layer(Layer):
         # Previously BN -> CONV
         #x = self.batch_norm(inputs,training=training) 
         #x = self.conv(x)
-        x = self.conv(inputs)
-        x = self.batch_norm(x,training=training) 
+        x = self.batch_norm(inputs,training=training) 
+        x = self.conv(x)
         x = self.relu(x)
         return x
     def build(self, input_shape):

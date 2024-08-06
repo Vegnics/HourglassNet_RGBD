@@ -83,7 +83,8 @@ class HTFModelHandler(_HTFModelHandler):
     def _build_input(self, *args, **kwargs) -> tf.Tensor:
         height, width = self.params.input_size, self.params.input_size
         # TODO: Handle other Image Mode than RGB
-        channels = 3
+        channels =  int(self.params.channel_number)
+        #channels = 4
         if self.config.data_format == "NHWC":
             self._input = InputTensor(shape=(height, width, channels), name="Input")
         else:

@@ -12,7 +12,7 @@ from hourglass_tensorflow.losses.mae_custom import *
 from hourglass_tensorflow.utils.tf import tf_load_image
 
 
-Model = tf.keras.models.load_model("data/model_t/myModel_b",
+Model = tf.keras.models.load_model("data/model_t/myModel_d",
                            custom_objects= {"RatioCorrectKeypoints":RatioCorrectKeypoints
                                             ,"PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom})
@@ -34,8 +34,8 @@ LM_NAMES = [ "rAnkle",
             "lElbow",
             "lWrist"]
 
-img_bgr = cv2.imread("data/test_tennis2.png")
-img = tf_load_image("data/test_tennis2.png")
+img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
+img = tf_load_image("/home/quinoa/football_player.png")#tf_load_image("data/test_tennis.png")
 tensor = tf.cast(tf.expand_dims(img,axis=0),dtype=tf.dtypes.float32)
 #print(tensor)
 hms = Model.predict(tensor)
@@ -45,10 +45,10 @@ for i in range(16):
     pnt = np.argmax(hm)
     x = int(4*(pnt%64))
     y = int(4*(pnt//64))
-    #cv2.circle(img_bgr,(x,y),5,(0,0,255),-1)
+    cv2.circle(img_bgr,(x,y),5,(0,0,255),-1)
     print(f"Landmark {LM_NAMES[i]}:  ({x},{y})")
     plt.imshow(hm,cmap="jet")
     plt.show()
-#plt.imshow(img_bgr[:,:,::-1])
-#plt.show()
+plt.imshow(img_bgr[:,:,::-1])
+plt.show()
 

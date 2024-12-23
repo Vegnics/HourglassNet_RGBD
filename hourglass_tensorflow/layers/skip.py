@@ -11,6 +11,8 @@ class SkipLayer(Layer):
         dtype=None,
         dynamic=False, 
         trainable: bool = True,
+        momentum: float = 0.98,
+        epsilon: float = 1e-3,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config
@@ -26,6 +28,18 @@ class SkipLayer(Layer):
             kernel_initializer="glorot_uniform",
         )
 
+        #self.batch_norm = layers.BatchNormalization(
+        #    axis=-1,
+        #    momentum=momentum,
+        #    epsilon=epsilon,
+        #    trainable=trainable,
+        #    name="BatchNorm",
+        #)
+
+        #self.relu =layers.ReLU(
+        #    name="ReLU",
+        #) #<- lambda x:x
+
     def get_config(self):
         return {
             **super().get_config(),
@@ -40,6 +54,8 @@ class SkipLayer(Layer):
         #else:
         #    v = self.conv(inputs)
         #    return v
+        
+        #x = self.batch_norm(inputs)
         return self.conv(inputs)
 
     def build(self, input_shape):

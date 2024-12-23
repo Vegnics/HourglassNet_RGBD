@@ -15,9 +15,9 @@ class BatchNormConv1Layer(Layer):
         strides: int = 1,
         padding: str = "same",
         activation: str = None,
-        kernel_initializer: str = "glorot_uniform",
-        momentum: float = 0.9,
-        epsilon: float = 1e-5,
+        kernel_initializer: str = "glorot_normal",
+        momentum: float = 0.98,
+        epsilon: float = 1e-4,
         name: str = None,
         dtype=None,
         dynamic=False,
@@ -34,13 +34,13 @@ class BatchNormConv1Layer(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         # Create layers
-        self.batch_norm = layers.BatchNormalization(
-            axis=-1,
-            momentum=momentum,
-            epsilon=epsilon,
-            trainable=trainable,
-            name="BatchNorm",
-        )
+        #self.batch_norm = layers.BatchNormalization(
+        #    axis=-1,
+        #    momentum=momentum,
+        #    epsilon=epsilon,
+        #    trainable=trainable,
+        #    name="BatchNorm",
+        #)
         self.conv = layers.Conv2D(
             filters=filters,
             kernel_size=kernel_size,
@@ -50,9 +50,9 @@ class BatchNormConv1Layer(Layer):
             activation=activation,
             kernel_initializer=kernel_initializer,
         )
-        self.relu =layers.ReLU(
-            name="ReLU",
-        ) #<- lambda x:x
+        #self.relu =layers.ReLU(
+        #    name="ReLU",
+        #) #<- lambda x:x
     def get_config(self):
         return {
             **super().get_config(),
@@ -76,9 +76,9 @@ class BatchNormConv1Layer(Layer):
         # Previously BN -> CONV
         #x = self.batch_norm(inputs,training=training) 
         #x = self.conv(x)
-        x = self.batch_norm(inputs,training=training) 
-        x = self.conv(x)
-        x = self.relu(x)
+        x = self.conv(inputs)
+        #x = self.relu(x)
+        #x = self.batch_norm(x,training=training) 
         return x
     def build(self, input_shape):
         pass

@@ -17,7 +17,7 @@ class ResidualLayerIn(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
-        use_last_relu: bool = True,
+        use_last_relu: bool = False,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config
@@ -46,19 +46,12 @@ class ResidualLayerIn(Layer):
         #)
 
         # Input layer (used just to match the dimensionality)
-        #self.match_layer = ConvBatchNormReluLayer(
-        self.match_layer =   BatchNormConv1Layer(
-            # 1x1 convolution
-            filters=output_filters,
-            kernel_size=1,
-            name="CBNR_match",
-            momentum=momentum,
-            epsilon=epsilon,
+        self.match_layer =   SkipLayer(
+            output_filters=output_filters,
+            name="Skip",
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-            #use_relu=True,
-            #normalized = True, # Previous True
         )
 
         # Convolutional block
@@ -71,13 +64,7 @@ class ResidualLayerIn(Layer):
             dynamic=dynamic,
             trainable=trainable,
         )
-        #self.skip = SkipLayer(
-        #    output_filters=output_filters,
-        #    name="Skip",
-        #    dtype=dtype,
-        #    dynamic=dynamic,
-        #    trainable=trainable,
-        #)
+
         self.add = layers.Add(name="Add")
         self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
     def get_config(self):
@@ -91,10 +78,6 @@ class ResidualLayerIn(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        #_inputs = self.batch_norm(inputs,training=training)
-        #_inputs = self.conv_layer(_inputs)
-        #_inputs = self.relu_prior(_inputs)
-        #skip = self.conv_layer(_inputs)
         _inputs = self.match_layer(inputs,training=training)
         _sum = self.add(
             [

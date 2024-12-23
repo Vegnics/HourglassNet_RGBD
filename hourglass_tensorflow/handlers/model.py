@@ -13,6 +13,10 @@ from hourglass_tensorflow.types.config import HTFModelParams
 from hourglass_tensorflow.types.config import HTFModelHandlerReturnObject
 from hourglass_tensorflow.handlers.meta import _HTFHandler
 
+from hourglass_tensorflow.metrics.correct_keypoints import PercentageOfCorrectKeypoints
+from hourglass_tensorflow.metrics.distance import OverallMeanDistance
+from hourglass_tensorflow.losses.mae_custom import MAE_custom
+
 # region Abstract Class
 
 
@@ -107,7 +111,17 @@ class HTFModelHandler(_HTFModelHandler):
         input_tensor = self._build_input(*args, **kwargs)
         # Build Model Graph
         if self.config.build_as_model:
-            model = self._build_model_as_model(*args, **kwargs)
+            if not self.config.load_model:
+                print(f"Generating new model from scratch")
+                model = self._build_model_as_model(*args, **kwargs)
+            else:
+                print(f"Loading model ... {self.config.model_path}")
+                model = tf.keras.models.load_model(self.config.model_path,
+                           custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
+                                            "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
+                                            "MAE_custom":MAE_custom,
+                                            "OverallMeanDistance":OverallMeanDistance})
+                self._model = model
             # Link Input Shape to Model
             self._output = model(inputs=input_tensor, *args, **kwargs)
         else:

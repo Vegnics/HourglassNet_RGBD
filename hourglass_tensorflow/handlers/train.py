@@ -110,17 +110,18 @@ class HTFTrainHandler(_HTFTrainHandler):
             #tds_card = int(train_dataset.cardinality().numpy())
             #vds_card = int(validation_dataset.cardinality().numpy())
             #print("CARDINALITY",tds_card,vds_card)
-            tds_card = 2000
+            tds_card = 2400
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
-            train_dataset = train_dataset.repeat(4)
+            train_dataset = train_dataset.repeat(7) #7
             #validation_dataset = validation_dataset.repeat(2)
-            batch_train = self._apply_batch(train_dataset)
+            batch_train = self._apply_batch(train_dataset) 
             #print("   ??????    >>>BATCH TRAIN: ",batch_train)
-            batch_validation = validation_dataset.batch(400)#self._apply_batch(validation_dataset)
+            batch_validation = validation_dataset.batch(150)#self._apply_batch(validation_dataset)
             batch_num = batch_train.__len__()
             print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
+            model.summary()
             model.fit(
                 batch_train,
                 epochs=self._epochs,

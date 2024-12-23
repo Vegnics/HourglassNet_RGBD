@@ -45,6 +45,7 @@ class HTFDatasetHeatmap(HTFConfigField):
     stacks: int = 3
     channels: int = 16
     stddev: float = 16
+    stddev_factor: float = 1.5
 
 class HTFDatasetHipIndexes(HTFConfigField):
     Lhip: int = 3
@@ -69,6 +70,7 @@ class HTFDatasetConfig(HTFConfigField):
     column_image: str = "image"
     column_depth_image: Optional[str] = Field(default="depth") # ADDED FOR THE RGBD VERSION
     data_mode: Optional[str] = Field(default="RGB") # ADDED FOR THE RGBD VERSION
+    task_mode: Optional[str] = Field(default="train") # ADDED FOR MODEL EVALUATION
     heatmap: Optional[HTFDatasetHeatmap] = Field(default=HTFDatasetHeatmap)
     hip_idxs: Optional[HTFDatasetHipIndexes] = Field(default=HTFDatasetHipIndexes)
     sets: Optional[HTFDatasetSets] = Field(default=HTFDatasetSets)

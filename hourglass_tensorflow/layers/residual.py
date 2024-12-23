@@ -17,7 +17,7 @@ class ResidualLayer(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
-        use_last_relu: bool = True,
+        use_last_relu: bool = False,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config

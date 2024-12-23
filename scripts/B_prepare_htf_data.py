@@ -37,7 +37,10 @@ if __name__ == "__main__":
     joints_id = [(j.id, j.visible) for d in data for j in d.joints]
     only_visible_joints_id = [jid for jid, j_visible in joints_id if j_visible]
     #Forced joint IDs
-    forced_ids = [1,2,3,4,6,7,8,9,12,13]
+    
+    #forced_ids = [1,2,3,4,6,7,8,9,12,13]
+    forced_ids = [2,3,6,7,8,9,12,13]
+    forced_ids = [20]
     print(avg_joints_per_sample,avg_visible_joints_per_sample)
     # Prepare data as table
     DATA = []
@@ -55,7 +58,8 @@ if __name__ == "__main__":
         for j in datap.joints:
             if j.visible:
                 cntVis += 1
-        if len(datap.joints)>13 and hipVis and cntVis>5 and 6 in jids and 8 in jids:
+        #if len(datap.joints)>10 and hipVis and cntVis>6: #and 6 in jids and 8 in jids:
+        if len(datap.joints)>10 and cntVis>8: #and 6 in jids and 8 in jids:
             d = {"set": "TRAIN" if datap.is_train else "VALIDATION",
             "image": datap.source_image,
             "scale":datap.scale,
@@ -67,19 +71,19 @@ if __name__ == "__main__":
             "center_y": datap.center.y,
             }
             for jid in range(16):
-                if jid in jids :#and jid in forced_ids:
+                if jid in jids and jid in forced_ids:
                     k = jids.index(jid)
                     d[f"joint_{jid}_X"] = jxs[k]
                     d[f"joint_{jid}_Y"] = jys[k]
-                    d[f"joint_{jid}_visible"] = True #jvis[k]#
-                #elif jid in jids and jid not in forced_ids:
-                #    k = jids.index(jid)
-                #    d[f"joint_{jid}_X"] = jxs[k]
-                #    d[f"joint_{jid}_Y"] = jys[k]
-                #    d[f"joint_{jid}_visible"] = jvis[k]#
+                    d[f"joint_{jid}_visible"] = jvis[k] #True #jvis[k]#
+                elif jid in jids and jid not in forced_ids:
+                    k = jids.index(jid)
+                    d[f"joint_{jid}_X"] = jxs[k]
+                    d[f"joint_{jid}_Y"] = jys[k]
+                    d[f"joint_{jid}_visible"] = jvis[k]#
                 else:
-                    d[f"joint_{jid}_X"] = -5
-                    d[f"joint_{jid}_Y"] = -5
+                    d[f"joint_{jid}_X"] = -10000
+                    d[f"joint_{jid}_Y"] = -10000
                     d[f"joint_{jid}_visible"] = False
             DATA.append(d)
     # Write Transformed data

@@ -16,7 +16,7 @@ from hourglass_tensorflow.utils.parsers.slp import read_slp_folder_to_htf_data
 
 #MAT_FILE = "data/mpii.ignore.mat"
 #MAT_FILE = "data/mpii_human_pose.mat"\
-HTF_JSON = "data/htf_slp.ignore.json"
+HTF_JSON = "data/htf_slp_test.ignore.json"
 SLP_FOLDER = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD"
 
 if __name__ == "__main__":

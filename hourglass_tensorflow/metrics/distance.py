@@ -16,7 +16,7 @@ class OverallMeanDistance(keras.metrics.Metric):
 
     def argmax_tensor(self, tensor):
         return tf_dynamic_matrix_argmax(
-            tensor,
+            tensor[:,:,:,:,0:14],
             intermediate_supervision=self.intermediate_supervision,
             keepdims=True,
         )

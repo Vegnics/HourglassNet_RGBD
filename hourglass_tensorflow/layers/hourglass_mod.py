@@ -3,11 +3,76 @@ from keras import layers
 from keras.layers import Layer
 
 from hourglass_tensorflow.layers.residual import ResidualLayer
-#from hourglass_tensorflow.layers.residual_3 import ResidualLayerNoSkip as ResidualLayer
+from hourglass_tensorflow.layers.residual_input import ResidualLayerIn
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
-from hourglass_tensorflow.layers.conv_1 import Conv1Layer
+from hourglass_tensorflow.layers.hm_output import HMOut
 from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
+from hourglass_tensorflow.layers.residual_with_attention import ResidualLayerAttention
+from hourglass_tensorflow.layers.residual_with_attention_spatial import ResidualLayerAttentionSpatial
 
+class ResidualWithCBNR(Layer):
+    def __init__(
+        self,
+        output_filters: int = 256,# Number of feature maps
+        kernel_initializer: str = "glorot_normal",
+        momentum: float = 0.9,
+        epsilon: float = 0.001,
+        name: str = None,
+        dtype=None,
+        dynamic=False,
+        trainable: bool = True,
+    ) -> None:
+        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        # Store Config
+        self.feature_filters = output_filters
+       
+        self.conv = layers.Conv2D(
+            filters=output_filters,
+            kernel_size=1,
+            strides=1,
+            padding="same",
+            name="Conv2D",
+            activation=None,
+            kernel_initializer=kernel_initializer,
+        )
+
+        self.batch_norm = layers.BatchNormalization(
+            axis=-1,
+            momentum=momentum,
+            epsilon=epsilon,
+            trainable=trainable,
+            name="BatchNorm",
+        ) 
+
+        self.relu = layers.ReLU(
+            name="ReLU",
+        )
+
+        self.residual1 =  ResidualLayerAttentionSpatial( #AttentionSpatial(
+                                            output_filters=output_filters,
+                                            name="Residual",
+                                            dtype=dtype,
+                                            dynamic=dynamic,
+                                            trainable=trainable,
+                                            use_last_relu=False,
+                                            epsilon=0.0001,
+                                            momentum=0.97,
+        )
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "feature_filters": self.feature_filters,
+            },
+        }
+    def call(self,inputs, training=True):
+        x = self.residual1(inputs, training=training)
+        x = self.conv(x)
+        x = self.batch_norm(x, training=training)
+        x = self.relu(x)
+        return x
+    def build(self, input_shape):
+        pass
 
 class HourglassLayerLast(Layer):
     def __init__(
@@ -31,40 +96,47 @@ class HourglassLayerLast(Layer):
         self.layers = [{} for i in range(self.downsamplings)]
         # Create Layers
         #ConvBatchNormReluLayer
-        self._hm_output = Conv1Layer(
+        self._hm1_output = HMOut(
             # Layer for heatmaps output.
-            filters=output_filters,
+            filters=14, #output_filters
             kernel_size=1,
             name="HeatmapOutput",
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
+            outmax=None,
         )
-        """self._transit_output = BatchNormConv1Layer(
-            # 
-            filters=feature_filters,
+
+        #"""
+        self._hm2_output = HMOut(
+            # Layer for heatmaps output.
+            filters= 12,#14,
             kernel_size=1,
-            name="TransitOutput",
+            name="Heatmap2Output",
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
-         )
-        """
-        #self.transit_residual = ResidualLayer(output_filters=feature_filters,
-        #                                    name="Last_residual",
-        #                                    dtype=dtype,
-        #                                    dynamic=dynamic,
-        #                                    trainable=trainable,
-        #                                    use_last_relu=True,
-        #)
-        
-        
-        self._last_residual = ResidualLayer(output_filters=feature_filters,
-                                            name="Last_residual",
+            outmax=None,
+        )
+        #"""
+
+
+        self._residual_2j = ResidualLayerIn(output_filters=feature_filters,
+                                            name="Transit_Output",
                                             dtype=dtype,
                                             dynamic=dynamic,
                                             trainable=trainable,
                                             use_last_relu=False,
+                                            epsilon=0.001,
+                                            momentum=0.97,
+        )
+
+        self._merge_feats_1j = BatchNormConv1Layer(filters=feature_filters,
+                                            kernel_size=1,
+                                            name="Merge_Feats",
+                                            dtype=dtype,
+                                            dynamic=dynamic,
+                                            trainable=trainable,
         )
 
         #self.relu = layers.ReLU(
@@ -72,7 +144,7 @@ class HourglassLayerLast(Layer):
         #)
         
         for i, downsampling in enumerate(self.layers):
-            downsampling["up_1"] = ResidualLayer(
+            downsampling["up_1"] = ResidualLayerAttention( #Spatial
                 output_filters=feature_filters,
                 name=f"Step{i}_ResidualUp1",
                 dtype=dtype,
@@ -81,13 +153,13 @@ class HourglassLayerLast(Layer):
             )
             downsampling["low_"] = layers.MaxPool2D(
                 pool_size=(2, 2),
-                padding="same",
+                padding="valid",
                 name=f"Step{i}_MaxPool",
                 dtype=dtype,
                 dynamic=dynamic,
                 trainable=trainable,
             )
-            downsampling["low_1"] = ResidualLayer(
+            downsampling["low_1"] = ResidualLayerAttention( #Attention( #Spatial #Attention
                 output_filters=feature_filters,
                 name=f"Step{i}_ResidualLow1",
                 dtype=dtype,
@@ -95,14 +167,29 @@ class HourglassLayerLast(Layer):
                 trainable=trainable,
             )
             if i == 0:
-                downsampling["low_2"] = ResidualLayer(
+                downsampling["low_2"] = ResidualLayerAttention( #Attention(
                     output_filters=feature_filters,
                     name=f"Step{i}_ResidualLow2",
                     dtype=dtype,
                     dynamic=dynamic,
                     trainable=trainable,
                 )
-            downsampling["low_3"] = ResidualLayer(
+            elif i == 3:
+                downsampling["low_in"] =  ResidualLayerAttention( #Attention( #Spatial #Attention
+                    output_filters=feature_filters,
+                    name=f"Step{i}_ResidualMainIn",
+                    dtype=dtype,
+                    dynamic=dynamic,
+                    trainable=trainable,
+                )
+                downsampling["low_out"] =  ResidualWithCBNR( #Attention #Spatial
+                    output_filters=feature_filters,
+                    name=f"Step{i}_ResidualMainOut",
+                    dtype=dtype,
+                    dynamic=dynamic,
+                    trainable=trainable,
+                )
+            downsampling["low_3"] = ResidualLayerAttentionSpatial( #AttentionSpatial( #Attention #Spatial
                 output_filters=feature_filters,
                 name=f"Step{i}_ResidualLow3",
                 dtype=dtype,
@@ -112,7 +199,7 @@ class HourglassLayerLast(Layer):
             downsampling["up_2"] = layers.UpSampling2D(
                 size=(2, 2),
                 data_format=None,
-                interpolation="nearest",
+                interpolation= "nearest", #"nearest",
                 name=f"Step{i}_UpSampling2D",
                 dtype=dtype,
                 dynamic=dynamic,
@@ -138,8 +225,11 @@ class HourglassLayerLast(Layer):
 
     def _recursive_call(self, input_tensor, step, training=True):
         step_layers = self.layers[step]
-        up_1 = step_layers["up_1"](input_tensor, training=training)
-        low_ = step_layers["low_"](input_tensor, training=training)
+        _input = input_tensor
+        if step == 3:
+            _input = step_layers["low_in"](_input, training=training)
+        up_1 = step_layers["up_1"](_input, training=training)
+        low_ = step_layers["low_"](_input, training=training)
         low_1 = step_layers["low_1"](low_, training=training)
         if step == 0:
             low_2 = step_layers["low_2"](low_1, training=training)
@@ -148,25 +238,33 @@ class HourglassLayerLast(Layer):
         low_3 = step_layers["low_3"](low_2, training=training)
         up_2 = step_layers["up_2"](low_3, training=training)
         out = step_layers["out"]([up_1, up_2], training=training)
+        if step == 3:
+            out = step_layers["low_out"](out,training=training)
         return out
 
-    def call(self, inputs, training=True):
-        x = self._recursive_call(
+    def call(self, inputs, training=False):
+        _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
+        
+        intermediate_2jhms = self._hm2_output(_x,training=training) 
+        transit_2jhms = self._residual_2j(intermediate_1jhms, training=training)
+
+        intermediate_1jhms = self._hm1_output(tf.add_n([_x,transit_2jhms]), training=training)
+        transit_1jhms = self._merge_feats_1j(intermediate_1jhms)
+        #bpart_feats = self.body_part_residual(intermediate_2jhms,training=training)
+        #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
+        #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training)
+
+        #_out = self._last_residual(_x,training=training)
         out_tensor = tf.add_n(
-            [inputs, x],name=f"{self.name}_OutputAdd",)
-        #intermediate = self._hm_output(x, training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
-        #_x = self.transit_residual(x,training=training)
+            [inputs, transit_1jhms, self._merge_feats(_x)], #_out
+            name=f"{self.name}_OutputAdd",
+        )
+        #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
         
-        _out = self._last_residual(out_tensor,training=training)
-        #out_tensor = tf.add_n(
-        #    [inputs, _out],name=f"{self.name}_OutputAdd",)
-        
-        #out_tensor = self.relu(out_tensor)
-        #out = self._hm_output(out_tensor) 
-        out = self._hm_output(_out) 
-        
-        return out,out#, intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
+        return out_tensor, tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
+        #return out_tensor, intermediate_1jhms 
+        return out,out
     def build(self, input_shape):
         pass

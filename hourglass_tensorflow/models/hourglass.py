@@ -58,8 +58,9 @@ class HourglassModel(Model):
                 trainable=trainable,
                 intermed= True 
             )
-            for i in range(stages-1)
+            for i in range(stages)
         ]
+        """
         self.hourglasses.append(HourglassLayerLast(
                 downsamplings=downsamplings_per_stage,
                 feature_filters=stage_filters,
@@ -71,6 +72,7 @@ class HourglassModel(Model):
                 intermed= False 
             )
         )
+        """
 
     def build(self, input_shape = (None, 256, 256, 4)):
         # You can print the input shape to verify it

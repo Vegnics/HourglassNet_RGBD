@@ -1,0 +1,126 @@
+mode: test
+version: "1.0.0"
+data:
+  object:
+    source: "hourglass_tensorflow.handlers.data.HTFDataHandler"
+    params:
+      foo: bar
+  input:
+    mode: "RGBD"
+    #source: data/images.ignore.folder
+    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD
+    extensions:
+      - png
+      - jpeg
+      - jpg
+  output:
+    #source: data/labels.ignore.csv
+    source: data/htf_slp_dataset_test.ignore.json
+    source_prefixed: false
+    prefix_columns:
+      - set
+      - image
+      - depth
+      - scale
+      - bbox_tl_x
+      - bbox_tl_y
+      - bbox_br_x
+      - bbox_br_y
+      - center_x
+      - center_y
+    column_set: set
+    column_source: image
+    joints:
+      num: 14
+      dynamic_fields:
+        - SUFFIX
+      naming_convention: joint_{JOINT_ID}_{SUFFIX}
+      format:
+        id_field: JOINT_ID
+        SUFFIX:
+          x: "X"
+          y: "Y"
+          visible: visible
+      names:
+        - "00_rAnkle"
+        - "01_rKnee"
+        - "02_rHip"
+        - "03_lHip"
+        - "04_lKnee"
+        - "05_lAnkle"
+        - "06_rWrist"
+        - "07_rElbow"
+        - "08_rShoulder"
+        - "09_lShoulder"
+        - "10_lElbow"
+        - "11_lWrist"
+        - "12_thorax"
+        - "13_topHead"
+dataset:
+  object:
+    source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
+    params:
+      foo: bar
+  image_size: 256 #256
+  data_mode: "RGBD"
+  hip_idxs:
+    Lhip: 3
+    Rhip: 2
+  column_image: image
+  heatmap:
+    size: 64 #64
+    stacks: 3
+    channels: 14 
+    stddev: 1.2
+    stddev_factor: 1.36
+  #normalization: "Normal"
+  normalization: "Idem"
+  augmentation:
+    - 
+      source: ""
+      params:
+        foo: bar
+  sets:
+    split_by_column: false
+    column_split: set
+    value_train: TRAIN
+    value_test: TEST
+    value_validation: VALIDATION
+    test: true
+    train: false
+    validation: false
+    ratio_test: 0.000001
+    ratio_train: 0.75
+    ratio_validation: 0.21
+  bbox:
+    activate: true
+    factor: 1.15 #1.155
+  task_mode: "test"
+
+model:
+  object:
+    source: "hourglass_tensorflow.handlers.model.HTFModelHandler"
+    params:
+      foo: bar
+  build_as_model : true
+  data_format: NHWC
+  params:
+    input_size: 256 #256
+    output_size: 64 #64
+    channel_number: 1 #4
+    stages: 3
+    downsamplings_per_stage: 4
+    stage_filters: 64 #64
+    output_channels: 14 #14
+    name: "HourglassSample"
+    intermediate_supervision: true
+  load_model: true
+  model_path: "data/model_t/myModel_SLP_fA3"
+
+
+test:
+  object:
+    source: "hourglass_tensorflow.handlers.test.HTFTestHandler"
+    params:
+      foo: bar
+  batch_size: 100 #128

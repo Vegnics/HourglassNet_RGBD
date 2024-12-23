@@ -1,7 +1,6 @@
 import math as m
 from typing import Tuple,List
 import tensorflow as tf
-import cv2
 import numpy as np
 
 @tf.function
@@ -15,9 +14,7 @@ def tf_load_image(filename: tf.Tensor, channels: int = 3, **kwargs) -> tf.Tensor
     Returns:
         tf.Tensor: Image Tensor of shape [HEIGHT, WIDTH, channels]
     """
-    #print("FILENAME:::",filename)
     fname = tf.io.read_file(filename)
-    #print("FILENAME:::",fname)
     return tf.io.decode_image(fname, channels=channels)
 
 
@@ -67,94 +64,20 @@ def tf_resize_tensor(tensor: tf.Tensor, size: int) -> tf.Tensor:
     """
     return tf.image.resize(tensor, size=[size, size], method="nearest") # PREVIOSLY nearest
 
-@tf.function
-def tf_rotate_tensor_OLD(tensor: tf.Tensor, angle: tf.Tensor ,tvec: tf.Tensor) -> tf.Tensor:
-    N = tensor.shape[0]
-    K = tf.range(0,N,1)
-    # Compute the rotation matrix and translation vector
-    center = tf.constant([N/2,N/2],dtype=tf.float32)
-    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
-    alpha = tf.math.cos(angle)
-    beta = tf.math.sin(angle)
-    t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
-    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
-    R_inv = tf.linalg.inv(R)
-
-    # Generate pairs of pixel positions
-    I,J = tf.meshgrid(K,K,indexing="ij")
-    I = tf.expand_dims(I,axis=2)
-    J = tf.expand_dims(J,axis=2)
-    indexes = tf.concat([I,J],axis=2)
-    indexes = tf.reshape(indexes,shape=[-1,2])
-    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.float32)
-
-    # Rotate the original pixel positions
-    r_indexes = R@indexes + t
-    # Obtain the new pixel positions whose coordinates are within the image
-    mask_min = tf.math.greater_equal(r_indexes,0.0)
-    mask_max = tf.math.less(r_indexes,1.0*N)
-    r_mask = mask_min[0,:]&mask_min[1,:]&mask_max[0,:]&mask_max[1,:]
-    r_indexes = tf.floor(r_indexes)
-    r_indexes = tf.transpose(r_indexes,perm=[1,0])
-    r_indexes = tf.boolean_mask(r_indexes,r_mask)
-    
-    # Reverse the rotation over the selected pixel positions to sample the image intensity values.
-    r_indexes = tf.transpose(r_indexes,perm=[1,0])
-    inv_ridxs = R_inv@(r_indexes - t)
-    # Obtain the original pixel positions where the original image will be sampled
-    imask_min = tf.math.greater_equal(inv_ridxs,0.0)
-    imask_max = tf.math.less(inv_ridxs,1.0*N)
-    ir_mask = imask_min[0,:]&imask_min[1,:]&imask_max[0,:]&imask_max[1,:]
-    inv_ridxs = tf.floor(inv_ridxs)
-    
-    # The definite original pixel position coordinates 
-    inv_ridxs = tf.transpose(inv_ridxs,perm=[1,0])
-    inv_ridxs = tf.cast(tf.boolean_mask(inv_ridxs,ir_mask),dtype=tf.dtypes.int32) # Px2
-
-    # The definite rotated pixel position coordinates
-    r_indexes = tf.transpose(r_indexes,perm=[1,0])
-    r_indexes = tf.cast(tf.boolean_mask(r_indexes,ir_mask),dtype=tf.dtypes.int32) # Px2
-    
-    # Sample the pixels from the original data
-    # inv_ridxs contains just a few pixel positions
-    pixels_original = tf.gather_nd(tensor,inv_ridxs)
-    
-    # Create a new tensor with the sampled data located at the rotated positions
-    img_rotated = tf.zeros_like(tensor) 
-    img_rotated = tf.tensor_scatter_nd_update(img_rotated, r_indexes, pixels_original)
-    _img_rotated = tf.reshape(img_rotated,shape=[-1,3])
-    zero_mask = tf.equal(_img_rotated,0)
-    zero_mask = zero_mask[:,0]&zero_mask[:,1]&zero_mask[:,2]
-
-    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.int32)
-    zero_idxs = tf.boolean_mask(indexes,zero_mask)
-    filled_vals = tf.map_fn(lambda coord:tf_get_nearest_neighbor(coord,
-                                                                 r_indexes),
-                            elems=zero_idxs,
-                            dtype=tf.dtypes.int32,
-                            parallel_iterations=100
-    )
-    #print(filled_vals)
-    #img_rotated = tf.tensor_scatter_nd_update(img_rotated, zero_idxs, filled_vals)
-    # Get indexes from black dots
-    # apply tf_get_nearest_neighbor to each black dot -> Tensor of values
-    # fill the black dots with the tensor of values
-    return (img_rotated,filled_vals)
-
 
 @tf.function
 def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
     N = tshape[0]
     M = tshape[1]
-    #K = tf.range(0,N,1)
+
     Ki = tf.range(0,N,1)
     Kj = tf.range(0,M,1)
+    precision = tf.dtypes.float64
     # Compute the rotation matrix and translation vector
-    #center = tf.constant([N/2,N/2],dtype=tf.float32)
-    center = tf.cast(center,dtype=tf.float32)
-    angle = tf.cast(angle,dtype=tf.float32)*np.pi/180.0
-    alpha = tf.cast(scale,dtype=tf.float32)*tf.math.cos(angle)
-    beta = -1.0*tf.cast(scale,dtype=tf.float32)*tf.math.sin(angle)
+    center = tf.cast(center,dtype=precision)
+    angle = tf.cast(angle,dtype=precision)*np.pi/180.0
+    alpha = tf.cast(scale,dtype=precision)*tf.math.cos(angle)
+    beta = -1.0*tf.cast(scale,dtype=precision)*tf.math.sin(angle)
     R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
     # Generate pairs of pixel positions for the rotated image
     I,J = tf.meshgrid(Ki,Kj,indexing="ij")
@@ -162,28 +85,26 @@ def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale:
     J = tf.expand_dims(J,axis=2) #X
     indexes = tf.concat([I,J],axis=2) # (Y,X)s
     indexes = tf.reshape(indexes,shape=[-1,2]) #Nx2
-    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.float32) #2xN
+    indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),precision) #2xN
     _center = tf.reshape([center[1],center[0]],[-1,1])
     # Generate indexes from the original image (regarded as the inverse rotation)
     inv_indexes = R@(indexes - _center)+_center
-    #inv_indexes_x = tf.transpose(tf.clip_by_value(inv_indexes,
-    #                                            0.0,
-    #                                            1.0*(tf.cast(N,dtype=tf.float32)-1.0)),
-    #                                            perm=[1,0])
-    inv_indexes_col = tf.clip_by_value(inv_indexes[1],0.0,1.0*(tf.cast(M,dtype=tf.float32)-1.0))
-    inv_indexes_row = tf.clip_by_value(inv_indexes[0],0.0,1.0*(tf.cast(N,dtype=tf.float32)-1.0))
+
+    inv_indexes_col = tf.clip_by_value(inv_indexes[1],0.00001,1.0*(tf.cast(M,dtype=precision)-1.0))
+    inv_indexes_row = tf.clip_by_value(inv_indexes[0],0.00001,1.0*(tf.cast(N,dtype=precision)-1.0))
     
     inv_indexes_col = tf.expand_dims(inv_indexes_col,axis=0)
     inv_indexes_row = tf.expand_dims(inv_indexes_row,axis=0)
 
     inv_indexes = tf.transpose(tf.concat([inv_indexes_row,inv_indexes_col],axis=0),perm=[1,0])
-    inv_indexes = tf.cast(inv_indexes,dtype=tf.dtypes.int32)
+    inv_indexes = tf.cast(tf.math.floor(inv_indexes),dtype=tf.dtypes.int32)
     pixels_original = tf.gather_nd(tensor,inv_indexes)
 
     # Fill the whole rotated image with the data sampled from the inverse-rotated image (original)
     indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.int32)
-    img_rotated = tf.zeros_like(tensor) 
+    img_rotated = 1.5*tf.ones_like(tensor) 
     img_rotated = tf.tensor_scatter_nd_update(img_rotated, indexes, pixels_original)
+
     return img_rotated
 
 def tf_get_nearest_neighbor(coordinate: tf.Tensor, indexes: tf.Tensor):#, values: tf.Tensor):
@@ -200,30 +121,34 @@ def tf_get_nearest_neighbor(coordinate: tf.Tensor, indexes: tf.Tensor):#, values
     return tf.cast(neighbor,dtype=tf.dtypes.int32)
 
 @tf.function
-def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
-    #N = float(input_size)
+def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, visibility:tf.Tensor ,angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
+
+    precision = tf.dtypes.float64
+    coords = tf.cast(coordinates,dtype=precision)
+    
     # Compute the rotation matrix and translation vector
-    #center = tf.constant([N/2,N/2],dtype=tf.float32)
-    #_center2 = tf.reshape(tf.cast(tshape[0:1],dtype=tf.float32)/2.0,[-1,1])
-    coords = tf.cast(coordinates,dtype=tf.float32)
-    center = tf.floor(0.5*tf.cast(coordinates[2]+coordinates[3],dtype=tf.float64))
-    angle = tf.cast(angle,dtype=tf.float64)*np.pi/180.0
-    alpha = tf.cast(scale,dtype=tf.float64)*tf.math.cos(angle)
-    beta = -1.0*tf.cast(scale,dtype=tf.float64)*tf.math.sin(angle)
-    #t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
+    angle = tf.cast(angle,dtype=precision)*np.pi/180.0
+    alpha = tf.cast(scale,dtype=precision)*tf.math.cos(angle)
+    beta = -1.0*tf.cast(scale,dtype=precision)*tf.math.sin(angle)
     R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])  
+    
     # Compute the rotated coordinates
-    _coordinates = tf.cast(tf.transpose(coordinates,perm=[1,0]),dtype=tf.float64)
-    _center = tf.cast(tf.reshape(center,shape=(-1,1)),dtype=tf.float64)
-    rcoordinates = tf.cast(R@(_coordinates-_center)+_center,tf.float32)#-diff
-    ymax = tf.cast(tf.reduce_sum(tshape*tf.constant([1,0,0])),dtype=tf.float32)
-    xmax = tf.cast(tf.reduce_sum(tshape*tf.constant([0,1,0])),dtype=tf.float32)
-    rcoords_x = tf.clip_by_value(rcoordinates[0,:],0,xmax-1.0)
-    rcoords_y = tf.clip_by_value(rcoordinates[1,:],0,ymax-1.0)
+    _coordinates = tf.cast(tf.transpose(coordinates,perm=[1,0]),dtype=precision)
+    _center = tf.cast(tf.reshape(center,shape=(-1,1)),dtype=precision)
+    rcoordinates = tf.cast(R@(_coordinates-_center)+_center,precision)#-diff
+    ymax = tf.cast(tf.reduce_sum(tshape*tf.constant([1,0,0])),dtype=precision)
+    xmax = tf.cast(tf.reduce_sum(tshape*tf.constant([0,1,0])),dtype=precision)
+    rcoords_x = rcoordinates[0,:] #tf.clip_by_value(rcoordinates[0,:],0,xmax-1.0)
+    vis_x = tf.where(tf.logical_and(rcoords_x<0,rcoords_x>xmax),False,True)
+    rcoords_y = rcoordinates[1,:] #tf.clip_by_value(rcoordinates[1,:],0,ymax-1.0)
+    vis_y = tf.where(tf.logical_and(rcoords_y<0,rcoords_y>ymax),False,True)
+    vis = tf.reshape(tf.cast(tf.logical_and(tf.logical_and(vis_x,vis_y),tf.cast(visibility,tf.bool)),dtype=precision),(-1,1))
     rcoords = tf.stack([rcoords_x,rcoords_y],axis=0)
-    rcoords = tf.cast(tf.transpose(rcoords,perm=[1,0]),dtype=tf.dtypes.float32)
+    rcoords = tf.cast(tf.transpose(rcoords,perm=[1,0]),dtype=precision)
     rcoords = tf.where(coords<0,coords,rcoords)
-    return rcoords
+    rcoords = tf.concat([rcoords,vis],axis=1)
+    
+    return tf.cast(rcoords,tf.dtypes.float32)
 
 def tf_rotate_norm_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
     # Compute the rotation matrix and translation vector
@@ -241,48 +166,6 @@ def tf_rotate_norm_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Ten
     rcoordinates = R@tf.cast(_coordinates,dtype=tf.dtypes.float64)+t
     rcoordinates = tf.cast(tf.clip_by_value(rcoordinates,0.0,1.0),dtype=tf.float64)
     return tf.transpose(rcoordinates,perm=[1,0])
-
-
-@tf.function
-def tf_squarify_coordinates_scale(coordinates: tf.Tensor, img_shape: tf.Tensor,
-    bbox_factor=1.0,
-    scale: float = 1.0) -> tf.Tensor:
-    bbox = tf_expand_bbox(
-        tf_compute_bbox(coordinates),
-        img_shape,#tf.shape(image),
-        bbox_factor=bbox_factor*scale,
-    )
-    # Get Padding
-    # Once the bbox is computed we compute
-    # how much V/H padding should be applied
-    # Padding is necessary to conserve proportions
-    # when resizing
-    padding = tf_compute_padding_from_bbox(bbox)
-    coordinates = coordinates - (bbox[0] - padding)
-    return coordinates
-
-@tf.function
-def tf_squarify_image_scale(image: tf.Tensor,
-    coordinates: tf.Tensor,
-    bbox_factor=1.0,
-    scale: float = 1.0) -> tf.Tensor:
-
-    bbox = tf_expand_bbox(
-        tf_compute_bbox(coordinates),
-        tf.shape(image),
-        bbox_factor=bbox_factor*scale,
-    )
-    # Get Padding
-    # Once the bbox is computed we compute
-    # how much V/H padding should be applied
-    # Padding is necessary to conserve proportions
-    # when resizing
-    padding = tf_compute_padding_from_bbox(bbox)
-    image = tf.pad(
-        image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :],
-        paddings=tf_generate_padding_tensor(padding),
-    )
-    return image
 
 
 
@@ -352,36 +235,6 @@ def tf_compute_bbox(coordinates: tf.Tensor, **kwargs) -> tf.Tensor:
     miny = tf.reduce_min(Ys+vis)
     return tf_reshape_slice([minx, miny, maxx, maxy], shape=2, **kwargs)
 
-def tf_compute_bbox_bc(coordinates: tf.Tensor, imgshape:tf.Tensor, **kwargs) -> tf.Tensor:
-    """From a 2D coordinates tensor compute the bounding box (body centered)
-
-    Args:
-        coordinates (tf.Tensor): Joint coordinates 2D tensor
-
-    Returns:
-        tf.Tensor: Bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
-    """
-    bcenter = 0.5*tf.cast(coordinates[2]+coordinates[3],dtype=tf.float32)
-    dists = tf.abs(tf.cast(coordinates,tf.float32)-bcenter) 
-    dxs = dists[:, 0]
-    dys = dists[:, 1]
-    maxx = tf.reduce_max(dxs)
-    maxy = tf.reduce_max(dys)
-    """
-    bminx = tf.cast(bcenter[0]-maxx,tf.int32)
-    bmaxx = tf.cast(bcenter[0]+maxx,tf.int32)
-    bminy = tf.cast(bcenter[1]-maxy,tf.int32)
-    bmaxy = tf.cast(bcenter[1]+maxy,tf.int32)
-    print(bminx>0,bmaxx>0,bminy>0,bmaxy>0)
-    """
-    bminx = tf.cast(tf.maximum(bcenter[0]-maxx,0.0),tf.int32)
-    bmaxx = tf.cast(tf.minimum(bcenter[0]+maxx,tf.cast(imgshape[1]-1,tf.float32)),tf.int32)
-    bminy = tf.cast(tf.maximum(bcenter[1]-maxy,0.0),tf.int32)
-    bmaxy = tf.cast(tf.minimum(bcenter[1]+maxy,tf.cast(imgshape[0]-1,tf.float32)),tf.int32)
-    return tf_reshape_slice([bminx, bminy, bmaxx, bmaxy], shape=2, **kwargs)
-
-
-
 @tf.function
 def tf_expand_bbox(
     bbox: tf.Tensor, image_shape: tf.Tensor, bbox_factor: float = 1.0, **kwargs
@@ -396,134 +249,65 @@ def tf_expand_bbox(
     Returns:
         tf.Tensor: Expanded bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
     """
+    precision = tf.dtypes.float32
     # Unpack BBox
+
     top_left = bbox[0]
-    top_left_x, top_left_y = tf.cast(top_left[0], dtype=tf.float64), tf.cast(
-        top_left[1], dtype=tf.float64
+    top_left_x, top_left_y = tf.cast(top_left[0], dtype=precision), tf.cast(
+        top_left[1], dtype=precision
     )
     bottom_right = bbox[1]
     bottom_right_x, bottom_right_y = tf.cast(
-        bottom_right[0], dtype=tf.float64
-    ), tf.cast(bottom_right[1], dtype=tf.float64)
+        bottom_right[0], dtype=precision
+    ), tf.cast(bottom_right[1], dtype=precision)
     # Compute Bbox H/W
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
+
+    N = tf.maximum(height,width)
+    bfactorW = tf.minimum((N/width),1.25)*bbox_factor
+    bfactorH = tf.minimum((N/height),1.25)*bbox_factor
+
     # Increase BBox Size
+    c_tl_x =  top_left_x - width * (bfactorW - 1.0)/2
+    c_tl_y = top_left_y - height * (bfactorH - 1.0)/2
+    c_br_x = bottom_right_x + width * (bfactorW - 1.0)/2
+    c_br_y = bottom_right_y + height * (bfactorH - 1.0)/2
+    
     new_tl_x = tf.math.maximum(
-        tf.constant(0.0, dtype=tf.float64), top_left_x - width * (bbox_factor - 1.0)
+        tf.constant(0.0, dtype=precision), c_tl_x
     )
     new_tl_y = tf.math.maximum(
-        tf.constant(0.0, dtype=tf.float64), top_left_y - height * (bbox_factor - 1.0)
+        tf.constant(0.0, dtype=precision), c_tl_y
     )
     new_br_x = tf.math.minimum(
-        tf.cast(image_shape[1] - 1, dtype=tf.float64),
-        bottom_right_x + width * (bbox_factor - 1.0),
+        tf.cast(image_shape[1] - 1, dtype=precision),
+        c_br_x
     )
     new_br_y = tf.math.minimum(
-        tf.cast(image_shape[0] - 1, dtype=tf.float64),
-        bottom_right_y + height * (bbox_factor - 1.0),
+        tf.cast(image_shape[0] - 1, dtype=precision),
+        c_br_y
     )
+
+    ptlx = new_tl_x - c_tl_x
+    ptly = new_tl_y - c_tl_y 
+    pbrx = c_br_x - new_br_x 
+    pbry = c_br_y -new_br_y    
+    padding_tensor = tf.convert_to_tensor([
+        [ptly, pbry],
+        [ptlx, pbrx],
+        [0, 0],
+    ],dtype=tf.int32)
 
     new_tl_x = tf.math.floor(new_tl_x)
     new_tl_y = tf.math.floor(new_tl_y)
     new_br_x = tf.math.floor(new_br_x)
     new_br_y = tf.math.floor(new_br_y)
-    #new_w = new_br_x -new_tl_x
-    #new_h = 
+
     return tf.cast(
         tf_reshape_slice([new_tl_x, new_tl_y, new_br_x, new_br_y], shape=2, **kwargs),
         dtype=tf.int32,
-    )
+    ), padding_tensor
 
-@tf.function
-def tf_expand_bbox_squared(
-    bbox: tf.Tensor, image_shape: tf.Tensor, bbox_factor: float = 1.0, **kwargs
-) -> tf.Tensor:
-    """Expand a bounding box area by a given factor
-
-    Args:
-        bbox (tf.Tensor): Bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
-        image_shape (tf.Tensor): Image shape Tensor as [Height, Width, Channels]
-        bbox_factor (float, optional): Expansion factor. Defaults to 1.0.
-
-    Returns:
-        tf.Tensor: Expanded bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
-    """
-    bbox_factor = tf.cast(bbox_factor,tf.float32)
-    # Unpack BBox
-    top_left = bbox[0]
-    top_left_x, top_left_y = tf.cast(top_left[0], dtype=tf.float32), tf.cast(
-        top_left[1], dtype=tf.float32
-    )
-    bottom_right = bbox[1]
-    bottom_right_x, bottom_right_y = tf.cast(
-        bottom_right[0], dtype=tf.float32
-    ), tf.cast(bottom_right[1], dtype=tf.float32)
-    # Compute Bbox H/W
-    height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
-    # Increase BBox Size
-    new_tl_x = tf.math.maximum(
-        tf.constant(0.0, dtype=tf.float32), top_left_x - width * (bbox_factor - 1.0)/2)
-    #new_tl_x = tf.cond(top_left_x>0 and new_tl_x==0.0,lambda:top_left_x,lambda:tf.constant(0.0, dtype=tf.float64))
-
-
-    new_tl_y = tf.math.maximum(tf.constant(0.0, dtype=tf.float32), top_left_y - height * (bbox_factor - 1.0)/2)
-    #new_tl_y = tf.cond(top_left_y>0 and new_tl_y==0.0,lambda:top_left_y,lambda:tf.constant(0.0, dtype=tf.float64))
-    
-    new_br_x = tf.math.minimum(
-        tf.cast(image_shape[1] - 1, dtype=tf.float32),
-        bottom_right_x + width * (bbox_factor - 1.0)/2,
-    )
-    #new_br_x = tf.cond(bottom_right_x<tf.cast(image_shape[1], dtype=tf.float64) and new_br_x==tf.cast(image_shape[1]-1,dtype=tf.float64),
-    #                   lambda:bottom_right_x,
-    #                   lambda:tf.cast(image_shape[1] - 1, dtype=tf.float64))
-
-    
-    new_br_y = tf.math.minimum(
-        tf.cast(image_shape[0] - 1, dtype=tf.float32),
-        bottom_right_y + height * (bbox_factor - 1.0)/2,
-    )
-    #new_br_y = tf.cond(bottom_right_y<tf.cast(image_shape[0], dtype=tf.float64) and new_br_y == tf.cast(image_shape[0]-1, dtype=tf.float64),
-    #                   lambda:bottom_right_y,
-    #                   lambda:tf.cast(image_shape[0] - 1, dtype=tf.float64))
-
-    #"""
-    nwidth,nheight = new_br_x-new_tl_x,new_br_y-new_tl_y
-    N = tf.math.maximum(nwidth,nheight)
-    
-    addW = tf.math.maximum(tf.constant(0.0,dtype=tf.float32),N-nwidth)
-    addH = tf.math.maximum(tf.constant(0.0,dtype=tf.float32),N-nheight)
-
-    new_tl_x = tf.math.maximum(
-        tf.constant(0.0, dtype=tf.float32), new_tl_x - (addW/2 - 1.0)
-    )
-
-
-    new_tl_y = tf.math.maximum(
-        tf.constant(0.0, dtype=tf.float32), new_tl_y - (addH/2 - 1.0)
-    )
-
-    new_br_x = tf.math.minimum(
-        tf.cast(image_shape[1] - 1, dtype=tf.float32),
-        new_br_x  + addW/2 - 1.0
-    )
-
-
-    new_br_y = tf.math.minimum(
-        tf.cast(image_shape[0] - 1, dtype=tf.float32),
-        new_br_y + addH/2 - 1.0
-    )
-    #"""
-    new_tl_x = tf.math.floor(new_tl_x)
-    new_tl_y = tf.math.floor(new_tl_y)
-    new_br_x = tf.math.floor(new_br_x)
-    new_br_y = tf.math.floor(new_br_y)
-    #new_w = new_br_x -new_tl_x
-    #new_h = 
-    
-    return tf.cast(
-        tf_reshape_slice([new_tl_x, new_tl_y, new_br_x, new_br_y], shape=2, **kwargs),
-        dtype=tf.int32,
-    )
 
 @tf.function
 def tf_3Uint8_to_float32(
@@ -531,7 +315,7 @@ def tf_3Uint8_to_float32(
 ) -> tf.Tensor:
     _tensor = tf.cast(tensor,dtype=tf.float32)
     out_tensor = tf.zeros(tf.shape(tensor)[0:2],dtype=tf.float32)
-    out_tensor += _tensor[:,:,2]*(256**2)+_tensor[:,:,1]*256.0+_tensor[:,:,2]
+    out_tensor += _tensor[:,:,2]*(256**2)+_tensor[:,:,1]*256.0+_tensor[:,:,0]
     return out_tensor
 
     
@@ -561,12 +345,14 @@ def tf_bivariate_normal_pdf(
                 start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
             ),
         )
-        #mean = tf.round(mean)
+        mean = tf.clip_by_value(tf.round(mean),0,63)
         #R = tf.sqrt(tf.math.square((X - mean[0])) + tf.math.square((Y - mean[1])))/stddev[0]
         #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
         #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
-        R1 = tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1])
-        Z = tf.exp(-0.5*R1) + 0.00001#- 0.0001
+
+        #R1 = tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1])
+        R1 = tf.math.square((X - mean[0])/stddev) + tf.math.square((Y - mean[1])/stddev)
+        Z = tf.exp(-0.5*R1)#-0.000001 #+ 0.00001#- 0.0001
     else:
         Z = 0.00001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)#-0.001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
     #R2 = tf.math.square((X - mean[0])/(4.0*stddev[0])) + tf.math.square((Y - mean[1])/(4.0*stddev[1]))
@@ -578,12 +364,22 @@ def tf_bivariate_normal_pdf(
     #Z3 = 0.09*tf.exp(-0.5*R3)
     #Z = tf.cast(tf.math.floor(255.0*tf.exp(-0.5*R)),dtype=tf.dtypes.uint8)
     #Z = tf.cast(tf.math.floor(255.0*(Z1+Z2+Z3)),dtype=tf.dtypes.uint8)
-    
     return Z
 
 @tf.function
-def tf_hm_distance(
-    mean: tf.Tensor, stddev: tf.Tensor, shape: tf.Tensor, precision=tf.dtypes.float32
+def tf_generate_segment(idx0, idx1,joints):
+    pnt0 = tf.reshape(joints[idx0,0:2],(1,2))
+    pnt1 = tf.reshape(joints[idx1,0:2],(1,2))
+    vis0 = joints[idx0,2]
+    vis1 = joints[idx1,2]
+    vis = tf.convert_to_tensor([vis0,vis1],dtype=tf.float32)
+    vis = tf.reshape(vis,(1,2))
+    segment = tf.concat([pnt0,pnt1,vis],axis=0)
+    return tf.cast(segment,tf.float32)
+
+@tf.function
+def tf_bivariate_segment_normal_pdf(
+    points: tf.Tensor,vis: tf.Tensor , stddev: tf.Tensor, shape: tf.Tensor, precision=tf.dtypes.float32
 ) -> tf.Tensor:
     """Produce a heatmap given a Bivariate normal propability density function
 
@@ -597,22 +393,32 @@ def tf_hm_distance(
         tf.Tensor: Heatmap
     """
     # Compute Grid
-    X, Y = tf.meshgrid(
-        tf.range(
-            start=0.0, limit=tf.cast(shape[0], precision), delta=1.0, dtype=precision
-        ),
-        tf.range(
-            start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
-        ),
-    )
-    #mean = tf.floor(mean)
-    #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
-    R = tf.sqrt(tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1]))
-    Rmax = tf.sqrt(tf.constant(2.0,dtype=precision))*tf.constant(64.0,dtype=precision)
-    R_d = tf.cast(tf.clip_by_value(255.0*R/Rmax,0.0,255.0),dtype=tf.dtypes.uint8)
-    #Z = tf.cast(tf.math.floor(255.0*(Z1+Z2+Z3)),dtype=tf.dtypes.uint8)
-    #Z = tf.exp(-0.5*R)
-    return R_d
+    means = tf.round(points)
+    means = tf.cast(means,dtype=tf.float32)
+    signs = tf.sign(means)
+    signs = tf.sign(tf.reduce_sum(signs,axis=1))
+
+    if vis[0]==1 and vis[1]==1 and signs[0]==1 and signs[1]==1:
+        X, Y = tf.meshgrid(
+            tf.range(
+                start=0.0, limit=tf.cast(shape[0], precision), delta=1.0, dtype=precision
+            ),
+            tf.range(
+                start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
+            ),
+        )
+        D1 = tf.math.sqrt(tf.math.square(X - means[0][0]) + tf.math.square(Y - means[0][1])) 
+        D2 = tf.math.sqrt(tf.math.square(X - means[1][0]) + tf.math.square(Y - means[1][1])) 
+        DS = tf.math.sqrt(tf.math.square(means[1][0] - means[0][0]) + tf.math.square(means[1][1] - means[0][1]))
+        R = tf.math.square((D1+D2-DS))/(tf.square(stddev))
+        Z = tf.exp(-1.0*R)
+    elif vis[0]==1 and vis[1]==0 and signs[0]==1 and signs[1]==-1:
+        Z = tf_bivariate_normal_pdf(mean=means[0],vis=vis[0] , stddev=stddev, shape=shape, precision=precision)
+    elif vis[1]==1 and vis[0]==0 and signs[1]==1 and signs[0]==-1:
+        Z = tf_bivariate_normal_pdf(mean=means[1],vis=vis[1] , stddev=stddev, shape=shape, precision=precision)
+    else:
+        Z = 0.00001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
+    return Z
 
 
 @tf.function
@@ -628,7 +434,7 @@ def tf_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
     flat_tensor = tf.reshape(tensor, (-1, tf.shape(tensor)[-1]))
     argmax = tf.cast(tf.argmax(flat_tensor, axis=0), tf.int32) # A tensor 1xC
     argmax_x = argmax % tf.shape(tensor)[1] # //
-    argmax_y = argmax // tf.shape(tensor)[1] # %
+    argmax_y = argmax // tf.shape(tensor)[1] # % 
     # stack and return 2D coordinates
     return tf.transpose(tf.stack((argmax_x, argmax_y), axis=0), [1, 0])
 

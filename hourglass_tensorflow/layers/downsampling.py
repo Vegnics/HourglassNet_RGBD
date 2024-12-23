@@ -58,6 +58,15 @@ class DownSamplingLayer(Layer):
                 )
             elif i == self.downsamplings - 1:
                 self.layers.append(
+                    ResidualLayer(
+                        output_filters=output_filters // 2,
+                        name=f"Residual{i}",
+                        dtype=dtype,
+                        dynamic=dynamic,
+                        trainable=trainable,
+                    )
+                )
+                self.layers.append(
                     ResidualLayerIn(
                         output_filters=output_filters,
                         name=f"Residual{i}",
@@ -78,7 +87,7 @@ class DownSamplingLayer(Layer):
                 )
                 self.layers.append(
                     layers.MaxPool2D(
-                        pool_size=(2, 2), padding="same", name=f"MaxPool{i}"
+                        pool_size=(2, 2), padding="valid", name=f"MaxPool{i}"
                     )
                 )
 

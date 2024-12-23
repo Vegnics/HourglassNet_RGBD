@@ -26,3 +26,4 @@ log/*
 .coverage
 reports/*.xml
 reports/*.txt
+data/*

@@ -7,94 +7,97 @@ class MAE_custom(keras.losses.Loss):
         self, reduction=tf.keras.losses.Reduction.AUTO, name="MAEcustom", *args, **kwargs
     ):
         super().__init__(reduction, name)
-
+        self.stages = 10
+        self.njoints = 10
+        for key, value in kwargs.items():
+            if key == "nstages":
+                self.stages = int(value)
+            elif key == "njoints":
+                self.njoints = int(value)
+            
     def call(self, y_true, y_pred):
         #01234
         #NSHWC
         #NSHW
         #NHW
-        #W = tf.constant([0.05,0.1,0.15,0.18,0.22,0.3],dtype=tf.dtypes.float32)
-        #W = tf.constant([0.05,0.15,0.2,0.25,0.3,0.25],dtype=tf.dtypes.float32)
-        #W = tf.constant([3.0,2.0,3.0],dtype=tf.dtypes.float32)
-        #W = tf.constant([0.48,0.52],dtype=tf.dtypes.float32)
-        #W = tf.constant([0.32,0.33,0.35],dtype=tf.dtypes.float32)
-        #L2 = tf.abs(tf.reduce_sum(y_true,axis=[2,3])-tf.reduce_sum(y_pred,axis=[2,3]))/(64.0*64.0)
-        #L3 = tf.square(y_true) - y_true*y_pred
-        #L3 = tf.abs(L3)
-        #W0 = tf.constant([0.3,0.3,0.5],dtype=tf.dtypes.float32)
-        #W0 = tf.reshape(W0,[1,-1,1,1,1])
-        #L3 = tf.reduce_sum(W0*L3,axis=1)
-        #L3 = tf.reduce_mean(L3,axis=[1,2])
-        #L3 = tf.reduce_sum(L3,axis=1)
-
-        W = tf.constant([0.33,0.33,0.33],dtype=tf.dtypes.float32)
-        W = tf.reshape(W,[1,-1,1,1,1])
-        #Rmax = tf.sqrt(tf.constant(2.0,dtype=tf.float32))*tf.constant(64.0,dtype=tf.float32)
-        #cy_true = tf.exp(-0.5*tf.square(Rmax*tf.cast(y_true,dtype=tf.dtypes.float32)/255.0))
-        #cy_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
-        #dist1 = tf.abs(tf.math.square(1.0+(cy_true-y_pred))-1.0)#NSHWC
-        
-        
-        #sdiff = (tf.abs(y_true-y_pred))
-        # Apply the logarithm first 
-        # Ytrue-> Positive [eps,1]
-        # Ypred-> +-
-        #sdiff = -1.0*tf.math.log(y_true+0.00001) + tf.math.log(y_pred+0.00001)
-
-        normtrue = tf.norm(y_true,axis=[2,3])
-        normpred = tf.norm(y_pred,axis=[2,3])
-        normtrue = tf.reshape(normtrue,[-1,3,1,1,16])
-        normpred = tf.reshape(normpred,[-1,3,1,1,16])
-
-        #normtrue = tf.reshape(normtrue,[-1,3,1,1,14])
-        #normpred = tf.reshape(normpred,[-1,3,1,1,14])
-        
-        #Scaled and shifted square loss function 
-        #sdiff = tf.math.abs(tf.math.square(10.0*y_true+1.0) - tf.math.square(10.0*y_pred+1.0))
-        #dist1 = sdiff*W b
-        #dist1 = tf.reduce_sum(dist1,axis=1) #NSHW
-        #dist1 = tf.reduce_mean(dist1,axis=3)
-        #dist1 = tf.reduce_mean(dist1,axis=[1,2])
-
-        #Normalized cross correlation loss function 
-        eps = 0.001
-        sdiff = tf.reduce_sum(y_true*y_pred/(normpred*normtrue+eps),axis=[2,3]) #NSC
-        #dist1 = -1.0*tf.math.sigmoid(0.5*tf.reduce_mean(sdiff,axis=2)-2.0)
-        dist1 = -1.0*tf.math.exp(tf.reduce_mean(sdiff,axis=2))
-        dist1 = tf.reduce_mean(dist1,axis=1)
-        
-        #Log Abs loss
-        #_normtrue = tf.reshape(normtrue,[-1,3,16])
-        #_normpred = tf.reshape(normpred,[-1,3,16])
-        
-        #sdiff2 = tf.abs(y_true-y_pred)#+eps
-        #sdiff2 = tf.reduce_mean(sdiff2,axis=[2,3])
-        #dist2 = tf.reduce_mean(sdiff2,axis=1)
-        #dist2 = tf.reduce_mean(dist2,axis=1)
-        #dist2  = -1.0*tf.math.exp(tf.math.divide_no_nan(tf.constant(1.0),dist2+eps))
-
-
-
-        #dist1 = (0.1*tf.math.pow(y_true,1/32) + 1.0) * sdiff
-        #dist1 = dist1
-        #dist2 = tf.math.abs(cy_true-y_pred)*W
-        #dist1 = dist1 + dist2
-        #dist = tf.debugging.check_numerics(dist, message='Checking DIST')
+        S = self.stages
+        C = self.njoints
         """
-        dist = tf.reduce_mean(dist,axis=1) #NHWC
-        dist= tf.reduce_sum(dist,axis=[1,2])/64.0 #NC
-        dist = tf.reduce_sum(dist,axis=1)# N
+        _y_true = tf.reshape(y_true,shape=[-1,S,64,64,C])
+        _y_pred = tf.reshape(y_pred,shape=[-1,S,64,64,C])
+        _normtrue = tf.norm(y_true,axis=[2,3])
+        _normpred = tf.norm(y_pred,axis=[2,3])
+        normtrue = tf.reshape(_normtrue,[-1,S,1,1,C])
+        normpred = tf.reshape(_normpred,[-1,S,1,1,C])
+        wXC1 = tf.ones(shape=[1,S-1])
+        wXC0 = tf.ones(shape=[1,1])
+        WXC = tf.concat([wXC1,wXC0],axis=1)
         """
+        #Normalized cross correlation loss function
         
-        #dist1 = tf.reduce_sum(dist1,axis=4) #NSHW
-        #dist1 = tf.reduce_mean(dist1,axis=3)
-        #dist1 = tf.reduce_mean(dist1,axis=[1,2]) #NS
-        #dist1 = tf.reduce_mean(dist1,axis=[1,2]) 
-        #dist1= tf.sqrt(tf.reduce_mean(dist1,axis=[1,2])) #N
-        #dist1 = tf.reduce_sum(dist1,axis=1) #N
-        #dist2 = tf.reduce_sum(dist2,axis=1) #NHWC
-        #dist2 = tf.reduce_sum(dist2,axis=3) #NHW
-        #dist2= tf.reduce_mean(dist2,axis=[1,2]) #N
+        
+        #_WC1 = [0.0]*16
+        #_WC1 = _WC1 + [1.0]*15
+        #WC1 = tf.constant([_WC1])
+        #WC1 = tf.reshape(WC1,shape=[1,1,C])
 
-        #dist = 0.8*dist1 + 0.2*dist2
-        return dist1#+0.1*dist2
+        #_WC2 = [1.0]*16
+        #_WC2 = _WC2 + [0.0]*15
+        #WC2 = tf.constant([_WC2])
+        #WC2 = tf.reshape(WC2,shape=[1,1,C])
+        Ws = tf.reshape(tf.constant([0.25,0.35,0.4]),[1,3])
+        """ 
+        eps = tf.reshape(tf.constant(0.000001),shape=[-1,1,1,1,1])
+        _normpred  = tf.reduce_sum(y_pred,axis=[2,3])
+        normpred = tf.reshape(_normpred,[-1,S,1,1,C])+eps
+        #sdiff = 1.0-tf.reduce_sum((y_true)*(y_pred)/(normpred*normtrue+eps),axis=[2,3]) #NSC
+        sdiff = -tf.reduce_sum(y_true*tf.math.log(y_pred/normpred+eps),axis=[2,3])
+        #sdiff = tf.math.exp(-0.8*sdiff)
+        #dist1 = -10.0*sdiff
+        
+        #Wc = tf.reshape(tf.convert_to_tensor([1]*14+[0.5]*12),[1,1,26])/(14+6)
+        #dist1 = tf.reduce_sum(sdiff*Wc,axis=2)
+        
+        dist1 = tf.reduce_mean(sdiff,axis=2)
+        dist1 = tf.reduce_sum(dist1*Ws,axis=1)
+        dist1 = tf.reduce_mean(dist1)
+        """
+
+
+        #"""
+        wEMAE0 = tf.zeros(shape=[1,S-1])
+        wEMAE1 = tf.ones(shape=[1,1])
+        WEMAE = tf.concat([wEMAE0,wEMAE1],axis=1)
+        #Exponential Abs Difference
+        #ndiff = (1.0+32.0*tf.math.sqrt(_y_true))*tf.abs(_y_true-_y_pred)
+        ndiff = tf.math.square(y_true-y_pred)
+        #ndiff = tf.sqrt(tf.reduce_mean(ndiff+0.000000001,axis=[2,3])) #NSHW
+        ndiff = tf.reduce_mean(ndiff+0.00000001,axis=[2,3]) #NSHW
+         #+0.00001
+        #sumytrue = tf.reduce_mean(_y_true,axis=[2,3]) #NSC
+        #sumypred = tf.reduce_mean(_y_pred,axis=[2,3]) #NSC
+        #sndiff = tf.abs(sumytrue-sumypred)
+        #dist2 = 10.0*tf.math.exp(0.9*sndiff)
+        #dist2 = -1.0*tf.math.exp(1.0/(tf.reduce_mean(ndiff,axis=[2,3]))) #NSC
+        
+        #dist2 = tf.math.log(tf.reduce_mean(ndiff,axis=[2,3])) #NSC
+        Wc = tf.reshape(tf.convert_to_tensor([1]*14+[0.5]*12),[1,1,26])/(14+6)
+        dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
+        #dist2 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,0:16],axis=[2,3])) #NSC
+        #dist3 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,16:31],axis=[2,3])) #NSC
+        
+        
+        #dist2 = tf.reduce_sum(dist2/16,axis=2)# ^2.0
+        dist2 = tf.reduce_mean(dist2,axis=1) #N
+        dist2 = tf.reduce_mean(dist2)
+
+        #dist3 = tf.reduce_sum(dist3/15,axis=2)# ^2.0
+        #dist3 = tf.reduce_mean(dist3,axis=1)
+        #dist3 = tf.reduce_mean(dist3)
+        
+        
+        #dist2 = -10.0*dist2
+        #dist = dist1 + 0.15*dist2
+        #"""
+
+        return dist2

@@ -14,7 +14,7 @@ class ConvBatchNormReluLayer(Layer):
         strides: int = 1,
         padding: str = "same",
         activation: str = None,
-        kernel_initializer: str = "glorot_normal",
+        kernel_initializer: str = "glorot_uniform",
         momentum: float = 0.9,
         epsilon: float = 0.001,
         name: str = None,
@@ -47,14 +47,24 @@ class ConvBatchNormReluLayer(Layer):
         
         self.conv = layers.Conv2D(
             filters=filters,
-            kernel_size=(4,4),#kernel_size,
-            strides=(2,2),#strides,
+            kernel_size=kernel_size,
+            strides=strides,
             padding=padding,
             name="Conv2D",
             activation=activation,
             kernel_initializer=kernel_initializer,
-            input_shape = (256,256,4),
         )
+        
+        self.conv_in = layers.Conv2D(
+            filters=4,
+            kernel_size=1,
+            strides=1,
+            padding="same",
+            name="Conv2DIn",
+            activation=None,
+            kernel_initializer="glorot_uniform",
+        )
+
         self.relu = layers.ReLU(
             name="ReLU",
         ) if self.use_relu else lambda x:x
@@ -76,9 +86,10 @@ class ConvBatchNormReluLayer(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         # Could it be CONV-> RELU -> BATCH NORM
-        x = self.conv(inputs)
+        x = self.conv_in(inputs)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
+        x = self.conv(x)
         return x
     def build(self, input_shape):
         pass

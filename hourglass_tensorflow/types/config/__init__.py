@@ -24,6 +24,7 @@ from hourglass_tensorflow.types.config.dataset import HTFDatasetSets
 from hourglass_tensorflow.types.config.dataset import HTFDatasetConfig
 from hourglass_tensorflow.types.config.dataset import HTFDatasetHeatmap
 from hourglass_tensorflow.types.config.metadata import HTFMetadata
+from hourglass_tensorflow.types.config.test import HTFTestConfig
 
 
 class HTFConfigMode(enum.Enum):
@@ -40,6 +41,7 @@ class HTFConfig(HTFConfigField):
     dataset: Optional[HTFDatasetConfig]
     model: Optional[HTFModelConfig]
     train: Optional[HTFTrainConfig]
+    #test: Optional[HTFTestConfig]
 
 
 # region ConfigParser

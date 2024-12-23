@@ -47,13 +47,23 @@ class RatioCorrectKeypoints(Metric):
 
     def argmax_tensor(self, tensor):
        return tf_dynamic_matrix_argmax(
-            tensor,
+            tensor[:,:,:,:,0:16],
             intermediate_supervision=self.intermediate_supervision,
             keepdims=True ,
         )
+    def check_visibility(self,tensor):
+        _tensor = 1.0*tensor[:,-1,:,:,:]
+        sum = tf.reduce_max(_tensor,axis=[1,2])# NC
+        vis0 = tf.zeros_like(sum)
+        vis1 = tf.ones_like(sum)
+        vis = tf.where(sum<0.8,vis0,vis1)#NC
+        return vis
+
 
     def _internal_update(self, y_true, y_pred):
         #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
+        vis = self.check_visibility(y_true[:,:,:,:,0:16])
+        Njoints = tf.reduce_sum(vis)
         ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
         predicted_joints = self.argmax_tensor(y_pred) #NxCx2
         distance = ground_truth_joints - predicted_joints #NxCx2
@@ -62,15 +72,18 @@ class RatioCorrectKeypoints(Metric):
         #pred_zeros = pred_zeros
         #rt = tf.cast(1.0-pred_zeros,dtype=tf.dtypes.float32)
         norms = tf.norm(tf.cast(distance, dtype=tf.dtypes.float32), ord=2, axis=-1)#NxC
+        mask_tensor = 2.0*(1.0-vis)*self.threshold
+        norms = norms + mask_tensor
         correct_keypoints = tf.cast(
             tf.reduce_sum(tf.cast(norms < self.threshold, dtype=tf.dtypes.int32)),
             dtype=tf.dtypes.float32,
         )
-        total_keypoints = tf.cast(
-            tf.reduce_prod(tf.shape(norms)), dtype=tf.dtypes.float32
-        )
+        #total_keypoints = tf.cast(
+        #    tf.reduce_prod(tf.shape(norms)), dtype=tf.dtypes.float32
+        #)
         self.correct_keypoints.assign_add(correct_keypoints)
-        self.total_keypoints.assign_add(total_keypoints)
+        self.total_keypoints.assign_add(Njoints)
+        #self.total_keypoints.assign_add(total_keypoints)
 
     def update_state(self, y_true, y_pred, *args, **kwargs):
         return self._internal_update(y_true, y_pred)
@@ -133,13 +146,73 @@ class PercentageOfCorrectKeypoints(Metric):
 
     def argmax_tensor(self, tensor):
         return tf_dynamic_matrix_argmax(
-            tensor,
+            tensor[:,:,:,:,0:14],
             intermediate_supervision=self.intermediate_supervision,
             keepdims=True,
         )
+    
+    """
+    TODO
+    def get_hm_idx(location,njoints):
+        #location Cx2
+        idxs = tf.reshape(tf.range(0,njoints),(njoints,1))
+        return tf.concat([location,idxs],axis=-1)
+        
+
+    def get_hms_idxs(self,locations,hms):
+        #locations NxCx2
+        hms 
+        ret = tf.map_fn(
+            
+        )
+
+
+    def generate_neighs(self,location,radius):
+        #locations -> 1x2
+        X, Y = tf.meshgrid(
+            tf.range(
+                start=-radius, limit=tf.cast(radius+1, tf.int32), delta=1, dtype=tf.int32
+            ),
+            tf.range(
+                start=-radius, limit=tf.cast(radius+1, tf.int32), delta=1, dtype=tf.int32
+            ),
+        )
+        indices = tf.stack([X,Y],axis=-1)  
+        indices = tf.reshape(indices,(-1,2))
+    
+
+    
+    def interpolate_joints(self,tensor):
+        int_joints = self.argmax_tensor(tensor) #NxCx2
+        #NxCx2x1
+        
+
+
+        out =0
+        return out #NxCx2
+    """
+        
+    def check_visibility(self,tensor):
+        _tensor = 1.0*tensor[:,-1,:,:,:]
+        sum = tf.reduce_max(_tensor,axis=[1,2])# NC
+        vis0 = tf.zeros_like(sum)
+        vis1 = tf.ones_like(sum)
+        vis = tf.where(sum<0.8,vis0,vis1)#NC
+        return vis
 
     def _internal_update(self, y_true, y_pred):
         #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
+        vis = self.check_visibility(y_true[:,:,:,:,0:14])
+        Njoints = tf.reduce_sum(vis)
+        hm_scale = tf.constant(2.3041902)
+        #_y_pred = 1.0*y_pred[:,-1,:,:,:]
+        #normpreds = tf.linalg.norm(y_pred[:,-1,:,:,:],axis=[0,1])
+        #normpreds = tf.expand_dims(normpreds,axis=0)
+        #normpreds = tf.expand_dims(normpreds,axis=0)
+        #_y_pred = _y_pred*hm_scale/normpreds
+        #_y_pred = tf.expand_dims(_y_pred,axis=1)
+        
+        #pred_joints = self.interpolate_joints()
         ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
         predicted_joints = self.argmax_tensor(y_pred) #NxCx2
         # We compute distance between ground truth and prediction
@@ -152,6 +225,11 @@ class PercentageOfCorrectKeypoints(Metric):
             dtype=tf.float32,
         )# Nx2
         # Compute the reference distance (It could be the head distance, or torso distance)
+
+        mask_tensor = 2.0*(1.0-vis)*tf.constant(32.0)
+        distance = distance + mask_tensor
+
+
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
         #max_ref = tf.reduce_max(reference_distance)
         
@@ -169,11 +247,12 @@ class PercentageOfCorrectKeypoints(Metric):
             #)
             correct_keypoints = tf.reduce_sum(condition) if k==0 else correct_keypoints+tf.reduce_sum(condition)
         """
-        total_keypoints = tf.cast(
-            tf.reduce_prod(tf.shape(distance)), dtype=tf.dtypes.float32
-        )
+        #total_keypoints = tf.cast(
+        #    tf.reduce_prod(tf.shape(distance)), dtype=tf.dtypes.float32
+        #)
         self.correct_keypoints.assign_add(correct_keypoints)
-        self.total_keypoints.assign_add(total_keypoints)
+        self.total_keypoints.assign_add(Njoints)
+        #self.total_keypoints.assign_add(total_keypoints)
 
     def update_state(self, y_true, y_pred, *args, **kwargs):
         return self._internal_update(y_true, y_pred)

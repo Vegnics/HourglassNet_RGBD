@@ -48,6 +48,8 @@ class HTFModelConfig(HTFConfigField):
             source="hourglass_tensorflow.handlers.model.HTFModelHandler"
         )
     )
+    load_model: bool = False
+    model_path: str = ""
     build_as_model: bool = False
     data_format: DATA_FORMAT = "NHWC"
     params: Optional[HTFModelParams] = Field(default=HTFModelParams)

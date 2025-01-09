@@ -31,6 +31,6 @@ This repository is a reimplementation of _A.Newell et Al_, [_**Stacked Hourglass
 
 Collaborative project with NDHU _(National Dong Hwa University)_. 
 
-This project was based on **Walid Benbihi's** implementation. The model can be trained on [**MPII Human Pose Dataset**](http://human-pose.mpi-inf.mpg.de/), [**SLP Multimodal in-bed pose estimation dataset**](https://ostadabbas.sites.northeastern.edu/slp-dataset-for-multimodal-in-bed-pose-estimation-3/).
+This project was based on **Walid Benbihi's** implementation. The models can be trained on [**MPII Human Pose Dataset**](http://human-pose.mpi-inf.mpg.de/), [**SLP Multimodal in-bed pose estimation dataset**](https://ostadabbas.sites.northeastern.edu/slp-dataset-for-multimodal-in-bed-pose-estimation-3/).
 
 Currrently, the framework for training in-bed pose estimation models regards **depth** and **RGB-D** modalities. Further documentation is still under development.  

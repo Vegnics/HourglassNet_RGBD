@@ -34,7 +34,7 @@ def read_landmark_data(csv_path: str):
                 x=int(drow[0]),
                 y=int(drow[1]),
                 id=idrow,
-                is_visible=1
+                is_visible=int(drow[2])#1 
             )
             for idrow,drow in enumerate(reader)
         ]
@@ -44,7 +44,7 @@ def read_slp_folder_to_htf_data(
         main_folder
 )-> Union[List[HTFPersonDatapointRGBD], Tuple[List[HTFPersonDatapointRGBD], Tuple]]:
     record_to_return = []
-    for sub_num in range(80,103):
+    for sub_num in range(91,103):
         sub_id = "{:05d}".format(sub_num)
         for sample_num in range(1,46):
             sample_id = "{0:06d}".format(sample_num)
@@ -70,6 +70,7 @@ def read_slp_folder_to_htf_data(
                         if isinstance(joint, SLPAnnoPoint)
                     ],
                     scale=1.0,
+                    multisubject=0,
                     )
                 )
     return record_to_return

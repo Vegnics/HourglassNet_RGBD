@@ -8,7 +8,7 @@ data:
   input:
     mode: "RGBD"
     #source: data/images.ignore.folder
-    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD
+    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v2
     extensions:
       - png
       - jpeg
@@ -90,8 +90,8 @@ dataset:
     train: false
     validation: false
     ratio_test: 0.000001
-    ratio_train: 0.75
-    ratio_validation: 0.21
+    ratio_train: 0.94
+    ratio_validation: 0.05
   bbox:
     activate: true
     factor: 1.15 #1.155
@@ -115,7 +115,7 @@ model:
     name: "HourglassSample"
     intermediate_supervision: true
   load_model: true
-  model_path: "data/model_t/myModel_SLP_fA3"
+  model_path: "data/model_t/myModel_SLP_fAB4_2j"
 
 
 test:

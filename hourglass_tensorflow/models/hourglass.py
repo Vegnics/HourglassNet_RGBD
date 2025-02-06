@@ -2,10 +2,11 @@ import tensorflow as tf
 from keras.models import Model
 
 from hourglass_tensorflow.types.config import HTFModelAsLayers
-from hourglass_tensorflow.layers.hourglass import HourglassLayer
-from hourglass_tensorflow.layers.hourglass_mod import HourglassLayerLast
+from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
+#from hourglass_tensorflow.layers.hourglass import HourglassLayer
+#from hourglass_tensorflow.layers.hourglass_mod import HourglassLayerLast
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
-
+from hourglass_tensorflow.types.config.model import ATTENTION_MECHANISMS
 
 class HourglassModel(Model):
     def __init__(
@@ -22,6 +23,12 @@ class HourglassModel(Model):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        skip_AM: ATTENTION_MECHANISMS = "NoAM",
+        s2f_AM: ATTENTION_MECHANISMS = "NoAM",
+        f2s_AM: ATTENTION_MECHANISMS = "NoAM",
+        use_2jointHM: bool = False,
+        use_kernel_regularization: bool = False,
+        freeze_attention_weights: bool = False,
         *args,
         **kwargs,
     ):
@@ -35,7 +42,12 @@ class HourglassModel(Model):
         )
         # Init
         self._intermediate_supervision = intermediate_supervision
-
+        self._skip_AM = skip_AM
+        self._s2f_AM = s2f_AM
+        self._f2s_AM = f2s_AM
+        self._use_2jointHM = use_2jointHM
+        self._use_kernel_reg = use_kernel_regularization
+        self._freeze_attention = freeze_attention_weights
         # Layers
         self.downsampling = DownSamplingLayer(
             input_size=input_size,
@@ -56,7 +68,13 @@ class HourglassModel(Model):
                 dtype=dtype,
                 dynamic=dynamic,
                 trainable=trainable,
-                intermed= True 
+                intermed= True,
+                skip_attention = self._skip_AM,
+                s2f_attention = self._s2f_AM,
+                f2s_attention = self._f2s_AM,
+                use_2jointHM = self._use_2jointHM,
+                use_kernel_regularization=self._use_kernel_reg,
+                freeze_attention = self._freeze_attention
             )
             for i in range(stages)
         ]
@@ -74,9 +92,19 @@ class HourglassModel(Model):
         )
         """
 
+    def _yes_no_str(self,val: bool):
+        return "Yes" if val else "No"
+
     def build(self, input_shape = (None, 256, 256, 4)):
         # You can print the input shape to verify it
+        print("---------Model configuration summary------------")
         print(f'Building model with input shape: {input_shape}')
+        print(f"Attention mechanism in the Skip Layers: {self._skip_AM}")
+        print(f"Attention mechanism in the S2F Layers (Bottom-up): {self._s2f_AM}")
+        print(f"Attention mechanism in the F2S Layers (Top-down): {self._f2s_AM}")
+        print(f"Use 2-Joint Heatmaps: {self._yes_no_str(self._use_2jointHM)}")
+        print(f"Use kernel regularization: {self._yes_no_str(self._use_kernel_reg)}")
+        print("------------------------------------------------")
         # Optionally, you can use the input_shape to dynamically define layers
         super(HourglassModel, self).build(input_shape)
 

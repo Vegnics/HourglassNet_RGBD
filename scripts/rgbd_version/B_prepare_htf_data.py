@@ -16,8 +16,8 @@ from hourglass_tensorflow.types import HTFPersonDatapointRGBD
 #class HTFDBpoints(BaseModel):
 #    data: List[HTFPersonDatapoint]
 
-HTF_JSON = "data/htf_slp_test.ignore.json"
-HTF_DATASET_JSON = "data/htf_slp_dataset_test.ignore.json"
+HTF_JSON = "data/htf_mkv.ignore.json"
+HTF_DATASET_JSON = "data/htf_mkv_dataset.ignore.json"
 
 if __name__ == "__main__":
     # Parse file as list of records
@@ -44,15 +44,19 @@ if __name__ == "__main__":
     for datap in data:
         cntVis = 0
         jids = [j.id for j in datap.joints]
+        _jids = set(jids)
         jxs = [j.x for j in datap.joints]
         jys = [j.y for j in datap.joints]
         jvis = [j.visible for j in datap.joints]
-        
+        if len(_jids)<14:
+            print(jids)
+            raise Exception("CSV reader stopped at 0.0")
         d = {"set": "TRAIN" if datap.is_train else "VALIDATION",
         "image": datap.source_image_rgb,
         "depth": datap.source_image_depth,
         "cover": datap.cover,
         "scale":datap.scale,
+        "multisubject":datap.multisubject,
         "bbox_tl_x": datap.bbox.top_left.x,
         "bbox_tl_y": datap.bbox.top_left.y,
         "bbox_br_x": datap.bbox.bottom_right.x,
@@ -63,9 +67,15 @@ if __name__ == "__main__":
         for jid in range(14):
             if jid in jids :#and jid in forced_ids:
                 k = jids.index(jid)
-                d[f"joint_{jid}_X"] = jxs[k]
-                d[f"joint_{jid}_Y"] = jys[k]
-                d[f"joint_{jid}_visible"] = True 
+                #d[f"joint_{jid}_X"] = jxs[k]
+                #d[f"joint_{jid}_Y"] = jys[k]
+                if jvis[k]==0:
+                    d[f"joint_{jid}_X"] = -100000
+                    d[f"joint_{jid}_Y"] = -100000
+                else:
+                    d[f"joint_{jid}_X"] = jxs[k]
+                    d[f"joint_{jid}_Y"] = jys[k]
+                d[f"joint_{jid}_visible"] = jvis[k] #True 
         DATA.append(d)
     # Write Transformed data
     with open(HTF_DATASET_JSON,"w") as file:

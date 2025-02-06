@@ -28,6 +28,6 @@ class HTFTrainConfig(HTFConfigField):
             source="hourglass_tensorflow.handlers.train.HTFTrainHandler"
         )
     )
-
+    use_2jointHM: bool = False
     class Config:
         arbitrary_types_allowed = True

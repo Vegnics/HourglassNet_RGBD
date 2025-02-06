@@ -2,7 +2,7 @@ import tensorflow as tf
 from keras.metrics import Metric
 from typing import Tuple
 
-from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax
+from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax,tf_batch_matrix_softargmax
 
 
 class RatioCorrectKeypoints(Metric):
@@ -142,6 +142,12 @@ class PercentageOfCorrectKeypoints(Metric):
         self.total_keypoints = self.add_weight(
             name="total_keypoints", initializer="zeros"
         )
+        #self.total_samples = self.add_weight(
+        #    name="number_of_samples", initializer="zeros"
+        #)
+        #self.total_cumulative_accuracy = self.add_weight(
+        #    name="cumulative_accuracy", initializer="zeros"
+        #)
         self.intermediate_supervision = intermediate_supervision
 
     def argmax_tensor(self, tensor):
@@ -203,8 +209,10 @@ class PercentageOfCorrectKeypoints(Metric):
     def _internal_update(self, y_true, y_pred):
         #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
         vis = self.check_visibility(y_true[:,:,:,:,0:14])
-        Njoints = tf.reduce_sum(vis)
-        hm_scale = tf.constant(2.3041902)
+        N = tf.ones_like(vis,dtype=tf.float32)
+        N = tf.reduce_sum(N)/14.0
+        #Njoints = tf.reduce_sum(vis, axis=1) #N
+        Njoints = tf.reduce_sum(vis) #N
         #_y_pred = 1.0*y_pred[:,-1,:,:,:]
         #normpreds = tf.linalg.norm(y_pred[:,-1,:,:,:],axis=[0,1])
         #normpreds = tf.expand_dims(normpreds,axis=0)
@@ -214,7 +222,10 @@ class PercentageOfCorrectKeypoints(Metric):
         
         #pred_joints = self.interpolate_joints()
         ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
-        predicted_joints = self.argmax_tensor(y_pred) #NxCx2
+        ground_truth_joints = tf.cast(ground_truth_joints,dtype = tf.float32)
+        #predicted_joints = self.argmax_tensor(y_pred) #NxCx2
+        predicted_joints = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:14]) #NxCx2
+        
         # We compute distance between ground truth and prediction
         error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32)
         distance = tf.norm(error, ord=2, axis=-1) #NxC
@@ -226,9 +237,8 @@ class PercentageOfCorrectKeypoints(Metric):
         )# Nx2
         # Compute the reference distance (It could be the head distance, or torso distance)
 
-        mask_tensor = 2.0*(1.0-vis)*tf.constant(32.0)
-        distance = distance + mask_tensor
-
+        #mask_tensor = 2.0*(1.0-vis)*tf.constant(32.0)
+        #distance = distance + mask_tensor
 
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
         #max_ref = tf.reduce_max(reference_distance)
@@ -237,7 +247,8 @@ class PercentageOfCorrectKeypoints(Metric):
         # We apply the thresholding condition
         condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
                                 dtype=tf.float32)
-        correct_keypoints = tf.reduce_sum(condition)
+        correct_keypoints = tf.reduce_sum(condition*vis)
+        
         """    
         for k in range(distance.shape[1]):
             condition = tf.cast(tf.math.less(distance[:,k],reference_distance * self.ratio),
@@ -250,6 +261,16 @@ class PercentageOfCorrectKeypoints(Metric):
         #total_keypoints = tf.cast(
         #    tf.reduce_prod(tf.shape(distance)), dtype=tf.dtypes.float32
         #)
+        #accuracy = tf.reduce_sum(correct_keypoints/Njoints)
+        #accuracy = tf.reduce_sum(correct_keypoints)/tf.cast(Njoints,dtype=tf.float32)
+        #self.total_cumulative_accuracy.assign_add(correct_keypoints/Njoints)
+        
+        #self.total_cumulative_accuracy.assign_add(accuracy)
+        #self.total_samples.assign_add(N)
+        #self.total_samples.assign_add(1.0)
+        #self.total_cumulative_accuracy.assign_add(accuracy)
+        #self.total_samples.assign_add(N)
+        
         self.correct_keypoints.assign_add(correct_keypoints)
         self.total_keypoints.assign_add(Njoints)
         #self.total_keypoints.assign_add(total_keypoints)
@@ -259,10 +280,13 @@ class PercentageOfCorrectKeypoints(Metric):
 
     def result(self, *args, **kwargs):
         return tf.math.divide_no_nan(self.correct_keypoints, self.total_keypoints)
+        #return tf.math.divide_no_nan(self.total_cumulative_accuracy, self.total_samples)
 
     def reset_state(self) -> None:
         self.correct_keypoints.assign(0.0)
         self.total_keypoints.assign(0.0)
+        #self.total_cumulative_accuracy.assign(0.0)
+        #self.total_samples.assign(0.0)
 
 
 class ObjectKeypointSimilarity(Metric):

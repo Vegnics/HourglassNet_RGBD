@@ -8,20 +8,21 @@ data:
   input:
     mode: "RGBD"
     #source: data/images.ignore.folder
-    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v2
+    source: /home/quinoa/database_mkv
     extensions:
       - png
       - jpeg
       - jpg
   output:
     #source: data/labels.ignore.csv
-    source: data/htf_slp_dataset.ignore.json
+    source: data/htf_mkv_dataset.ignore.json
     source_prefixed: false
     prefix_columns:
       - set
       - image
       - depth
       - scale
+      - multisubject
       - bbox_tl_x
       - bbox_tl_y
       - bbox_br_x
@@ -31,7 +32,7 @@ data:
     column_set: set
     column_source: image
     joints:
-      num: 14
+      num: 17
       dynamic_fields:
         - SUFFIX
       naming_convention: joint_{JOINT_ID}_{SUFFIX}
@@ -42,20 +43,23 @@ data:
           y: "Y"
           visible: visible
       names:
-        - "00_rAnkle"
-        - "01_rKnee"
-        - "02_rHip"
-        - "03_lHip"
-        - "04_lKnee"
-        - "05_lAnkle"
-        - "06_rWrist"
-        - "07_rElbow"
-        - "08_rShoulder"
-        - "09_lShoulder"
-        - "10_lElbow"
-        - "11_lWrist"
-        - "12_thorax"
-        - "13_topHead"
+        - "00_Nose"
+        - "01_Neck"
+        - "02_HeadTop"
+        - "03_lEar"
+        - "04_rEar"
+        - "05_lShoulder"
+        - "06_rShoulder"
+        - "07_lElbow"
+        - "08_rElbow"
+        - "09_lWrist"
+        - "10_rWrist"
+        - "11_lHip"
+        - "12_rHip"
+        - "13_lKnee"
+        - "14_rKnee"
+        - "15_lAnkle"
+        - "16_rAnkle"
 dataset:
   object:
     source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
@@ -64,15 +68,15 @@ dataset:
   image_size: 256 #256
   data_mode: "RGBD"
   hip_idxs:
-    Lhip: 3
-    Rhip: 2
+    Lhip: 11
+    Rhip: 12
   column_image: image
   heatmap:
     size: 64 #64
     stacks: 3
-    channels: 14 
-    stddev: 1.1
-    stddev_factor: 1.4 #1.35
+    channels: 17 
+    stddev: 1.3
+    stddev_factor: 1.3 #1.35
   #normalization: "Normal"
   normalization: "Idem"
   augmentation:
@@ -119,8 +123,8 @@ model:
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
-  #load_model: true
-  #model_path: "data/model_t/myModel_SLP_fAB4_2j"
+  load_model: true
+  model_path: "data/model_t/myModel_MKV_a1"
 
 train:
   object:
@@ -129,8 +133,8 @@ train:
       foo: bar
   epochs: 150
   epoch_size: 92
-  batch_size: 40 #128
-  learning_rate: 0.00025
+  batch_size: 50 #128
+  learning_rate: 0.0000025
   #learning_rate:
   #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     #source: "keras.optimizers.schedules.ExponentialDecay"
@@ -188,7 +192,7 @@ train:
     -
       source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
       params:
-        monitor: val_loss #val_MEDist #val_PCKh@0.5        # Metric to monitor (could also be 'loss' or 'accuracy')
+        monitor: val_PCKh@0.5 #val_MEDist #val_PCKh@0.5        # Metric to monitor (could also be 'loss' or 'accuracy')
         factor: 0.4                # Factor to reduce the learning rate, e.g., new_lr = lr * 0.5
         patience: 4                # Number of epochs with no improvement before reducing
         verbose: 1                 # Print updates

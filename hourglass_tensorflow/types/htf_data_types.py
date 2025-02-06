@@ -68,7 +68,7 @@ class HTFPersonDatapointRGBD(BaseModel):
     bbox: HTFPersonBBox
     joints: Union[List[HTFPersonJoint], Dict[int, HTFPersonJoint]]
     scale: float
-
+    multisubject: int
     def convert_joint(
         self, to=Union[Literal["list"], Literal["dict"], Type[dict], Type[list]]
     ) -> None:

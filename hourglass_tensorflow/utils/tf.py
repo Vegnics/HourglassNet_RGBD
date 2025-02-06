@@ -67,12 +67,13 @@ def tf_resize_tensor(tensor: tf.Tensor, size: int) -> tf.Tensor:
 
 @tf.function
 def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale: tf.Tensor,center: tf.Tensor) -> tf.Tensor:
+    precision = tf.dtypes.float64
     N = tshape[0]
     M = tshape[1]
-
+    _tencenter = tf.convert_to_tensor([N,M],dtype=precision)/2.0
+    _tencenter = tf.reshape(_tencenter,shape=[-1,1])
     Ki = tf.range(0,N,1)
     Kj = tf.range(0,M,1)
-    precision = tf.dtypes.float64
     # Compute the rotation matrix and translation vector
     center = tf.cast(center,dtype=precision)
     angle = tf.cast(angle,dtype=precision)*np.pi/180.0
@@ -88,7 +89,7 @@ def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale:
     indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),precision) #2xN
     _center = tf.reshape([center[1],center[0]],[-1,1])
     # Generate indexes from the original image (regarded as the inverse rotation)
-    inv_indexes = R@(indexes - _center)+_center
+    inv_indexes = R@(indexes - _center) + _center #+_center
 
     inv_indexes_col = tf.clip_by_value(inv_indexes[1],0.00001,1.0*(tf.cast(M,dtype=precision)-1.0))
     inv_indexes_row = tf.clip_by_value(inv_indexes[0],0.00001,1.0*(tf.cast(N,dtype=precision)-1.0))
@@ -102,7 +103,7 @@ def tf_rotate_tensor(tensor: tf.Tensor,tshape:tf.Tensor, angle: tf.Tensor,scale:
 
     # Fill the whole rotated image with the data sampled from the inverse-rotated image (original)
     indexes = tf.cast(tf.transpose(indexes,perm=[1,0]),tf.dtypes.int32)
-    img_rotated = 1.5*tf.ones_like(tensor) 
+    img_rotated = 1.5*tf.zeros_like(tensor) 
     img_rotated = tf.tensor_scatter_nd_update(img_rotated, indexes, pixels_original)
 
     return img_rotated
@@ -130,23 +131,28 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
     angle = tf.cast(angle,dtype=precision)*np.pi/180.0
     alpha = tf.cast(scale,dtype=precision)*tf.math.cos(angle)
     beta = -1.0*tf.cast(scale,dtype=precision)*tf.math.sin(angle)
-    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])  
-    
+    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]]) 
+
+    ymax = tf.cast(tf.reduce_sum(tshape*tf.constant([1,0,0])),dtype=precision)
+    xmax = tf.cast(tf.reduce_sum(tshape*tf.constant([0,1,0])),dtype=precision)
     # Compute the rotated coordinates
     _coordinates = tf.cast(tf.transpose(coordinates,perm=[1,0]),dtype=precision)
     _center = tf.cast(tf.reshape(center,shape=(-1,1)),dtype=precision)
+    _tencenter = tf.convert_to_tensor([xmax,ymax],dtype=precision)/2.0
+    _tencenter = tf.reshape(_tencenter,shape=[-1,1])
+
     rcoordinates = tf.cast(R@(_coordinates-_center)+_center,precision)#-diff
-    ymax = tf.cast(tf.reduce_sum(tshape*tf.constant([1,0,0])),dtype=precision)
-    xmax = tf.cast(tf.reduce_sum(tshape*tf.constant([0,1,0])),dtype=precision)
+    
     rcoords_x = rcoordinates[0,:] #tf.clip_by_value(rcoordinates[0,:],0,xmax-1.0)
     vis_x = tf.where(tf.logical_and(rcoords_x<0,rcoords_x>xmax),False,True)
     rcoords_y = rcoordinates[1,:] #tf.clip_by_value(rcoordinates[1,:],0,ymax-1.0)
     vis_y = tf.where(tf.logical_and(rcoords_y<0,rcoords_y>ymax),False,True)
     vis = tf.reshape(tf.cast(tf.logical_and(tf.logical_and(vis_x,vis_y),tf.cast(visibility,tf.bool)),dtype=precision),(-1,1))
+    vis = tf.reshape(tf.cast(visibility,dtype=precision),(-1,1))
     rcoords = tf.stack([rcoords_x,rcoords_y],axis=0)
     rcoords = tf.cast(tf.transpose(rcoords,perm=[1,0]),dtype=precision)
     rcoords = tf.where(coords<0,coords,rcoords)
-    rcoords = tf.concat([rcoords,vis],axis=1)
+    rcoords = tf.concat([rcoords,vis],axis=1) #vis
     
     return tf.cast(rcoords,tf.dtypes.float32)
 
@@ -223,6 +229,7 @@ def tf_compute_bbox(coordinates: tf.Tensor, **kwargs) -> tf.Tensor:
         tf.Tensor: Bounding box 2x2 tensor as [[TopLeftX, TopLeftY], [BottomRightX, BottomRightY]]
     """
     njoints = tf.shape(coordinates)[0]
+    #vis = tf.reshape(visibilities,shape=(njoints,1))
     oshape = tf.convert_to_tensor([1,njoints])
     Xs = tf.reshape(tf.cast(coordinates[:, 0],dtype=tf.float32),oshape)#(1,njoints))
     Ys = tf.reshape(tf.cast(coordinates[:, 1],dtype=tf.float32),oshape)#(1,njoints))
@@ -231,8 +238,9 @@ def tf_compute_bbox(coordinates: tf.Tensor, **kwargs) -> tf.Tensor:
     viszeros= tf.zeros(oshape,dtype=tf.float32)#,(1,njoints))
     visinf = 100000*tf.ones(oshape,dtype=tf.float32)#tf.reshape(tf.constant([100000]*njoints,dtype=tf.float32),(1,njoints))
     vis = tf.reshape(tf.where(tf.math.logical_and(Xs<0,Ys<0),visinf,viszeros),oshape)#,(1,njoints))
-    minx = tf.reduce_min(Xs+vis)
-    miny = tf.reduce_min(Ys+vis)
+    #viszero = 100000*(1-vis)
+    minx = tf.reduce_min(Xs) #+vis)
+    miny = tf.reduce_min(Ys) #+vis)
     return tf_reshape_slice([minx, miny, maxx, maxy], shape=2, **kwargs)
 
 @tf.function
@@ -264,8 +272,8 @@ def tf_expand_bbox(
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
 
     N = tf.maximum(height,width)
-    bfactorW = tf.minimum((N/width),1.25)*bbox_factor
-    bfactorH = tf.minimum((N/height),1.25)*bbox_factor
+    bfactorW = (tf.minimum((N/width),1.05)+0.4*(1.0-(width/N)))*bbox_factor
+    bfactorH = (tf.minimum((N/height),1.05)+0.4*(1.0-(height/N)))*bbox_factor
 
     # Increase BBox Size
     c_tl_x =  top_left_x - width * (bfactorW - 1.0)/2
@@ -345,7 +353,10 @@ def tf_bivariate_normal_pdf(
                 start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
             ),
         )
-        mean = tf.clip_by_value(tf.round(mean),0,63)
+        
+        #mean = tf.clip_by_value(tf.round(mean),0,63)
+        mean = tf.clip_by_value(mean,0,63)
+        
         #R = tf.sqrt(tf.math.square((X - mean[0])) + tf.math.square((Y - mean[1])))/stddev[0]
         #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
         #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
@@ -354,7 +365,7 @@ def tf_bivariate_normal_pdf(
         R1 = tf.math.square((X - mean[0])/stddev) + tf.math.square((Y - mean[1])/stddev)
         Z = tf.exp(-0.5*R1)#-0.000001 #+ 0.00001#- 0.0001
     else:
-        Z = 0.00001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)#-0.001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
+        Z = 0.000001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)#-0.001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
     #R2 = tf.math.square((X - mean[0])/(4.0*stddev[0])) + tf.math.square((Y - mean[1])/(4.0*stddev[1]))
     #R3 = tf.math.square((X - mean[0])/(16.0*stddev[0])) + tf.math.square((Y - mean[1])/(16.0*stddev[1]))
     #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
@@ -393,12 +404,13 @@ def tf_bivariate_segment_normal_pdf(
         tf.Tensor: Heatmap
     """
     # Compute Grid
-    means = tf.round(points)
+    #means = tf.round(points)
+    means = tf.clip_by_value(points,0,63)
     means = tf.cast(means,dtype=tf.float32)
     signs = tf.sign(means)
     signs = tf.sign(tf.reduce_sum(signs,axis=1))
 
-    if vis[0]==1 and vis[1]==1 and signs[0]==1 and signs[1]==1:
+    if vis[0]==1 or vis[1]==1 and signs[0]==1 and signs[1]==1:
         X, Y = tf.meshgrid(
             tf.range(
                 start=0.0, limit=tf.cast(shape[0], precision), delta=1.0, dtype=precision
@@ -410,11 +422,11 @@ def tf_bivariate_segment_normal_pdf(
         D1 = tf.math.sqrt(tf.math.square(X - means[0][0]) + tf.math.square(Y - means[0][1])) 
         D2 = tf.math.sqrt(tf.math.square(X - means[1][0]) + tf.math.square(Y - means[1][1])) 
         DS = tf.math.sqrt(tf.math.square(means[1][0] - means[0][0]) + tf.math.square(means[1][1] - means[0][1]))
-        R = tf.math.square((D1+D2-DS))/(tf.square(stddev))
-        Z = tf.exp(-1.0*R)
-    elif vis[0]==1 and vis[1]==0 and signs[0]==1 and signs[1]==-1:
+        R = tf.math.square((D1+D2-DS)/2.0)/(tf.square(stddev))
+        Z = tf.exp(-0.5*R)
+    elif vis[0]==1 and vis[1]==0 and signs[0]==1 and signs[1]==-1 and False:
         Z = tf_bivariate_normal_pdf(mean=means[0],vis=vis[0] , stddev=stddev, shape=shape, precision=precision)
-    elif vis[1]==1 and vis[0]==0 and signs[1]==1 and signs[0]==-1:
+    elif vis[1]==1 and vis[0]==0 and signs[1]==1 and signs[0]==-1 and False:
         Z = tf_bivariate_normal_pdf(mean=means[1],vis=vis[1] , stddev=stddev, shape=shape, precision=precision)
     else:
         Z = 0.00001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
@@ -438,6 +450,36 @@ def tf_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
     # stack and return 2D coordinates
     return tf.transpose(tf.stack((argmax_x, argmax_y), axis=0), [1, 0])
 
+@tf.function
+def tf_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
+    """Apply a 2D argmax to a tensor
+
+    Args:
+        tensor (tf.Tensor): 3D Tensor with data format HWC
+
+    Returns:
+        tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
+    """
+    _tensor = tensor/tf.reduce_max(tensor,axis=[0,1],keepdims=True)
+    thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
+    _flat_tensor = tf.reshape(100.0*thresh_tensor, (-1, tf.shape(tensor)[-1]))
+    # Apply softmax to normalize heatmaps
+    flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) #HWxC 
+
+    # Create coordinate grids
+    x_grid = tf.range(tf.shape(tensor)[0], dtype=tf.float32)
+    y_grid = tf.range(tf.shape(tensor)[1], dtype=tf.float32)
+    x_grid, y_grid = tf.meshgrid(x_grid, y_grid)
+
+    # Flatten coordinate grids
+    x_grid = tf.reshape(x_grid, shape=(-1,1)) #HWx1
+    y_grid = tf.reshape(y_grid, shape=(-1,1)) #HWx1 
+
+    # Compute expected (x, y) coordinates using softmax weights
+    x = tf.reduce_sum(x_grid * flat_tensor, axis=0) #C,
+    y = tf.reduce_sum(y_grid * flat_tensor, axis=0) #C,  
+    # stack and return 2D coordinates
+    return tf.transpose(tf.stack((x,y), axis=0), [1, 0])
 
 @tf.function
 def tf_batch_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
@@ -453,6 +495,32 @@ def tf_batch_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
         fn=tf_matrix_argmax, elems=tensor, fn_output_signature=tf.dtypes.int32
     )
 
+@tf.function
+def tf_batch_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
+    """Apply 2D argmax along a batch
+
+    Args:
+        tensor (tf.Tensor): 4D Tensor with data format NHWC
+
+    Returns:
+        tf.Tensor: tf.dtypes.int32 Tensor of dimension NxCx2
+    """
+    return tf.map_fn(
+        fn=tf_matrix_softargmax, elems=tensor, fn_output_signature=tf.dtypes.float32
+    )
+
+
+@tf.function
+def tf_normalize_tensor(tensor:tf.Tensor) -> tf.Tensor:
+    """
+    Apply normalization disregarding the zero entries
+    """
+    mask = tf.where(tensor<=0.00001,0.0,1.0)
+    numpx = tf.reduce_sum(mask)
+    mean = tf.reduce_sum(tensor*mask)/numpx
+    stddev = tf.sqrt(tf.reduce_sum(tf.square(tensor*mask-mean))/numpx+0.0000001)
+    _tensor = (tensor-mean)/stddev
+    return tf.clip_by_value(1.5*(_tensor+3.5)+1.5,0.0,800.0)
 
 @tf.function
 def tf_dynamic_matrix_argmax(

@@ -55,15 +55,15 @@ class ConvBatchNormReluLayer(Layer):
             kernel_initializer=kernel_initializer,
         )
         
-        self.conv_in = layers.Conv2D(
-            filters=4,
-            kernel_size=1,
-            strides=1,
-            padding="same",
-            name="Conv2DIn",
-            activation=None,
-            kernel_initializer="glorot_uniform",
-        )
+        #self.conv_in = layers.Conv2D(
+        #    filters=4,
+        #    kernel_size=1,
+        #    strides=1,
+        #    padding="same",
+        #    name="Conv2DIn",
+        #    activation=None,
+        #    kernel_initializer="glorot_uniform",
+        #)
 
         self.relu = layers.ReLU(
             name="ReLU",
@@ -86,8 +86,8 @@ class ConvBatchNormReluLayer(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         # Could it be CONV-> RELU -> BATCH NORM
-        x = self.conv_in(inputs)
-        x = self.batch_norm(x, training=training)
+        #x = self.conv_in(inputs)
+        x = self.batch_norm(inputs, training=training)
         x = self.relu(x)
         x = self.conv(x)
         return x

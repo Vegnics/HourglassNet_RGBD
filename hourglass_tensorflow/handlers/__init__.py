@@ -20,6 +20,10 @@ from hourglass_tensorflow.handlers.train import HTFTrainHandler
 from hourglass_tensorflow.handlers.test import HTFTestHandler
 from hourglass_tensorflow.handlers.dataset import HTFDatasetHandler
 from hourglass_tensorflow.utils.tf import tf_matrix_argmax,tf_batch_matrix_argmax
+from hourglass_tensorflow.utils import draw_pose_mplib
+from io import StringIO, BytesIO
+import PIL
+from matplotlib import patches as mpatches
 
 T = TypeVar("T")
 
@@ -146,7 +150,9 @@ class HTFManager(ObjectLogger):
         train_dataset=self.DATASET._train_dataset
         test_dataset=self.DATASET._test_dataset
         validation_dataset = self.DATASET._validation_dataset
-        for data in train_dataset:
+        for k,data in enumerate(train_dataset):
+            if k%9!=0 and False:
+                continue
             img = data[0].numpy()
             #hmp = data[1]
             img_rgb = np.uint8(np.copy(img[:,:,0]))
@@ -163,18 +169,20 @@ class HTFManager(ObjectLogger):
             print(np.max(img),np.min(img),cntld)
             
             depth = img[:,:,0]#*255.0/3.5
+            print(hmp.shape)
+            #print(data[2].numpy())
+            draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
             #depth = np.clip(depth,0,255)
             #depth= np.uint8(depth)
             #depth = cv2.applyColorMap(depth,cv2.COLORMAP_JET)
             #img = np.copy(depth)
-            plt.imshow(depth,cmap="jet")
-            plt.colorbar(location="left",orientation="vertical",cmap="jet")
-            plt.show() 
+            
+            #plt.figure() 
             if cntld < 14 or True: 
                 _maxargs = tf_batch_matrix_argmax(hmp[:,-1,:,:,:])
-                for stg in [2]:#range(3):
+                for stg in [0]:#range(3):
                     print(f"Stage {stg}:::")
-                    for i in range(14):
+                    for i in range(26):
                         print(f"\t Landmark {i}")
                         #plt.imshow(hmp[0,stg,:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
                         #plt.colorbar(location="left",orientation="vertical",cmap="jet")

@@ -16,6 +16,7 @@ from hourglass_tensorflow.handlers.meta import _HTFHandler
 from hourglass_tensorflow.metrics.correct_keypoints import PercentageOfCorrectKeypoints
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.losses.mae_custom import MAE_custom
+from hourglass_tensorflow.metrics import SoftargmaxMeanDist
 
 # region Abstract Class
 
@@ -120,7 +121,9 @@ class HTFModelHandler(_HTFModelHandler):
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom,
-                                            "OverallMeanDistance":OverallMeanDistance})
+                                            "OverallMeanDistance":OverallMeanDistance,
+                                            "SoftargmaxMeanDist":SoftargmaxMeanDist})
+                model.compile()
                 self._model = model
             # Link Input Shape to Model
             self._output = model(inputs=input_tensor, *args, **kwargs)

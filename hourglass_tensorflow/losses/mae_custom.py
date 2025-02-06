@@ -7,21 +7,31 @@ class MAE_custom(keras.losses.Loss):
         self, reduction=tf.keras.losses.Reduction.AUTO, name="MAEcustom", *args, **kwargs
     ):
         super().__init__(reduction, name)
-        self.stages = 10
-        self.njoints = 10
+        self.stages = 3
+        self.n1joints = 14
+        self.n2joints = 12
+        self.use2joints = True
         for key, value in kwargs.items():
             if key == "nstages":
                 self.stages = int(value)
-            elif key == "njoints":
-                self.njoints = int(value)
-            
+            elif key == "n1joints":
+                self.n1joints = int(value)
+            elif key == "n2joints":
+                self.n2joints = int(value)
+            elif key == "use2joints":
+                self.use2joints = int(value)
+        channel_mask = tf.reshape(tf.convert_to_tensor([1]*self.n1joints+[self.use2joints]*self.n2joints),shape=(1,1,1,1,self.n1joints+self.n2joints))
+        self.channel_mask = tf.cast(channel_mask, dtype = tf.float32)
+        self.Nchannels = tf.reduce_sum(self.channel_mask)
     def call(self, y_true, y_pred):
         #01234
         #NSHWC
         #NSHW
         #NHW
         S = self.stages
-        C = self.njoints
+        #C = self.njoints
+        _y_true = y_true*self.channel_mask #NSHWC
+        _y_pred = y_pred*self.channel_mask #NSHWC
         """
         _y_true = tf.reshape(y_true,shape=[-1,S,64,64,C])
         _y_pred = tf.reshape(y_pred,shape=[-1,S,64,64,C])
@@ -45,7 +55,8 @@ class MAE_custom(keras.losses.Loss):
         #_WC2 = _WC2 + [0.0]*15
         #WC2 = tf.constant([_WC2])
         #WC2 = tf.reshape(WC2,shape=[1,1,C])
-        Ws = tf.reshape(tf.constant([0.25,0.35,0.4]),[1,3])
+        
+        Ws = tf.reshape(tf.constant([0.31,0.33,0.36]),[1,3])
         """ 
         eps = tf.reshape(tf.constant(0.000001),shape=[-1,1,1,1,1])
         _normpred  = tf.reduce_sum(y_pred,axis=[2,3])
@@ -70,10 +81,12 @@ class MAE_custom(keras.losses.Loss):
         WEMAE = tf.concat([wEMAE0,wEMAE1],axis=1)
         #Exponential Abs Difference
         #ndiff = (1.0+32.0*tf.math.sqrt(_y_true))*tf.abs(_y_true-_y_pred)
-        ndiff = tf.math.square(y_true-y_pred)
+        ndiff = tf.math.square(_y_true-_y_pred)
+        #01234
+        #NSHWC
         #ndiff = tf.sqrt(tf.reduce_mean(ndiff+0.000000001,axis=[2,3])) #NSHW
-        ndiff = tf.reduce_mean(ndiff+0.00000001,axis=[2,3]) #NSHW
-         #+0.00001
+        ndiff = tf.reduce_mean(ndiff+0.00000001,axis=[2,3]) #NSHW  0.00000001
+         #+0.00000001
         #sumytrue = tf.reduce_mean(_y_true,axis=[2,3]) #NSC
         #sumypred = tf.reduce_mean(_y_pred,axis=[2,3]) #NSC
         #sndiff = tf.abs(sumytrue-sumypred)
@@ -81,7 +94,10 @@ class MAE_custom(keras.losses.Loss):
         #dist2 = -1.0*tf.math.exp(1.0/(tf.reduce_mean(ndiff,axis=[2,3]))) #NSC
         
         #dist2 = tf.math.log(tf.reduce_mean(ndiff,axis=[2,3])) #NSC
-        Wc = tf.reshape(tf.convert_to_tensor([1]*14+[0.5]*12),[1,1,26])/(14+6)
+        Wc = tf.reshape(tf.convert_to_tensor([1]*self.n1joints+[0.7]*self.n2joints),[1,1,self.n1joints+self.n2joints])*self.channel_mask[:,:,0,0,:]
+        SumWc = tf.reduce_sum(Wc)
+        Wc = Wc/SumWc
+
         dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
         #dist2 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,0:16],axis=[2,3])) #NSC
         #dist3 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,16:31],axis=[2,3])) #NSC
@@ -94,7 +110,6 @@ class MAE_custom(keras.losses.Loss):
         #dist3 = tf.reduce_sum(dist3/15,axis=2)# ^2.0
         #dist3 = tf.reduce_mean(dist3,axis=1)
         #dist3 = tf.reduce_mean(dist3)
-        
         
         #dist2 = -10.0*dist2
         #dist = dist1 + 0.15*dist2

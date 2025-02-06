@@ -11,6 +11,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import random
 
 from hourglass_tensorflow.utils import split_train_test
 from hourglass_tensorflow.types.config import HTFDatasetBBox
@@ -252,6 +253,13 @@ class HTFDatasetHandler(_HTFDatasetHandler):
             depth_filenames = self.engine.to_list(
                 self.engine.get_columns(data=data, columns=[self.config.column_depth_image])
             )
+            _extracted_data = list(zip(rgb_filenames,depth_filenames,coordinates))
+            random.shuffle(_extracted_data)
+            rgb_filenames,depth_filenames,coordinates = zip(*_extracted_data)
+            rgb_filenames = list(rgb_filenames)
+            depth_filenames = list(depth_filenames)
+            coordinates = list(coordinates)
+            #return _extracted_data[0],_extracted_data[1],_extracted_data[2]
             return rgb_filenames,depth_filenames,coordinates
         else:
             raise Exception(f"The data_mode {self.data_mode } is not valid.")
@@ -280,6 +288,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
                     )
                 )
+
         elif self.config.data_mode == "RGBD":
             raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation_RGBD(
                         img,
@@ -315,9 +324,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
             )# Get Heatmaps
         print("-------->RAW 5 :",raw) # rimg, hms
         raw = raw.map(
-                lambda img, hms: tf_train_map_normalize(
+                lambda img, hms, vis: tf_train_map_normalize(
                     img,
                     hms,
+                    vis,
                     normalization=self.config.normalization,
                 )
             )# Normalize Data
@@ -395,9 +405,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                 )# Get Heatmaps
         print("-------->RAW 5 :",raw) # rimg, hms
         raw = raw.map(
-                lambda img, hms: tf_train_map_normalize(
+                lambda img, hms ,vis: tf_train_map_normalize(
                     img,
                     hms,
+                    vis,
                     normalization=self.config.normalization,
                 )
             )# Normalize Data

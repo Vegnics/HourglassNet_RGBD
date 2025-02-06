@@ -10,6 +10,42 @@ from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
 from hourglass_tensorflow.layers.residual_with_attention import ResidualLayerAttention
 from hourglass_tensorflow.layers.residual_with_attention_spatial import ResidualLayerAttentionSpatial
 
+def generate_residual_layer(layer_type: str ,
+                            feature_filters: int ,
+                            name: str = None ,
+                            dtype = None ,
+                            dynamic = False,
+                            trainable = True,
+                            kernel_reg = False,
+                            freeze_attention=False):
+        
+        if layer_type == "NoAM":
+            return  ResidualLayer(
+                output_filters= feature_filters,
+                name=name,
+                dtype=dtype,
+                dynamic=dynamic,
+                trainable=trainable,)
+        elif layer_type == "SAM":
+            return ResidualLayerAttentionSpatial(
+                output_filters=feature_filters,
+                name=name,
+                dtype=dtype,
+                dynamic=dynamic,
+                trainable=trainable,
+                kernel_reg=kernel_reg,
+                freeze_attention=freeze_attention,)
+        elif layer_type == "FAM":
+            return ResidualLayerAttention(
+                output_filters=feature_filters,
+                name=name,
+                dtype=dtype,
+                dynamic=dynamic,
+                trainable=trainable,
+                kernel_reg = kernel_reg,
+                freeze_attention=freeze_attention)
+        else:
+            raise Exception(f"The residual layer type: {layer_type} is invalid.")
 
 class ResidualInWithBNRC(Layer):
     def __init__(
@@ -49,7 +85,7 @@ class ResidualInWithBNRC(Layer):
             name="ReLU",
         )
 
-        self.residual1 =  ResidualLayerIn( #AttentionSpatial(
+        self.residual1 =  ResidualLayerIn(
                                             output_filters=output_filters,
                                             name="ResidualInCBNR",
                                             dtype=dtype,
@@ -72,6 +108,28 @@ class ResidualInWithBNRC(Layer):
         x = self.conv(x)
         return x
 
+
+class zeroLayer(Layer):
+    def __init__(
+        self,
+        output_channels: int = 16,# Number of feature maps
+        name: str = None,
+    ) -> None:
+        super().__init__(name=name, dynamic=False, trainable=False)
+        # Store Config
+        self.output_channels = output_channels 
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "output_channels": self.output_channels,
+            },
+        }
+    def call(self,inputs):
+        x = tf.reduce_sum(0.0*inputs,axis=3)
+        x = tf.expand_dims(x,axis=3)
+        return x*tf.zeros(shape=(1,1,1,self.output_channels))
+
 class ResidualWithBNRC(Layer):
     def __init__(
         self,
@@ -83,6 +141,7 @@ class ResidualWithBNRC(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        attention: str = None,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store Config
@@ -109,17 +168,13 @@ class ResidualWithBNRC(Layer):
         self.relu = layers.ReLU(
             name="ReLU",
         )
-
-        self.residual1 =  ResidualLayerAttentionSpatial( #AttentionSpatial(
-                                            output_filters=output_filters,
-                                            name="Residual",
-                                            dtype=dtype,
-                                            dynamic=dynamic,
-                                            trainable=trainable,
-                                            use_last_relu=False,
-                                            epsilon=0.001,
-                                            momentum=0.97,
-        )
+        self.residual1 =  generate_residual_layer(layer_type=attention,
+                                                feature_filters=output_filters,
+                                                name="Residual",
+                                                dtype=dtype,
+                                                dynamic=dynamic,
+                                                trainable=trainable,)
+    
     def get_config(self):
         return {
             **super().get_config(),
@@ -142,12 +197,15 @@ class HourglassLayer(Layer):
         downsamplings: int = 4,    # Number of Downsamplings and upsamplings. 
         name: str = None,
         dtype=None,
-        dynamic=False,
+        dynamic: bool =False,
         trainable: bool = True,
-        intermed = False,
+        intermed: bool = False,
+        use_2jointHM: bool = False,
         skip_attention: str = None,
         s2f_attention: str = None,
-        f2s_attention: str = None
+        f2s_attention: str = None,
+        use_kernel_regularization: bool = False,
+        freeze_attention: bool = False
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store Config
@@ -156,7 +214,9 @@ class HourglassLayer(Layer):
         self.output_filters = output_filters
         self.intermed = intermed
         self.trainable = trainable
-        self.dtype  = dtype
+        self.skip_att = skip_attention
+        self.s2f_att = s2f_attention
+        self.f2s_att = f2s_attention
         # Init parameters
         self.layers = [{} for i in range(self.downsamplings)]
         # Create Layers
@@ -182,7 +242,7 @@ class HourglassLayer(Layer):
             dynamic=dynamic,
             trainable=trainable,
             outmax=None,
-        )
+        ) if use_2jointHM else zeroLayer(12,name="ZeroHeatmap2")
         #"""
 
 
@@ -193,7 +253,7 @@ class HourglassLayer(Layer):
                                             trainable=trainable,
                                             epsilon=0.001,
                                             momentum=0.97,
-        )
+        ) if use_2jointHM else zeroLayer(feature_filters,name="ZeroResidual2J")
         
         self._merge_feats_main = BatchNormConv1Layer(filters=feature_filters,
                                             kernel_size=1,
@@ -216,13 +276,8 @@ class HourglassLayer(Layer):
         #)
         
         for i, downsampling in enumerate(self.layers):
-            downsampling["up_1"] = ResidualLayer( #Spatial
-                output_filters=feature_filters,
-                name=f"Step{i}_ResidualUp1",
-                dtype=dtype,
-                dynamic=dynamic,
-                trainable=trainable,
-            )
+            downsampling["up_1"] = generate_residual_layer(layer_type=self.skip_att,feature_filters=self.feature_filters,
+                                                           name=f"Step{i}_ResidualUp1",dtype=self.dtype,dynamic=self.dynamic,trainable=self.trainable,kernel_reg=use_kernel_regularization,freeze_attention=freeze_attention)
             downsampling["low_"] = layers.MaxPool2D(
                 pool_size=(2, 2),
                 padding="valid",
@@ -231,43 +286,49 @@ class HourglassLayer(Layer):
                 dynamic=dynamic,
                 trainable=trainable,
             )
-            downsampling["low_1"] = ResidualLayerAttention( #Attention( #Spatial #Attention
-                output_filters=feature_filters,
-                name=f"Step{i}_ResidualLow1",
-                dtype=dtype,
-                dynamic=dynamic,
-                trainable=trainable,
-            )
+            downsampling["low_1"] = generate_residual_layer(layer_type=self.s2f_att,
+                                                            feature_filters=self.feature_filters,
+                                                            name=f"Step{i}_ResidualLow1",
+                                                            dtype=self.dtype,
+                                                            dynamic=self.dynamic,
+                                                            trainable=self.trainable,
+                                                            kernel_reg=use_kernel_regularization,
+                                                            freeze_attention=freeze_attention)
+
             if i == 0:
-                downsampling["low_2"] = ResidualLayerAttention( #Attention(
-                    output_filters=feature_filters,
-                    name=f"Step{i}_ResidualLow2",
-                    dtype=dtype,
-                    dynamic=dynamic,
-                    trainable=trainable,
-                )
+                downsampling["low_2"] = generate_residual_layer(layer_type=self.s2f_att,
+                                                                feature_filters=self.feature_filters,
+                                                                name=f"Step{i}_ResidualLow2",
+                                                                dtype=self.dtype,
+                                                                dynamic=self.dynamic,
+                                                                trainable=self.trainable,
+                                                                kernel_reg=use_kernel_regularization,
+                                                                freeze_attention=freeze_attention)
             elif i == 3:
-                downsampling["low_in"] =  ResidualLayerAttention( #Attention( #Spatial #Attention
-                    output_filters=feature_filters,
-                    name=f"Step{i}_ResidualMainIn",
-                    dtype=dtype,
-                    dynamic=dynamic,
-                    trainable=trainable
-                )
-                downsampling["low_out"] = ResidualWithBNRC( #ResidualWithCBNR( #Attention #Spatial
+                downsampling["low_in"] =  generate_residual_layer(layer_type=self.s2f_att,
+                                                                  feature_filters=self.feature_filters,
+                                                                  name=f"Step{i}_ResidualMainIn",
+                                                                  dtype=self.dtype,
+                                                                  dynamic=self.dynamic,
+                                                                  trainable=self.trainable,
+                                                                  kernel_reg=use_kernel_regularization,
+                                                                  freeze_attention=freeze_attention)
+                downsampling["low_out"] = ResidualWithBNRC(
                     output_filters=feature_filters,
                     name=f"Step{i}_ResidualMainOut",
                     dtype=dtype,
                     dynamic=dynamic,
                     trainable=trainable,
+                    attention=self.f2s_att,
                 )
-            downsampling["low_3"] = ResidualLayerAttentionSpatial( #AttentionSpatial( #Attention #Spatial
-                output_filters=feature_filters,
-                name=f"Step{i}_ResidualLow3",
-                dtype=dtype,
-                dynamic=dynamic,
-                trainable=trainable,
-            )
+            downsampling["low_3"] = generate_residual_layer(layer_type=self.f2s_att,
+                                                            feature_filters=self.feature_filters,
+                                                            name=f"Step{i}_ResidualLow3",
+                                                            dtype=self.dtype,
+                                                            dynamic=self.dynamic,
+                                                            trainable=self.trainable,
+                                                            kernel_reg=use_kernel_regularization,
+                                                            freeze_attention=freeze_attention)
             downsampling["up_2"] = layers.UpSampling2D(
                 size=(2, 2),
                 data_format=None,
@@ -283,13 +344,6 @@ class HourglassLayer(Layer):
                 dynamic=dynamic,
                 trainable=trainable,
             )
-            #downsampling["out_"] = ResidualLayerAttention(
-            #    output_filters=feature_filters,
-            #    name=f"Step{i}_ResidualAttention",
-            #    dtype=dtype,
-            #    dynamic=dynamic,
-            #    trainable=trainable,
-            #)
         # endregion
 
     def get_config(self):
@@ -301,10 +355,7 @@ class HourglassLayer(Layer):
                 "output_filters": self.output_filters,
             },
         }
-    def generate_residual_layer(self,layer_type="residual"):
-        if layer_type == "residual":
-            return ResidualLayer()
-
+        
     def _recursive_call(self, input_tensor, step, training=True):
         step_layers = self.layers[step]
         _input = input_tensor

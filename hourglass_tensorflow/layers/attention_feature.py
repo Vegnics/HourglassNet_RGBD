@@ -25,6 +25,7 @@ class FeatureAttentionMechanism(Layer):
         dtype=None,
         dynamic=False,
         trainable: bool = True,
+        kernel_reg: bool = False,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config
@@ -47,8 +48,8 @@ class FeatureAttentionMechanism(Layer):
             kernel_initializer='glorot_uniform',
             name = "Head_{}".format(i),
             bias_initializer='glorot_uniform',
-            kernel_regularizer=L1(1e-4),
-            bias_regularizer=L2(1e-3)
+            kernel_regularizer=L2(1e-5) if kernel_reg else None,
+            #bias_regularizer=L2(1e-3)
         )
         for i in range(self.head_num)
         ]
@@ -59,8 +60,8 @@ class FeatureAttentionMechanism(Layer):
             kernel_initializer='glorot_uniform',
             name = "LastProjection",
             bias_initializer='glorot_uniform',
-            kernel_regularizer=L2(1e-6),
-            bias_regularizer=L2(1e-5)
+            kernel_regularizer=L1(1e-5) if kernel_reg else None,
+            #bias_regularizer=L2(1e-5)
         )
         
     def get_config(self):
@@ -88,6 +89,6 @@ class FeatureAttentionMechanism(Layer):
         scores = self.last_projection(head_out)
         scores = tf.expand_dims(scores,axis=1)
         scores = tf.expand_dims(scores,axis=1)
-        return (0.0001+scores)*inputs
+        return scores #(0.0001+scores)*inputs
     def build(self, input_shape):
         pass

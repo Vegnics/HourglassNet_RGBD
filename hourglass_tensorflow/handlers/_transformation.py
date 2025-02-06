@@ -12,6 +12,7 @@ from hourglass_tensorflow.utils.tf import tf_generate_padding_tensor
 from hourglass_tensorflow.utils.tf import tf_compute_padding_from_bbox
 from hourglass_tensorflow.utils.tf import tf_rotate_tensor,tf_rotate_coords
 from hourglass_tensorflow.utils.tf import tf_3Uint8_to_float32,tf_generate_segment, tf_bivariate_segment_normal_pdf
+from hourglass_tensorflow.utils.tf import tf_normalize_tensor
 
 
 @tf.function
@@ -258,22 +259,23 @@ def tf_train_map_affine_augmentation_RGBD(
                             [20,1.0]],dtype=tf.float32)
 
     # Hip center
-    #center = tf.floor(0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32)))
+    center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
     
     #Bbox center
     bbox = tf.cast(tf_compute_bbox(coordinates),tf.int32)
-    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
     
-    nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
-    cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
-    meandepth = tf.reduce_mean(cropped ,axis=[0,1,2])
-    stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(cropped -meandepth),axis=[0,1,2])+0.0000001)
-
+    #nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
+    #cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
+    #meandepth = tf.reduce_mean(cropped ,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(cropped -meandepth),axis=[0,1,2])+0.0000001)
     
-    image = tf.cast(image,dtype=tf.float32)
+    _image = tf.cast(image,dtype=tf.float32)
+    #_image = tf.clip_by_value(1.5*((image-meandepth)/stddevdepth+3.5)+1.5,0.0,800.0)
+    
     _images = tf.map_fn(
         fn=(
-            lambda affine: tf_rotate_tensor(image,
+            lambda affine: tf_rotate_tensor(_image,
                                             img_shape,
                                             affine[0],
                                             affine[1],
@@ -284,8 +286,11 @@ def tf_train_map_affine_augmentation_RGBD(
         #dtype=tf.dtypes.uint8,
         parallel_iterations=10,
     )
-    _images = tf.clip_by_value(1.5*((_images-meandepth)/stddevdepth+1.5),0.0,800.0)
-
+    #max_val = tf.reduce_max(_images,axis=[1,2])
+    #max_val = tf.expand_dims(max_val,axis=-1)
+    #max_val = tf.expand_dims(max_val,axis=-1)
+    #min_val = tf.reduce_min(_images,axis=[1,2])
+    #_images = 1000.0*_images/max_val
     _coordinates_map = tf.map_fn(
         fn=(
             lambda affine: tf_rotate_coords(coordinates,
@@ -300,11 +305,15 @@ def tf_train_map_affine_augmentation_RGBD(
         dtype=tf.dtypes.float32,
         parallel_iterations=10,
     )
-
-    _visibilities  = _coordinates_map[:,:,2]
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2]*0.0+1.0 #mask0+mask1
+    #_visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
 
-    _bboxf = tf.constant([1.20,1.14,1.20,1.14,1.20,1.14,1.20,  1.2,1.18,1.16,1.14, 1.14,1.20,1.14,1.20,1.14,1.20,1.14],
+    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
                          dtype=tf.float32)
     
     _zipped = tf.map_fn(
@@ -328,8 +337,13 @@ def tf_train_map_affine_augmentation_RGBD(
     _visibilities: a Tensor (R,C), just copy the visibility values
     """
     _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[18,input_size,input_size,1])
+    
+    masked = tf.where(_images<=0.00000001,1.0,0.0)
+    _images = (1.0-masked)*_images#+11.0*masked
+    
     _coords = tf.reshape(_zipped[1],[18,njoints,2])
     _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
+    #_visibilities = tf.ones((18,njoints),dtype=tf.int32)# tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
     return (_images,_coords,_visibilities)
 
 
@@ -358,7 +372,7 @@ def tf_train_map_affine_woaugment_RGB(
     affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
 
     # Hip center
-    #center = tf.floor(0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32)))
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
     center = tf.reduce_mean(tf.cast(tf_compute_bbox(coordinates),tf.float32),axis=0)
 
     image = tf.cast(image,dtype=tf.float32)
@@ -446,27 +460,31 @@ def tf_train_map_affine_woaugment_RGBD(
 
     # Generate one image for each rotation angle in rotation_angles (Input: image)
     # Generate one coordinate Tensor for each rotation (Input: coordinates)
-    if task_mode=="train":
-        affines = tf.constant([[0.0,1.0],
+    affines = tf.constant([[0.0,1.0],
                             [0.0,1.0],
                             [0.0,1.0]],dtype=tf.float32)
-    elif task_mode=="test":
-        affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
+    #if task_mode=="train":
+    #    affines = tf.constant([[0.0,1.0],
+    #                        [0.0,1.0],
+    #                        [0.0,1.0]],dtype=tf.float32)
+    #elif task_mode=="test":
+    #    affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
     
-    image = tf.cast(image,dtype=tf.float32)
+    _image = tf.cast(image,dtype=tf.float32)
    # Hip center
-    #center = tf.floor(0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32)))
+    center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
     bbox = tf.cast(tf_compute_bbox(coordinates),tf.int32)
-    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
 
-    nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
-    cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
-    meandepth = tf.reduce_mean(cropped ,axis=[0,1,2])
-    stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(cropped -meandepth),axis=[0,1,2])+0.0000001)
+    #nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
+    #cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
+    #meandepth = tf.reduce_mean(cropped ,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(cropped -meandepth),axis=[0,1,2])+0.0000001)
+    #_image = tf.clip_by_value(1.5*((image-meandepth)/stddevdepth+3.5)+1.5,0.0,800.0)
     
     _images = tf.map_fn(
         fn=(
-            lambda affine: tf_rotate_tensor(image,
+            lambda affine: tf_rotate_tensor(_image,
                                             img_shape,
                                             affine[0],
                                             affine[1],
@@ -478,7 +496,11 @@ def tf_train_map_affine_woaugment_RGBD(
         #dtype=tf.dtypes.uint8,
         parallel_iterations=10,
     )
-    _images = tf.clip_by_value(1.5*((_images-meandepth)/stddevdepth+1.5),0.0,800.0)
+    #max_val = tf.reduce_max(_images,axis=[1,2])
+    #max_val = tf.expand_dims(max_val,axis=-1)
+    #max_val = tf.expand_dims(max_val,axis=-1)
+    #min_val = tf.reduce_min(_images,axis=[1,2])
+    #_images = 1000.0*_images/max_val
 
     _coordinates_map = tf.map_fn(
         fn=(
@@ -495,14 +517,17 @@ def tf_train_map_affine_woaugment_RGBD(
         dtype=tf.dtypes.float32,
         parallel_iterations=10,
     )
-
-    _visibilities  = _coordinates_map[:,:,2]
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2]*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
-    if task_mode=="train":
-        _bboxf = tf.constant([1.15,1.17,1.20],dtype=tf.float32) 
-    elif task_mode=="test":
-        _bboxf = tf.constant([1.18],dtype=tf.float32)
+    #if task_mode=="train":
+    _bboxf = tf.constant([1.12,1.18,1.24],dtype=tf.float32) 
+    #elif task_mode=="test":
+    #    _bboxf = tf.constant([1.18],dtype=tf.float32)
     
     _zipped = tf.map_fn(
         fn=(
@@ -524,20 +549,24 @@ def tf_train_map_affine_woaugment_RGBD(
     _coordinates: a Tensor (R,C,2) of coordinates for several rotations
     _visibilities: a Tensor (R,C), just copy the visibility values
     """
-    if task_mode == "train":
-        _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[3,256,256,1])
-        _coords = tf.reshape(_zipped[1],[3,njoints,2])
-        _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])
-    elif task_mode == "test":
-        _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,256,256,4])
-        _coords = tf.reshape(_zipped[1],[1,njoints,2])
-        _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])
-        _bboxes = tf.reshape(tf.cast(_zipped[3],dtype=tf.float32),[1,3,2])
+    #if task_mode == "train":
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[3,256,256,1])
+    _coords = tf.reshape(_zipped[1],[3,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])
+    #elif task_mode == "test":
+    #    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,256,256,4])
+    #    _coords = tf.reshape(_zipped[1],[1,njoints,2])
+    #    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])
+    #    _bboxes = tf.reshape(tf.cast(_zipped[3],dtype=tf.float32),[1,3,2])
     
-    if task_mode=="train":
-        return (_images,_coords,_visibilities)
-    elif task_mode=="test":
-        return (_images,coordinates,_bboxes,_visibilities)
+    masked = tf.where(_images<=0.00000001,1.0,0.0)
+    _images = (1.0-masked)*_images#+11.0*masked
+
+    return (_images,_coords,_visibilities)
+    #if task_mode=="train":
+    #    return (_images,_coords,_visibilities)
+    #elif task_mode=="test":
+    #    return (_images,coordinates,_bboxes,_visibilities)
 
 @tf.function
 def tf_test_map_affine_woaugment_RGBD(
@@ -594,7 +623,10 @@ def tf_test_map_affine_woaugment_RGBD(
         #dtype=tf.dtypes.uint8,
         parallel_iterations=10,
     )
-    _images = tf.clip_by_value(1.5*((_images-meandepth)/stddevdepth+1.5),0.0,800.0)
+    _images = tf.clip_by_value(1.5*((_images-meandepth)/stddevdepth+3.5)+1.5,0.0,800.0)
+    max_vals = tf.reduce_max(_images,axis=[1,2],keepdims=True)
+    min_vals = tf.reduce_min(_images,axis=[1,2],keepdims=True)
+    _images = 255.0*(_images - min_vals)/(max_vals-min_vals)
 
     _coordinates_map = tf.map_fn(
         fn=(
@@ -611,8 +643,12 @@ def tf_test_map_affine_woaugment_RGBD(
         dtype=tf.dtypes.float32,
         parallel_iterations=10,
     )
-
-    _visibilities  = _coordinates_map[:,:,2]
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2] #*mask0+mask1
+    #_visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
     """
     if task_mode=="train":
@@ -620,7 +656,7 @@ def tf_test_map_affine_woaugment_RGBD(
     elif task_mode=="test":
         _bboxf = tf.constant([1.18],dtype=tf.float32)
     """
-    _bboxf = tf.constant([1.15],dtype=tf.float32)
+    _bboxf = tf.constant([1.2],dtype=tf.float32)
     
     _zipped = tf.map_fn(
         fn=(
@@ -658,10 +694,15 @@ def tf_test_map_affine_woaugment_RGBD(
         return (_images,coordinates,_bboxes,_visibilities)
     """
     _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,256,256,1])
+    masked = tf.where(_images<=0.00000001,1.0,0.0)
+    _images = (1.0-masked)*_images#+11.0*masked
+
     _coords = tf.reshape(_zipped[1],[1,njoints,2])
     _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])
-    _bboxes = tf.reshape(tf.cast(_zipped[3],dtype=tf.float32),[1,3,2])  
-    return (_images,tf.expand_dims(coordinates,axis=0),_bboxes,_visibilities)
+
+    _bboxes = tf.reshape(tf.cast(_zipped[3],dtype=tf.float32),[1,3,2])
+    return (_images,_coords,_bboxes,_visibilities)  
+    #return (_images,tf.expand_dims(coordinates,axis=0),_bboxes,_visibilities)
     
 
 @tf.function
@@ -713,8 +754,11 @@ def tf_train_map_squarify(
     # when resizing
 
     padding = tf_compute_padding_from_bbox(bbox)
+    cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
+    scalimg = tf_normalize_tensor(cropped)
+
     # Generate Squared Image with Padding
-    image = tf.pad(image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :],
+    image = tf.pad(scalimg,
         paddings=tf_generate_padding_tensor(padding),
     )
     #meandepth = tf.reduce_mean(image,axis=[0,1,2])
@@ -784,7 +828,7 @@ def tf_train_map_resize_data(
     if task_mode=="train":
         return (image, _coordinates, visibility)
     elif task_mode=="test":
-        return (image,tf.cast(coordinates, dtype=tf.dtypes.float32),bboxes)
+        return (image,64.0*tf.cast(_coordinates, dtype=tf.dtypes.float32),visibility)   #,bboxes)
 
 @tf.function
 def tf_single_stage_heatmaps(
@@ -932,11 +976,11 @@ def tf_train_map_heatmaps(
         parallel_iterations=10
     )
     
-    return (image, ms_heatmaps)
+    return (image, ms_heatmaps,visibility)
 
 @tf.function
 def tf_train_map_normalize(
-    image: tf.Tensor, heatmaps: tf.Tensor, normalization: str = None
+    image: tf.Tensor, heatmaps: tf.Tensor, vis: tf.Tensor, normalization: str = None
 ) -> tf.Tensor:
     """Fifth step tf.data.Dataset mapper to normalize data.
 
@@ -1029,7 +1073,7 @@ def tf_train_map_normalize(
         #    )
         #    - 0.5
         #)
-    return (image, heatmaps)
+    return (image, heatmaps)#,tf.reshape(vis,(1,-1)))
 
 @tf.function
 def tf_train_map_stacks(image: tf.Tensor, heatmaps: tf.Tensor, stacks: int = 1):

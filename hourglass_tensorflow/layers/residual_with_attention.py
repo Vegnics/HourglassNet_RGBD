@@ -19,6 +19,8 @@ class ResidualLayerAttention(Layer):
         dynamic=False,
         trainable: bool = True,
         use_last_relu: bool = False,
+        kernel_reg: bool = False,
+        freeze_attention: bool = False,
     ) -> None:
         super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         # Store config
@@ -59,7 +61,9 @@ class ResidualLayerAttention(Layer):
 
         self.attention = FeatureAttentionMechanism(
             filters = output_filters,
-            kernel_size = 1
+            kernel_size = 1,
+            kernel_reg = kernel_reg,
+            trainable = False if freeze_attention else True
         )
         #self.skip = SkipLayer(
         #    output_filters=output_filters,
@@ -83,14 +87,17 @@ class ResidualLayerAttention(Layer):
         #_inputs = self.batch_norm(inputs,training=training)
         #_inputs = self.conv_layer(_inputs ,training=training)
         #_inputs = self.attention(inputs)
+        #scores = self.attention(inputs)
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
+                #scores*inputs,
                 #self.skip(inputs, training=training),
                 inputs,
             ])
         out = self.relu(_sum)
-        out = self.attention(out)
-        return out
+        scores = self.attention(inputs)
+        #scores = self.attention(out)
+        return  (1+scores)*out #(1+scores)*out#(scores+0.0001)*out
     def build(self, input_shape):
         pass

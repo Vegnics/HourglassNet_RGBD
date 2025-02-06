@@ -15,7 +15,7 @@ from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedu
 from hourglass_tensorflow.types.config import HTFTestConfig
 from hourglass_tensorflow.types.config import HTFObjectReference
 from hourglass_tensorflow.handlers.meta import _HTFHandler
-from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax
+from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax,tf_batch_matrix_softargmax
 
 # region Abstract Class
 
@@ -149,17 +149,20 @@ class HTFTestHandler(_HTFTestHandler):
         out = tf.transpose(out,perm=[1,0])
         #print(out,bbox.shape)
         return out
-
-    def refine_predictions(self,heatmaps: tf.Tensor, bboxes):
+    
+    def refine_predictions(self,heatmaps: tf.Tensor): #, bboxes):
         # rjoints: NxCx2
         # bboxes: Nx3x2
-        joints = tf_dynamic_matrix_argmax(
-            heatmaps[:,:,:,0:14],
-            intermediate_supervision=False,
-            keepdims=True,
-        )
 
+        joints = tf_batch_matrix_softargmax(heatmaps[:,:,:,0:14])
 
+        #joints = tf_dynamic_matrix_argmax(
+        #    heatmaps[:,:,:,0:14],
+        #    intermediate_supervision=False,
+        #    keepdims=True,
+        #)
+
+        return joints
 
         auxiliars = tf.map_fn(
             fn=lambda jointAndHM: self.get_second_max(jointAndHM[0],jointAndHM[1]),
@@ -209,15 +212,20 @@ class HTFTestHandler(_HTFTestHandler):
 
             hm_scale = tf.constant(2.1269474)
             #imgs = batch_test.map(lambda imgs,coords,bboxes: imgs).get_single_element()
-            bboxes = test_dataset.map(lambda imgs,coords,bboxes: bboxes)#.get_single_element()
+            #bboxes = test_dataset.map(lambda imgs,coords,bboxes: bboxes)#.get_single_element()
+
+            visibility = test_dataset.map(lambda imgs,coords,vis: vis)
             #bboxes = bboxes.reduce(tf.zeros(shape=(1,3,2)),lambda x, y: tf.concat([x, expanduy], axis=0))
             #bboxes = tf.convert_to_tensor(list(bboxes.as_numpy_iterator()))
             #print("BBOXES:::", bboxes)
-            bboxes = tf.convert_to_tensor(list(bboxes.as_numpy_iterator()))
-            print("BBOXES: ", bboxes.shape)
-            gtcoords = test_dataset.map(lambda imgs,coords,bboxes: coords)#.get_single_element()
-            gtcoords = tf.convert_to_tensor(list(gtcoords.as_numpy_iterator()))
+            #bboxes = tf.convert_to_tensor(list(bboxes.as_numpy_iterator()))
+            visibility = tf.cast(tf.convert_to_tensor(list(visibility.as_numpy_iterator())),dtype=tf.float32)
+            Njoints = tf.reduce_sum(visibility)#,axis=1)
+            print("visibility: ", visibility.shape)
+            gtcoords = test_dataset.map(lambda imgs,coords,vis: coords)#.get_single_element()
+            gtcoords = tf.cast(tf.convert_to_tensor(list(gtcoords.as_numpy_iterator())),dtype=tf.float32)
             print("GTCOORDS: ", gtcoords.shape)
+            print(gtcoords[0,:])
 
             _preds = model.predict(x=batch_test) #NSHWC
             preds = _preds[:,-1,:,:,:] 
@@ -226,7 +234,8 @@ class HTFTestHandler(_HTFTestHandler):
             #normpreds = tf.expand_dims(normpreds,axis=1)
             #preds = preds*hm_scale/(normpreds+0.00001)
             print(preds.shape)
-            predcoords = self.refine_predictions(preds,bboxes)
+            
+            predcoords = self.refine_predictions(preds)#,bboxes)
             #predcoords = gtcoords + 5.0
             print("Refined predictions : ..")
             #print(predcoords,"\n",gtcoords)
@@ -234,6 +243,7 @@ class HTFTestHandler(_HTFTestHandler):
 
             error = tf.cast(tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32), dtype=tf.dtypes.float32)
             distance = tf.norm(error, ord=2, axis=-1) #NxC
+            #distance = _distance+(1-visibility)*64.0
             # We compute the norm of the reference limb from the ground truth
             reference_limb_error = tf.cast(
                 gtcoords[:, 13, :]
@@ -244,16 +254,30 @@ class HTFTestHandler(_HTFTestHandler):
             
             #mask_tensor = 2.0*(1.0-vis)*tf.constant(32.0)
             #distance = distance + mask_tensor
-
+            
 
             reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
             #max_ref = tf.reduce_max(reference_distance)
             
             reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
             # We apply the thresholding condition
-            condition = tf.cast(tf.math.less(distance,reference_distance * 0.5),
-                                    dtype=tf.float32)
-            correct_keypoints = tf.reduce_sum(condition)
-            print(correct_keypoints,"out of :",14*3105)
+            condition = tf.cast(tf.math.less(distance,reference_distance * 0.7),
+                                    dtype=tf.float32) #NC
+            
+            correct_keypoints = tf.reduce_sum(condition*visibility)#,axis=1)
+            bsize = 150
+            batches = condition.shape[0]//bsize
+            remaining = condition.shape[0]%bsize
+            cum_accuracy = 0.0
+            nsamples = batches
+            #for k in range(batches):
+            #    cum_accuracy += tf.reduce_mean(correct_keypoints[k*bsize:(k+1)*bsize]/Njoints[k*bsize:(k+1)*bsize])
+            #if remaining>0:
+            #    cum_accuracy += tf.reduce_mean(correct_keypoints[batches*bsize:-1]/Njoints[batches*bsize:-1])
+            #    nsamples = batches+1.0 
+            #print(correct_keypoints,"out of :",14*distance.shape()[0].numpy())
+            print(correct_keypoints,"out of :",Njoints)
+            
+            #print(100.0*cum_accuracy/(nsamples))
 
 # endregion

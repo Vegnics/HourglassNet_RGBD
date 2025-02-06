@@ -16,6 +16,11 @@ DATA_FORMAT = Union[
     Literal["NCHW"],
 ]
 
+ATTENTION_MECHANISMS = Union[
+    Literal["FAM"],
+    Literal["SAM"],
+    Literal["NoAM"],
+]
 
 class HTFModelHandlerReturnObject(TypedDict):
     inputs: keras.layers.Layer
@@ -40,7 +45,12 @@ class HTFModelParams(HTFConfigField):
     output_channels: int = 16
     downsamplings_per_stage: int = 4
     intermediate_supervision: bool = True
-
+    skip_AM: ATTENTION_MECHANISMS = "NoAM"
+    s2f_AM: ATTENTION_MECHANISMS = "NoAM"
+    f2s_AM: ATTENTION_MECHANISMS = "NoAM"
+    use_2jointHM: bool = False
+    use_kernel_regularization: bool = False
+    freeze_attention_weights: bool = False
 
 class HTFModelConfig(HTFConfigField):
     object: Optional[HTFObjectReference] = Field(

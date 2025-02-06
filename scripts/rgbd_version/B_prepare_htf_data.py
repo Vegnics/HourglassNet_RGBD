@@ -16,8 +16,8 @@ from hourglass_tensorflow.types import HTFPersonDatapointRGBD
 #class HTFDBpoints(BaseModel):
 #    data: List[HTFPersonDatapoint]
 
-HTF_JSON = "/content/HourglassNet_RGBD/data/htf_slp.ignore.json"
-HTF_DATASET_JSON = "/content/HourglassNet_RGBD/data/htf_slp_dataset.ignore.json"
+#HTF_JSON = "/content/HourglassNet_RGBD/data/htf_slp.ignore.json"
+#HTF_DATASET_JSON = "/content/HourglassNet_RGBD/data/htf_slp_dataset.ignore.json"
 
 HTF_JSON = "data/htf_slp.ignore.json"
 HTF_DATASET_JSON = "data/htf_slp_dataset.ignore.json"
@@ -70,14 +70,14 @@ if __name__ == "__main__":
         for jid in range(14):
             if jid in jids :#and jid in forced_ids:
                 k = jids.index(jid)
-                #d[f"joint_{jid}_X"] = jxs[k]
-                #d[f"joint_{jid}_Y"] = jys[k]
-                if jvis[k]==0:
-                    d[f"joint_{jid}_X"] = -100000
-                    d[f"joint_{jid}_Y"] = -100000
-                else:
-                    d[f"joint_{jid}_X"] = jxs[k]
-                    d[f"joint_{jid}_Y"] = jys[k]
+                d[f"joint_{jid}_X"] = jxs[k]
+                d[f"joint_{jid}_Y"] = jys[k]
+                #if jvis[k]==0 and False:
+                #    d[f"joint_{jid}_X"] = -100000
+                #    d[f"joint_{jid}_Y"] = -100000
+                #else:
+                #    d[f"joint_{jid}_X"] = jxs[k]
+                #    d[f"joint_{jid}_Y"] = jys[k]
                 d[f"joint_{jid}_visible"] = jvis[k] #True 
         DATA.append(d)
     # Write Transformed data

@@ -23,10 +23,10 @@ HTF_JSON = "/content/HourglassNet_RGBD/data/htf_mkv.ignore.json"
 SLP_FOLDER = "/content/SLP_RGBD_v2"
 
 
-HTF_JSON = "data/htf_slp_test.ignore.json"
-HTF_JSON = "data/htf_mkv.ignore.json"
+#HTF_JSON = "data/htf_slp_test.ignore.json"
+#HTF_JSON = "data/htf_mkv.ignore.json"
 
-#HTF_JSON = "data/htf_slp.ignore.json"
+HTF_JSON = "data/htf_slp.ignore.json"
 
 SLP_FOLDER = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v2"
 MKV_FOLDER = "/home/quinoa/database_mkv"

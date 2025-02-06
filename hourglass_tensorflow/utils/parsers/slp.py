@@ -44,7 +44,7 @@ def read_slp_folder_to_htf_data(
         main_folder
 )-> Union[List[HTFPersonDatapointRGBD], Tuple[List[HTFPersonDatapointRGBD], Tuple]]:
     record_to_return = []
-    for sub_num in range(91,103):
+    for sub_num in range(1,91):
         sub_id = "{:05d}".format(sub_num)
         for sample_num in range(1,46):
             sample_id = "{0:06d}".format(sample_num)

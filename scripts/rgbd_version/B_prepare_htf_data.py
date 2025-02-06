@@ -16,6 +16,9 @@ from hourglass_tensorflow.types import HTFPersonDatapointRGBD
 #class HTFDBpoints(BaseModel):
 #    data: List[HTFPersonDatapoint]
 
+HTF_JSON = "/content/HourglassNet_RGBD/data/htf_slp.ignore.json"
+HTF_DATASET_JSON = "/content/HourglassNet_RGBD/data/htf_slp_dataset.ignore.json"
+
 HTF_JSON = "data/htf_slp.ignore.json"
 HTF_DATASET_JSON = "data/htf_slp_dataset.ignore.json"
 

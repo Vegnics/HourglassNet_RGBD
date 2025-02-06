@@ -16,8 +16,8 @@ from hourglass_tensorflow.types import HTFPersonDatapointRGBD
 #class HTFDBpoints(BaseModel):
 #    data: List[HTFPersonDatapoint]
 
-HTF_JSON = "data/htf_mkv.ignore.json"
-HTF_DATASET_JSON = "data/htf_mkv_dataset.ignore.json"
+HTF_JSON = "data/htf_slp.ignore.json"
+HTF_DATASET_JSON = "data/htf_slp_dataset.ignore.json"
 
 if __name__ == "__main__":
     # Parse file as list of records

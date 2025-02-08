@@ -39,8 +39,8 @@ class HourglassModel(Model):
             #dtype=dtype,
             #dynamic=dynamic,
             trainable=trainable,
-            *args,
-            **kwargs,
+            #*args,
+            #**kwargs,
         )
         # Init
         self._channels_1J = channels_1joint

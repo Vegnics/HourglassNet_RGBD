@@ -97,6 +97,7 @@ class HTFModelHandler(_HTFModelHandler):
         return self._input
 
     def _build_model_as_model(self, *args, **kwargs) -> HourglassModel:
+        print(self.params.model_dump())
         self._model = HourglassModel(**self.params.model_dump())
         self._layered_model = {}
         return self._model

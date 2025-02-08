@@ -34,14 +34,12 @@ class HourglassModel(Model):
         *args,
         **kwargs,
     ):
-        super().__init__(
-            name=name,
+        super().__init__(name=name,trainable=trainable,)
             #dtype=dtype,
             #dynamic=dynamic,
-            trainable=trainable,
             #*args,
             #**kwargs,
-        )
+        #)
         # Init
         self._channels_1J = channels_1joint
         self._channels_2J = channels_2joint

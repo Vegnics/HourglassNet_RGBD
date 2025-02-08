@@ -22,8 +22,8 @@ class HourglassModel(Model):
         output_channels: int = 16,
         intermediate_supervision: bool = True,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
         skip_AM: ATTENTION_MECHANISMS = "NoAM",
         s2f_AM: ATTENTION_MECHANISMS = "NoAM",
@@ -34,7 +34,7 @@ class HourglassModel(Model):
         #*args,
         #**kwargs,
     ):
-        super().__init__(name=name,trainable=trainable,)
+        super().__init__(name=name,trainable=trainable)
             #dtype=dtype,
             #dynamic=dynamic,
             #*args,

@@ -91,7 +91,7 @@ class HTFModelHandler(_HTFModelHandler):
         channels =  int(self.params.channel_number)
         #channels = 4
         if self.config.data_format == "NHWC":
-            self._input = InputTensor(shape=(height, width, channels), name="Input")
+            self._input = InputTensor(shape=(height, width, channels), batch_size=40, name="Input")
         else:
             raise BadConfigurationError("The only supported data format is NHWC so far")
         return self._input
@@ -115,8 +115,8 @@ class HTFModelHandler(_HTFModelHandler):
         if self.config.build_as_model:
             if not self.config.load_model:
                 print(f"Generating new model from scratch")
-                model = self._build_model_as_model()
-                #model = self._build_model_as_model(*args, **kwargs)
+                #model = self._build_model_as_model()
+                model = self._build_model_as_model(*args, **kwargs)
             else:
                 print(f"Loading model ... {self.config.model_path}")
                 model = tf.keras.models.load_model(self.config.model_path,

@@ -210,7 +210,7 @@ def tf_train_map_affine_augmentation_RGB(
     
     return (_images,_coords,_visibilities)
 
-@tf.function
+@tf.function(experimental_compile=False)
 def tf_train_map_affine_augmentation_RGBD(
     image: tf.Tensor,
     img_shape: tf.Tensor,

@@ -108,13 +108,13 @@ class HTFModelHandler(_HTFModelHandler):
         return self._model
 
     def generate_graph(self, *args, **kwargs) -> None:
+        print("PARAMS",self.params)
         # Get Input Tensor
         input_tensor = self._build_input(*args, **kwargs)
         # Build Model Graph
         if self.config.build_as_model:
             if not self.config.load_model:
                 print(f"Generating new model from scratch")
-                print(self.params.model_dump())
                 model = self._build_model_as_model()
                 #model = self._build_model_as_model(*args, **kwargs)
             else:

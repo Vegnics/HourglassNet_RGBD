@@ -34,7 +34,7 @@ class RatioCorrectKeypoints(Metric):
         **kwargs
     ) -> None:
         """See help(RatioCorrectKeypoints)"""
-        super().__init__(name, dtype, **kwargs)
+        super().__init__(name=name, dtype=tf.float32, **kwargs)
         self.threshold = threshold
         # Metric().add_weight() -> Create a state variable.
         self.correct_keypoints = self.add_weight(
@@ -134,7 +134,7 @@ class PercentageOfCorrectKeypoints(Metric):
         **kwargs
     ) -> None:
         """See help(PercentageOfCorrectKeypoints)"""
-        super().__init__(name, dtype, **kwargs)
+        super().__init__(name=name, dtype=tf.float32, **kwargs)
         self.ratio = ratio
         self.reference = reference
         self.num_1joints = num_1joints
@@ -335,7 +335,7 @@ class ObjectKeypointSimilarity(Metric):
         **kwargs
     ) -> None:
         """See help(ObjectKeypointSimilarity)"""
-        super().__init__(name, dtype, **kwargs)
+        super().__init__(name=name, dtype=tf.float32, **kwargs)
         self.oks_sum = self.add_weight(name="oks_sum", initializer="zeros")
         self.samples = self.add_weight(name="samples", initializer="zeros")
         self.intermediate_supervision = intermediate_supervision

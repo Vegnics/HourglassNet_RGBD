@@ -37,7 +37,7 @@ def softargmax_2d(heatmap):
 
 class SoftargmaxMeanDist(keras.metrics.Metric):
     def __init__(self, name="softargmax_medist",  intermediate_supervision: bool = True,num_1joints: int = 16, **kwargs):
-        super(SoftargmaxMeanDist, self).__init__(name=name, **kwargs)
+        super(SoftargmaxMeanDist, self).__init__(name=name, dtype=tf.float32, **kwargs)
         self.intermediate_supervision = intermediate_supervision
         self.cum_mean_distance = self.add_weight(name="cum_mean_distance", initializer="zeros")
         self.count = self.add_weight(name="count", initializer="zeros")
@@ -90,7 +90,7 @@ class OverallMeanDistance(keras.metrics.Metric):
     def __init__(
         self, name=None, dtype=None, intermediate_supervision: bool = True, num_1joints: int = 16, **kwargs
     ):
-        super().__init__(name, dtype, **kwargs)
+        super().__init__(name=name, dtype=tf.float32, **kwargs)
         self.num_samples = self.add_weight(name="number_of_samples", initializer="zeros")
         self.distance = self.add_weight(name="distance", initializer="zeros")
         self.batch_mode = False

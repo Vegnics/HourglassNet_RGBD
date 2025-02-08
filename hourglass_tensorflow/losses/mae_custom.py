@@ -81,7 +81,7 @@ class MAE_custom(keras.losses.Loss):
         gt_coords = tf_batch_multistage_matrix_softargmax_loss(y_true[:,:,:,:,0:self.n1joints])
         pred_coords = tf_batch_multistage_matrix_softargmax_loss(y_pred[:,:,:,:,0:self.n1joints])
         loss_coords = tf.math.square(gt_coords-pred_coords)+0.0001
-        loss_coords = tf.reduce_mean(loss_coords)
+        loss_coords = tf.math.sqrt(tf.reduce_mean(loss_coords))
 
         wEMAE0 = tf.zeros(shape=[1,S-1])
         wEMAE1 = tf.ones(shape=[1,1])
@@ -108,7 +108,7 @@ class MAE_custom(keras.losses.Loss):
         loss_1jnt = tf.reduce_mean(ndiff[:,:,0:self.n1joints],axis=2) #NS
         loss_2jnt = tf.reduce_mean(ndiff[:,:,self.n1joints:self.n2joints],axis=2)#NS
 
-        dist2 = 0.5*tf.reduce_mean(loss_1jnt)+1.0*loss_coords+0.3*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
+        dist2 = 1.5*tf.reduce_mean(loss_1jnt)+0.5*loss_coords+0.3*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
         #dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
         #dist2 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,0:16],axis=[2,3])) #NSC
         #dist3 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,16:31],axis=[2,3])) #NSC

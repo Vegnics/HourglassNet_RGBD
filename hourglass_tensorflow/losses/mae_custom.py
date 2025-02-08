@@ -1,5 +1,6 @@
 import tensorflow as tf
 import keras.losses
+from hourglass_tensorflow.utils.tf import tf_batch_matrix_softargmax,tf_batch_multistage_matrix_softargmax_loss
 
 
 class MAE_custom(keras.losses.Loss):
@@ -30,8 +31,9 @@ class MAE_custom(keras.losses.Loss):
         #NHW
         S = self.stages
         #C = self.njoints
-        _y_true = y_true*self.channel_mask #NSHWC
-        _y_pred = y_pred*self.channel_mask #NSHWC
+        #_y_true = y_true*self.channel_mask #NSHWC
+        #_y_pred = y_pred*self.channel_mask #NSHWC
+        
         """
         _y_true = tf.reshape(y_true,shape=[-1,S,64,64,C])
         _y_pred = tf.reshape(y_pred,shape=[-1,S,64,64,C])
@@ -76,12 +78,17 @@ class MAE_custom(keras.losses.Loss):
 
 
         #"""
+        gt_coords = tf_batch_multistage_matrix_softargmax_loss(y_true[:,:,:,:,0:self.n1joints])
+        pred_coords = tf_batch_multistage_matrix_softargmax_loss(y_pred[:,:,:,:,0:self.n1joints])
+        loss_coords = tf.math.square(gt_coords-pred_coords)+0.0001
+        loss_coords = tf.reduce_mean(loss_coords)
+
         wEMAE0 = tf.zeros(shape=[1,S-1])
         wEMAE1 = tf.ones(shape=[1,1])
         WEMAE = tf.concat([wEMAE0,wEMAE1],axis=1)
         #Exponential Abs Difference
         #ndiff = (1.0+32.0*tf.math.sqrt(_y_true))*tf.abs(_y_true-_y_pred)
-        ndiff = tf.math.square(_y_true-_y_pred)
+        ndiff = tf.math.square(y_true-y_pred)
         #01234
         #NSHWC
         #ndiff = tf.sqrt(tf.reduce_mean(ndiff+0.000000001,axis=[2,3])) #NSHW
@@ -94,18 +101,22 @@ class MAE_custom(keras.losses.Loss):
         #dist2 = -1.0*tf.math.exp(1.0/(tf.reduce_mean(ndiff,axis=[2,3]))) #NSC
         
         #dist2 = tf.math.log(tf.reduce_mean(ndiff,axis=[2,3])) #NSC
-        Wc = tf.reshape(tf.convert_to_tensor([1]*self.n1joints+[0.7]*self.n2joints),[1,1,self.n1joints+self.n2joints])*self.channel_mask[:,:,0,0,:]
-        SumWc = tf.reduce_sum(Wc)
-        Wc = Wc/SumWc
+        #Wc = tf.reshape(tf.convert_to_tensor([1]*self.n1joints+[0.7]*self.n2joints),[1,1,self.n1joints+self.n2joints])*self.channel_mask[:,:,0,0,:]
+        #SumWc = tf.reduce_sum(Wc)
+        #Wc = Wc/SumWc
+        
+        loss_1jnt = tf.reduce_mean(ndiff[:,:,0:self.n1joints],axis=2) #NS
+        loss_2jnt = tf.reduce_mean(ndiff[:,:,self.n1joints:self.n2joints],axis=2)#NS
 
-        dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
+        dist2 = 0.5*tf.reduce_mean(loss_1jnt)+1.0*loss_coords+0.3*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
+        #dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
         #dist2 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,0:16],axis=[2,3])) #NSC
         #dist3 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,16:31],axis=[2,3])) #NSC
         
         
         #dist2 = tf.reduce_sum(dist2/16,axis=2)# ^2.0
-        dist2 = tf.reduce_mean(dist2,axis=1) #N
-        dist2 = tf.reduce_mean(dist2)
+        #dist2 = tf.reduce_mean(dist2,axis=1) #N
+        #dist2 = tf.reduce_mean(dist2)
 
         #dist3 = tf.reduce_sum(dist3/15,axis=2)# ^2.0
         #dist3 = tf.reduce_mean(dist3,axis=1)

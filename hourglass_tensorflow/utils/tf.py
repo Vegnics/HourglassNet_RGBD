@@ -126,6 +126,8 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
 
     precision = tf.dtypes.float64
     coords = tf.cast(coordinates,dtype=precision)
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=precision)
+    annotated = tf.cast(tf.where(annotated<0.0,0.0,1.0),dtype=precision)
     
     # Compute the rotation matrix and translation vector
     angle = tf.cast(angle,dtype=precision)*np.pi/180.0
@@ -147,8 +149,8 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
     vis_x = tf.where(tf.logical_and(rcoords_x<0,rcoords_x>xmax),False,True)
     rcoords_y = rcoordinates[1,:] #tf.clip_by_value(rcoordinates[1,:],0,ymax-1.0)
     vis_y = tf.where(tf.logical_and(rcoords_y<0,rcoords_y>ymax),False,True)
-    vis = tf.reshape(tf.cast(tf.logical_and(tf.logical_and(vis_x,vis_y),tf.cast(visibility,tf.bool)),dtype=precision),(-1,1))
-    vis = tf.reshape(tf.cast(visibility,dtype=precision),(-1,1))
+    #vis = tf.reshape(tf.cast(tf.logical_and(tf.logical_and(vis_x,vis_y),tf.cast(visibility,tf.bool)),dtype=precision),(-1,1))
+    vis = tf.reshape(tf.cast(visibility,dtype=precision),(-1,1))*annotated
     rcoords = tf.stack([rcoords_x,rcoords_y],axis=0)
     rcoords = tf.cast(tf.transpose(rcoords,perm=[1,0]),dtype=precision)
     rcoords = tf.where(coords<0,coords,rcoords)
@@ -219,7 +221,7 @@ def tf_generate_padding_tensor(padding: tf.Tensor) -> tf.Tensor:
 
 
 @tf.function
-def tf_compute_bbox(coordinates: tf.Tensor, **kwargs) -> tf.Tensor:
+def tf_compute_bbox(coordinates: tf.Tensor,annotated: tf.Tensor, **kwargs) -> tf.Tensor:
     """From a 2D coordinates tensor compute the bounding box
 
     Args:
@@ -235,12 +237,13 @@ def tf_compute_bbox(coordinates: tf.Tensor, **kwargs) -> tf.Tensor:
     Ys = tf.reshape(tf.cast(coordinates[:, 1],dtype=tf.float32),oshape)#(1,njoints))
     maxx = tf.reduce_max(Xs)
     maxy = tf.reduce_max(Ys)
-    viszeros= tf.zeros(oshape,dtype=tf.float32)#,(1,njoints))
-    visinf = 100000*tf.ones(oshape,dtype=tf.float32)#tf.reshape(tf.constant([100000]*njoints,dtype=tf.float32),(1,njoints))
-    vis = tf.reshape(tf.where(tf.math.logical_and(Xs<0,Ys<0),visinf,viszeros),oshape)#,(1,njoints))
+    #viszeros= tf.zeros(oshape,dtype=tf.float32)#,(1,njoints))
+    #visinf = 100000*tf.ones(oshape,dtype=tf.float32)#tf.reshape(tf.constant([100000]*njoints,dtype=tf.float32),(1,njoints))
+    #vis = tf.reshape(tf.where(tf.math.logical_and(Xs<0,Ys<0),visinf,viszeros),oshape)#,(1,njoints))
     #viszero = 100000*(1-vis)
-    minx = tf.reduce_min(Xs) #+vis)
-    miny = tf.reduce_min(Ys) #+vis)
+    vis = 100000000.0*(1.0-annotated)
+    minx = tf.reduce_min(Xs+vis)
+    miny = tf.reduce_min(Ys+vis)
     return tf_reshape_slice([minx, miny, maxx, maxy], shape=2, **kwargs)
 
 @tf.function
@@ -450,6 +453,73 @@ def tf_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
     # stack and return 2D coordinates
     return tf.transpose(tf.stack((argmax_x, argmax_y), axis=0), [1, 0])
 
+
+@tf.function
+def tf_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
+    """Apply a 2D argmax to a tensor
+
+    Args:
+        tensor (tf.Tensor): 3D Tensor with data format HWC
+
+    Returns:
+        tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
+    """
+    #_tensor = tf.nn.relu(tensor)
+    _tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
+    _tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
+    _tensor = (tensor-_tens_min)/(_tens_max-_tens_min+0.0001)
+    #thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
+    _flat_tensor = tf.reshape(100.0*_tensor, (-1, tf.shape(tensor)[-1]))
+    flat_shape = tf.shape(_flat_tensor)
+    val = 64*64-32
+    _zero_correction = tf.reshape(tf.convert_to_tensor([1.5]*32+[0.0]*val),shape=(flat_shape[0],1))
+    _flat_tensor = _flat_tensor + tf.cast(_zero_correction,dtype=tf.float32)
+    # Apply softmax to normalize heatmaps
+    flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) #HWxC 
+
+    # Create coordinate grids
+    x_grid = tf.range(tf.shape(tensor)[0], dtype=tf.float32)
+    y_grid = tf.range(tf.shape(tensor)[1], dtype=tf.float32)
+    x_grid, y_grid = tf.meshgrid(x_grid, y_grid)
+
+    # Flatten coordinate grids
+    x_grid = tf.reshape(x_grid, shape=(-1,1)) #HWx1
+    y_grid = tf.reshape(y_grid, shape=(-1,1)) #HWx1 
+
+    # Compute expected (x, y) coordinates using softmax weights
+    x = tf.reduce_sum(x_grid * flat_tensor, axis=0) #C,
+    y = tf.reduce_sum(y_grid * flat_tensor, axis=0) #C,  
+    # stack and return 2D coordinates
+    return tf.transpose(tf.stack((x,y), axis=0), [1, 0])
+
+@tf.function
+def tf_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
+    """Apply 2D argmax along multiple stages
+
+    Args:
+        tensor (tf.Tensor): 4D Tensor with data format SHWC
+
+    Returns:
+        tf.Tensor: tf.dtypes.int32 Tensor of dimension SxCx2
+    """
+    return tf.map_fn(
+        fn=tf_matrix_softargmax_loss, elems=tensor, fn_output_signature=tf.dtypes.float32
+    )
+
+@tf.function
+def tf_batch_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
+    """Apply 2D argmax along a batch
+
+    Args:
+        tensor (tf.Tensor): 4D Tensor with data format SHWC
+
+    Returns:
+        tf.Tensor: tf.dtypes.int32 Tensor of dimension NxSxCx2
+    """
+    return tf.map_fn(
+        fn=tf_multistage_matrix_softargmax_loss, elems=tensor, fn_output_signature=tf.dtypes.float32
+    )
+
 @tf.function
 def tf_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
     """Apply a 2D argmax to a tensor
@@ -460,9 +530,11 @@ def tf_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
     Returns:
         tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
     """
-    _tensor = tensor/tf.reduce_max(tensor,axis=[0,1],keepdims=True)
-    thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
-    _flat_tensor = tf.reshape(100.0*thresh_tensor, (-1, tf.shape(tensor)[-1]))
+    _tensor = tf.nn.relu(tensor)
+    _tensor = tensor/(tf.reduce_max(_tensor,axis=[0,1],keepdims=True)+0.0001)
+    
+    #thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
+    _flat_tensor = tf.reshape(100.0*_tensor, (-1, tf.shape(tensor)[-1]))
     # Apply softmax to normalize heatmaps
     flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) #HWxC 
 
@@ -511,16 +583,16 @@ def tf_batch_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
 
 
 @tf.function
-def tf_normalize_tensor(tensor:tf.Tensor) -> tf.Tensor:
+def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
     """
     Apply normalization disregarding the zero entries
     """
-    mask = tf.where(tensor<=0.00001,0.0,1.0)
+    mask = tf.where(tensor<=thresh_val,0.0,1.0)
     numpx = tf.reduce_sum(mask)
     mean = tf.reduce_sum(tensor*mask)/numpx
     stddev = tf.sqrt(tf.reduce_sum(tf.square(tensor*mask-mean))/numpx+0.0000001)
     _tensor = (tensor-mean)/stddev
-    return tf.clip_by_value(1.5*(_tensor+3.5)+1.5,0.0,800.0)
+    return tf.clip_by_value(1.5*(_tensor+3.5)+1.5,0.0,800.0)*mask
 
 @tf.function
 def tf_dynamic_matrix_argmax(

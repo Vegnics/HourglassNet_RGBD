@@ -5,9 +5,7 @@ from typing import List
 from loguru import logger
 
 import sys,os
-#print(os.getcwd())
 sys.path.insert(1,os.getcwd())
-#print(sys.path)
 
 from hourglass_tensorflow.utils.parsers import MPIIDatapoint
 from hourglass_tensorflow.utils.parsers import parse_mpii
@@ -24,9 +22,9 @@ SLP_FOLDER = "/content/SLP_RGBD_v2"
 
 
 #HTF_JSON = "data/htf_slp_test.ignore.json"
-#HTF_JSON = "data/htf_mkv.ignore.json"
+HTF_JSON = "data/htf_mkv.ignore.json"
 
-HTF_JSON = "data/htf_slp.ignore.json"
+#HTF_JSON = "data/htf_slp.ignore.json"
 
 SLP_FOLDER = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v2"
 MKV_FOLDER = "/home/quinoa/database_mkv"
@@ -34,8 +32,8 @@ MKV_FOLDER = "/home/quinoa/database_mkv"
 if __name__ == "__main__":
     # Parse file as list of records
     logger.info("Convert from MKV-RGBD to HTF")
-    htf_data = read_slp_folder_to_htf_data(SLP_FOLDER)
-    #htf_data = read_mkv_folder_to_htf_data(MKV_FOLDER,0,4714)
+    #htf_data = read_slp_folder_to_htf_data(SLP_FOLDER)
+    htf_data = read_mkv_folder_to_htf_data(MKV_FOLDER,0,4714)
     # Write Transform data
     logger.info(f"Write HTF data to {HTF_JSON}")
     common_write(htf_data, HTF_JSON)

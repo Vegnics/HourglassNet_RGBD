@@ -17,6 +17,8 @@ class HourglassModel(Model):
         channel_number: int = 3,
         downsamplings_per_stage: int = 4,
         stage_filters: int = 256,
+        channels_1joint: int = 16,
+        channels_2joint: int = 16,
         output_channels: int = 16,
         intermediate_supervision: bool = True,
         name: str = None,
@@ -41,6 +43,8 @@ class HourglassModel(Model):
             **kwargs,
         )
         # Init
+        self._channels_1J = channels_1joint
+        self._channels_2J = channels_2joint
         self._intermediate_supervision = intermediate_supervision
         self._skip_AM = skip_AM
         self._s2f_AM = s2f_AM
@@ -63,7 +67,8 @@ class HourglassModel(Model):
             HourglassLayer(
                 downsamplings=downsamplings_per_stage,
                 feature_filters=stage_filters,
-                output_filters=output_channels,
+                joint_filters_1J=channels_1joint,
+                joint_filters_2J=channels_2joint,
                 name=f"Hourglass{i+1}",
                 dtype=dtype,
                 dynamic=dynamic,

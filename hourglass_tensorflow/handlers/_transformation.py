@@ -219,6 +219,7 @@ def tf_train_map_affine_augmentation_RGBD(
     input_size: int = 64,
     njoints: int = 16,
     hip: Tuple[int,int] = [3,2]
+    
     )-> tf.Tensor:
     """
     Args:
@@ -259,11 +260,13 @@ def tf_train_map_affine_augmentation_RGBD(
                             [20,1.0]],dtype=tf.float32)
 
     # Hip center
-    center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
     
     #Bbox center
-    bbox = tf.cast(tf_compute_bbox(coordinates),tf.int32)
-    #center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
     
     #nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
     #cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
@@ -321,6 +324,7 @@ def tf_train_map_affine_augmentation_RGBD(
             lambda imgncoords: tf_train_map_squarify(imgncoords[0],
                                                      imgncoords[1],
                                                      imgncoords[2],
+                                                     annotated,
                                                      True,
                                                      imgncoords[3])
         ),
@@ -342,7 +346,7 @@ def tf_train_map_affine_augmentation_RGBD(
     _images = (1.0-masked)*_images#+11.0*masked
     
     _coords = tf.reshape(_zipped[1],[18,njoints,2])
-    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
     #_visibilities = tf.ones((18,njoints),dtype=tf.int32)# tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
     return (_images,_coords,_visibilities)
 
@@ -469,12 +473,14 @@ def tf_train_map_affine_woaugment_RGBD(
     #                        [0.0,1.0]],dtype=tf.float32)
     #elif task_mode=="test":
     #    affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
-    
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
+
     _image = tf.cast(image,dtype=tf.float32)
    # Hip center
-    center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
-    bbox = tf.cast(tf_compute_bbox(coordinates),tf.int32)
-    #center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
 
     #nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
     #cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
@@ -521,7 +527,7 @@ def tf_train_map_affine_woaugment_RGBD(
     mask0 = tf.expand_dims(mask0,axis=0)
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2]*mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]*0.0+1.0 #*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     #if task_mode=="train":
@@ -534,6 +540,7 @@ def tf_train_map_affine_woaugment_RGBD(
             lambda imgncoords: tf_train_map_squarify(imgncoords[0],
                                                      imgncoords[1],
                                                      imgncoords[2],
+                                                     annotated,
                                                      True,
                                                      imgncoords[3])
         ),
@@ -552,7 +559,7 @@ def tf_train_map_affine_woaugment_RGBD(
     #if task_mode == "train":
     _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[3,256,256,1])
     _coords = tf.reshape(_zipped[1],[3,njoints,2])
-    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
     #elif task_mode == "test":
     #    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,256,256,4])
     #    _coords = tf.reshape(_zipped[1],[1,njoints,2])
@@ -598,6 +605,8 @@ def tf_test_map_affine_woaugment_RGBD(
     """
     affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
 
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
    # Hip center
     #center = tf.floor(0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32)))
     bbox = tf.cast(tf_compute_bbox(coordinates),tf.int32)
@@ -663,8 +672,9 @@ def tf_test_map_affine_woaugment_RGBD(
             lambda imgncoords: tf_train_map_squarify(imgncoords[0],
                                                      imgncoords[1],
                                                      imgncoords[2],
+                                                     annotated,
                                                      True,
-                                                     imgncoords[3])
+                                                     imgncoords[3],)
         ),
         elems=(tf.cast(_images,dtype=tf.float32),
                tf.cast(_coordinates,dtype=tf.float32),
@@ -710,6 +720,7 @@ def tf_train_map_squarify(
     image: tf.Tensor,
     coordinates: tf.Tensor,
     visibility: tf.Tensor,
+    annotated: tf.Tensor,
     bbox_enabled=False,
     bbox_factor=1.0,
 ) -> tf.Tensor:
@@ -737,7 +748,7 @@ def tf_train_map_squarify(
     if bbox_enabled:
         # Compute Bounding Box
         bbox,add_padding = tf_expand_bbox(
-            tf_compute_bbox(coordinates),
+            tf_compute_bbox(coordinates,annotated),
             tf.shape(image),
             bbox_factor=bbox_factor,
         )
@@ -755,7 +766,7 @@ def tf_train_map_squarify(
 
     padding = tf_compute_padding_from_bbox(bbox)
     cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
-    scalimg = tf_normalize_tensor(cropped)
+    scalimg = tf_normalize_tensor(cropped,15)
 
     # Generate Squared Image with Padding
     image = tf.pad(scalimg,

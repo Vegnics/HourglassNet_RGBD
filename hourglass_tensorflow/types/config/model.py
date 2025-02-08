@@ -42,7 +42,8 @@ class HTFModelParams(HTFConfigField):
     channel_number: int = 3
     stages: int = 4
     stage_filters: int = 128
-    output_channels: int = 16
+    channels_1joint: int = 16
+    channels_2joint: int = 16
     downsamplings_per_stage: int = 4
     intermediate_supervision: bool = True
     skip_AM: ATTENTION_MECHANISMS = "NoAM"

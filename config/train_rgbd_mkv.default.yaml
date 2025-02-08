@@ -114,7 +114,8 @@ model:
     stages: 3
     downsamplings_per_stage: 4
     stage_filters: 64 #64
-    output_channels: 26 #14 ->26
+    channels_1joint: 17 #14 ->26
+    channels_2joint: 12 #14 ->26
     name: "HourglassSample"
     intermediate_supervision: true
     skip_AM: "NoAM"
@@ -123,8 +124,8 @@ model:
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
-  load_model: true
-  model_path: "data/model_t/myModel_MKV_a1"
+  #load_model: true
+  #model_path: "data/model_t/myModel_MKV_a1"
 
 train:
   object:
@@ -147,7 +148,7 @@ train:
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
     params:
       nstages: 3
-      n1joints: 14  #16 ->26
+      n1joints: 17  #16 ->26
       n2joints: 12
       use2joints: false
       foo: bar
@@ -171,10 +172,12 @@ train:
     - source: "hourglass_tensorflow.metrics.SoftargmaxMeanDist"
       params: 
         name: "SoftMedDist"
+        num_1joints: 17
     - 
       source: "hourglass_tensorflow.metrics.OverallMeanDistance"
       params:
         name: "MEDist"
+        num_1joints: 17
     #-
     #  source: "hourglass_tensorflow.metrics.RatioCorrectKeypoints"
     #  params:
@@ -188,6 +191,7 @@ train:
         reference:
           - 12
           - 13
+        num_1joints: 17
   callbacks:
     -
       source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
@@ -203,7 +207,7 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_SLP_fAB4_2j"
+        filepath: "data/model_t/myModel_MKV_fA"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #

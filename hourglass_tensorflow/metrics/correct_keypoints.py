@@ -127,6 +127,7 @@ class PercentageOfCorrectKeypoints(Metric):
         self,
         reference: Tuple[int, int] = (8, 9), # The reference is the joint used for distance reference.
         ratio: float = 0.5,
+        num_1joints = 16,
         name=None,
         dtype=None,
         intermediate_supervision: bool = True,
@@ -136,6 +137,7 @@ class PercentageOfCorrectKeypoints(Metric):
         super().__init__(name, dtype, **kwargs)
         self.ratio = ratio
         self.reference = reference
+        self.num_1joints = num_1joints
         self.correct_keypoints = self.add_weight(
             name="correct_keypoints", initializer="zeros"
         )
@@ -152,7 +154,7 @@ class PercentageOfCorrectKeypoints(Metric):
 
     def argmax_tensor(self, tensor):
         return tf_dynamic_matrix_argmax(
-            tensor[:,:,:,:,0:14],
+            tensor[:,:,:,:,0:self.num_1joints],
             intermediate_supervision=self.intermediate_supervision,
             keepdims=True,
         )
@@ -208,7 +210,7 @@ class PercentageOfCorrectKeypoints(Metric):
 
     def _internal_update(self, y_true, y_pred):
         #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
-        vis = self.check_visibility(y_true[:,:,:,:,0:14])
+        vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
         N = tf.ones_like(vis,dtype=tf.float32)
         N = tf.reduce_sum(N)/14.0
         #Njoints = tf.reduce_sum(vis, axis=1) #N
@@ -224,7 +226,7 @@ class PercentageOfCorrectKeypoints(Metric):
         ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
         ground_truth_joints = tf.cast(ground_truth_joints,dtype = tf.float32)
         #predicted_joints = self.argmax_tensor(y_pred) #NxCx2
-        predicted_joints = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:14]) #NxCx2
+        predicted_joints = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:self.num_1joints]) #NxCx2
         
         # We compute distance between ground truth and prediction
         error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32)

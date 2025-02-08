@@ -36,15 +36,16 @@ def softargmax_2d(heatmap):
     return coords
 
 class SoftargmaxMeanDist(keras.metrics.Metric):
-    def __init__(self, name="softargmax_medist",  intermediate_supervision: bool = True, **kwargs):
+    def __init__(self, name="softargmax_medist",  intermediate_supervision: bool = True,num_1joints: int = 16, **kwargs):
         super(SoftargmaxMeanDist, self).__init__(name=name, **kwargs)
         self.intermediate_supervision = intermediate_supervision
         self.cum_mean_distance = self.add_weight(name="cum_mean_distance", initializer="zeros")
         self.count = self.add_weight(name="count", initializer="zeros")
+        self.num_1joints = num_1joints
     
     def argmax_tensor(self, tensor):
         return tf_dynamic_matrix_argmax(
-            tensor[:,:,:,:,0:14],
+            tensor[:,:,:,:,0:self.num_1joints],
             intermediate_supervision=self.intermediate_supervision,
             keepdims=True,
         )
@@ -62,12 +63,12 @@ class SoftargmaxMeanDist(keras.metrics.Metric):
         y_true: Ground truth keypoint coordinates (bs, num_joints, 2)
         y_pred: Predicted heatmaps (bs, h, w, num_joints)
         """
-        vis = self.check_visibility(y_true[:,:,:,:,0:14])
+        vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
         Njoints = tf.reduce_sum(vis)
         # Convert heatmaps to coordinates
         ground_truth_joints = tf.cast(self.argmax_tensor(y_true),dtype=tf.float32)
         #pred_coords = tf.cast(self.argmax_tensor(y_true),dtype=tf.float32)
-        pred_coords = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:14])
+        pred_coords = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:self.num_1joints])
         diff = tf.cast(
             ground_truth_joints - pred_coords, dtype=tf.dtypes.float32
         ) #NxCx2
@@ -87,13 +88,14 @@ class SoftargmaxMeanDist(keras.metrics.Metric):
 
 class OverallMeanDistance(keras.metrics.Metric):
     def __init__(
-        self, name=None, dtype=None, intermediate_supervision: bool = True, **kwargs
+        self, name=None, dtype=None, intermediate_supervision: bool = True, num_1joints: int = 16, **kwargs
     ):
         super().__init__(name, dtype, **kwargs)
         self.num_samples = self.add_weight(name="number_of_samples", initializer="zeros")
         self.distance = self.add_weight(name="distance", initializer="zeros")
         self.batch_mode = False
         self.intermediate_supervision = intermediate_supervision
+        self.num_1joints = num_1joints
 
     def check_visibility(self,tensor):
         _tensor = 1.0*tensor[:,-1,:,:,:]
@@ -105,13 +107,13 @@ class OverallMeanDistance(keras.metrics.Metric):
 
     def argmax_tensor(self, tensor):
         return tf_dynamic_matrix_argmax(
-            tensor[:,:,:,:,0:14],
+            tensor[:,:,:,:,0:self.num_1joints],
             intermediate_supervision=self.intermediate_supervision,
             keepdims=True,
         )
 
     def _internal_update(self, y_true, y_pred):
-        vis = self.check_visibility(y_true[:,:,:,:,0:14])
+        vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
         N = tf.ones_like(vis,dtype=tf.float32)
         N = tf.reduce_sum(N)/14.0
 

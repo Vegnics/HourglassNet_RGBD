@@ -193,7 +193,8 @@ class HourglassLayer(Layer):
     def __init__(
         self,
         feature_filters: int = 256,# Number of feature maps
-        output_filters: int = 16,  # Number of landmark heatmaps
+        joint_filters_1J: int = 16,  # Number of 1-joint heatmaps
+        joint_filters_2J: int = 16,  # Number of 2-joint heatmaps
         downsamplings: int = 4,    # Number of Downsamplings and upsamplings. 
         name: str = None,
         dtype=None,
@@ -211,7 +212,8 @@ class HourglassLayer(Layer):
         # Store Config
         self.downsamplings = downsamplings
         self.feature_filters = feature_filters
-        self.output_filters = output_filters
+        self.joint_filters_1J= joint_filters_1J
+        self.joint_filters_2J= joint_filters_2J
         self.intermed = intermed
         self.trainable = trainable
         self.skip_att = skip_attention
@@ -223,7 +225,7 @@ class HourglassLayer(Layer):
         #ConvBatchNormReluLayer
         self._hm1_output = HMOut(
             # Layer for heatmaps output.
-            filters=14, #output_filters
+            filters=joint_filters_1J, #output_filters
             kernel_size=1,
             name="HeatmapOutput",
             dtype=dtype,
@@ -235,14 +237,14 @@ class HourglassLayer(Layer):
         #"""
         self._hm2_output = HMOut(
             # Layer for heatmaps output.
-            filters= 12,#14,
+            filters=joint_filters_2J,#14,
             kernel_size=1,
             name="Heatmap2Output",
             dtype=dtype,
             dynamic=dynamic,
             trainable=trainable,
             outmax=None,
-        ) if use_2jointHM else zeroLayer(12,name="ZeroHeatmap2")
+        ) if use_2jointHM else zeroLayer(joint_filters_2J,name="ZeroHeatmap2")
         #"""
 
 
@@ -352,7 +354,8 @@ class HourglassLayer(Layer):
             **{
                 "downsamplings": self.downsamplings,
                 "feature_filters": self.feature_filters,
-                "output_filters": self.output_filters,
+                "joints_filters_1": self.joint_filters_1J,
+                "joints_filters_2": self.joint_filters_2J,
             },
         }
         

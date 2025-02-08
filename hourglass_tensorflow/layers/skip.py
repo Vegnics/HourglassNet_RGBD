@@ -8,13 +8,14 @@ class SkipLayer(Layer):
         self,
         output_filters: int,
         name: str = None,
-        dtype=None,
-        dynamic=False, 
+        #dtype=None,
+        #dynamic=False, 
         trainable: bool = True,
         momentum: float = 0.98,
         epsilon: float = 1e-3,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.output_filters = output_filters
         # Create Layers

@@ -23,11 +23,12 @@ class DownSamplingLayer(Layer):
         kernel_size: int = 7,
         output_filters: int = 256,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.input_size = input_size
         self.output_size = output_size
@@ -50,8 +51,8 @@ class DownSamplingLayer(Layer):
                         kernel_size=kernel_size,
                         strides=(2 if self.downsamplings > 1 else 1),
                         name="CNBR",
-                        dtype=dtype,
-                        dynamic=dynamic,
+                        #dtype=dtype,
+                        #dynamic=dynamic,
                         trainable=trainable,
                         use_relu=True,
                     )
@@ -61,8 +62,8 @@ class DownSamplingLayer(Layer):
                     ResidualLayer(
                         output_filters=output_filters // 2,
                         name=f"Residual{i}",
-                        dtype=dtype,
-                        dynamic=dynamic,
+                        #dtype=dtype,
+                        #dynamic=dynamic,
                         trainable=trainable,
                     )
                 )
@@ -70,8 +71,8 @@ class DownSamplingLayer(Layer):
                     ResidualLayerIn(
                         output_filters=output_filters,
                         name=f"Residual{i}",
-                        dtype=dtype,
-                        dynamic=dynamic,
+                        #dtype=dtype,
+                        #dynamic=dynamic,
                         trainable=trainable,
                     )
                 )
@@ -80,8 +81,8 @@ class DownSamplingLayer(Layer):
                     ResidualLayerIn(
                         output_filters=output_filters // 2,
                         name=f"Residual{i}",
-                        dtype=dtype,
-                        dynamic=dynamic,
+                        #dtype=dtype,
+                        #dynamic=dynamic,
                         trainable=trainable,
                     )
                 )

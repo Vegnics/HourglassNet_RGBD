@@ -17,11 +17,12 @@ class ConvBlockLayer(Layer):
         momentum: float = 0.9,
         epsilon: float = 1e-5,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.output_filters = output_filters
         self.momentum = momentum
@@ -35,8 +36,8 @@ class ConvBlockLayer(Layer):
             name="BNRC1",
             momentum=momentum,
             epsilon=epsilon,
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
             use_relu=True,
             normalized = True,
@@ -49,8 +50,8 @@ class ConvBlockLayer(Layer):
             name="BNRC2",
             momentum=momentum,
             epsilon=epsilon,
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
             use_relu=True,
             normalized = True,
@@ -63,8 +64,8 @@ class ConvBlockLayer(Layer):
             name="BNRC3",
             momentum=momentum,
             epsilon=epsilon,
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
             use_relu=True,
             normalized = True, # Previous True

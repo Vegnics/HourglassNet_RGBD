@@ -13,8 +13,8 @@ from hourglass_tensorflow.layers.residual_with_attention_spatial import Residual
 def generate_residual_layer(layer_type: str ,
                             feature_filters: int ,
                             name: str = None ,
-                            dtype = None ,
-                            dynamic = False,
+                            #dtype = None ,
+                            #dynamic = False,
                             trainable = True,
                             kernel_reg = False,
                             freeze_attention=False):
@@ -23,15 +23,15 @@ def generate_residual_layer(layer_type: str ,
             return  ResidualLayer(
                 output_filters= feature_filters,
                 name=name,
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,)
         elif layer_type == "SAM":
             return ResidualLayerAttentionSpatial(
                 output_filters=feature_filters,
                 name=name,
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,
                 kernel_reg=kernel_reg,
                 freeze_attention=freeze_attention,)
@@ -39,8 +39,8 @@ def generate_residual_layer(layer_type: str ,
             return ResidualLayerAttention(
                 output_filters=feature_filters,
                 name=name,
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,
                 kernel_reg = kernel_reg,
                 freeze_attention=freeze_attention)
@@ -55,11 +55,12 @@ class ResidualInWithBNRC(Layer):
         momentum: float = 0.9,
         epsilon: float = 0.0001,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name,trainable=trainable)
         # Store Config
         self.feature_filters = output_filters
 
@@ -88,8 +89,8 @@ class ResidualInWithBNRC(Layer):
         self.residual1 =  ResidualLayerIn(
                                             output_filters=output_filters,
                                             name="ResidualInCBNR",
-                                            dtype=dtype,
-                                            dynamic=dynamic,
+                                            #dtype=dtype,
+                                            #dynamic=dynamic,
                                             trainable=trainable,
                                             epsilon=0.001,
                                             momentum=0.97,
@@ -115,7 +116,7 @@ class zeroLayer(Layer):
         output_channels: int = 16,# Number of feature maps
         name: str = None,
     ) -> None:
-        super().__init__(name=name, dynamic=False, trainable=False)
+        super().__init__(name=name, trainable=False)
         # Store Config
         self.output_channels = output_channels 
     def get_config(self):
@@ -138,12 +139,13 @@ class ResidualWithBNRC(Layer):
         momentum: float = 0.9,
         epsilon: float = 0.0001,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
         attention: str = None,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store Config
         self.feature_filters = output_filters
 
@@ -171,8 +173,8 @@ class ResidualWithBNRC(Layer):
         self.residual1 =  generate_residual_layer(layer_type=attention,
                                                 feature_filters=output_filters,
                                                 name="Residual",
-                                                dtype=dtype,
-                                                dynamic=dynamic,
+                                                #dtype=dtype,
+                                                #dynamic=dynamic,
                                                 trainable=trainable,)
     
     def get_config(self):
@@ -197,8 +199,8 @@ class HourglassLayer(Layer):
         joint_filters_2J: int = 16,  # Number of 2-joint heatmaps
         downsamplings: int = 4,    # Number of Downsamplings and upsamplings. 
         name: str = None,
-        dtype=None,
-        dynamic: bool =False,
+        #dtype=None,
+        #dynamic: bool =False,
         trainable: bool = True,
         intermed: bool = False,
         use_2jointHM: bool = False,
@@ -208,7 +210,8 @@ class HourglassLayer(Layer):
         use_kernel_regularization: bool = False,
         freeze_attention: bool = False
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store Config
         self.downsamplings = downsamplings
         self.feature_filters = feature_filters
@@ -228,8 +231,8 @@ class HourglassLayer(Layer):
             filters=joint_filters_1J, #output_filters
             kernel_size=1,
             name="HeatmapOutput",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
             outmax=None,
         )
@@ -240,8 +243,8 @@ class HourglassLayer(Layer):
             filters=joint_filters_2J,#14,
             kernel_size=1,
             name="Heatmap2Output",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
             outmax=None,
         ) if use_2jointHM else zeroLayer(joint_filters_2J,name="ZeroHeatmap2")
@@ -250,8 +253,8 @@ class HourglassLayer(Layer):
 
         self._residual_2j = ResidualLayerIn(output_filters=feature_filters,
                                             name="Transit_Output",
-                                            dtype=dtype,
-                                            dynamic=dynamic,
+                                            #dtype=dtype,
+                                            #dynamic=dynamic,
                                             trainable=trainable,
                                             epsilon=0.001,
                                             momentum=0.97,
@@ -260,16 +263,16 @@ class HourglassLayer(Layer):
         self._merge_feats_main = BatchNormConv1Layer(filters=feature_filters,
                                             kernel_size=1,
                                             name="Merge_Feats",
-                                            dtype=dtype,
-                                            dynamic=dynamic,
+                                            #dtype=dtype,
+                                            #dynamic=dynamic,
                                             trainable=trainable,
         )
 
         self._merge_feats_1j = BatchNormConv1Layer(filters=feature_filters,
                                             kernel_size=1,
                                             name="Merge_Feats",
-                                            dtype=dtype,
-                                            dynamic=dynamic,
+                                            #dtype=dtype,
+                                            #dynamic=dynamic,
                                             trainable=trainable,
         )
 
@@ -284,15 +287,15 @@ class HourglassLayer(Layer):
                 pool_size=(2, 2),
                 padding="valid",
                 name=f"Step{i}_MaxPool",
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,
             )
             downsampling["low_1"] = generate_residual_layer(layer_type=self.s2f_att,
                                                             feature_filters=self.feature_filters,
                                                             name=f"Step{i}_ResidualLow1",
-                                                            dtype=self.dtype,
-                                                            dynamic=self.dynamic,
+                                                            #dtype=self.dtype,
+                                                            #dynamic=self.dynamic,
                                                             trainable=self.trainable,
                                                             kernel_reg=use_kernel_regularization,
                                                             freeze_attention=freeze_attention)
@@ -301,8 +304,8 @@ class HourglassLayer(Layer):
                 downsampling["low_2"] = generate_residual_layer(layer_type=self.s2f_att,
                                                                 feature_filters=self.feature_filters,
                                                                 name=f"Step{i}_ResidualLow2",
-                                                                dtype=self.dtype,
-                                                                dynamic=self.dynamic,
+                                                                #dtype=self.dtype,
+                                                                #dynamic=self.dynamic,
                                                                 trainable=self.trainable,
                                                                 kernel_reg=use_kernel_regularization,
                                                                 freeze_attention=freeze_attention)
@@ -310,24 +313,24 @@ class HourglassLayer(Layer):
                 downsampling["low_in"] =  generate_residual_layer(layer_type=self.s2f_att,
                                                                   feature_filters=self.feature_filters,
                                                                   name=f"Step{i}_ResidualMainIn",
-                                                                  dtype=self.dtype,
-                                                                  dynamic=self.dynamic,
+                                                                  #dtype=self.dtype,
+                                                                  #dynamic=self.dynamic,
                                                                   trainable=self.trainable,
                                                                   kernel_reg=use_kernel_regularization,
                                                                   freeze_attention=freeze_attention)
                 downsampling["low_out"] = ResidualWithBNRC(
                     output_filters=feature_filters,
                     name=f"Step{i}_ResidualMainOut",
-                    dtype=dtype,
-                    dynamic=dynamic,
+                    #dtype=dtype,
+                    #dynamic=dynamic,
                     trainable=trainable,
                     attention=self.f2s_att,
                 )
             downsampling["low_3"] = generate_residual_layer(layer_type=self.f2s_att,
                                                             feature_filters=self.feature_filters,
                                                             name=f"Step{i}_ResidualLow3",
-                                                            dtype=self.dtype,
-                                                            dynamic=self.dynamic,
+                                                            #dtype=self.dtype,
+                                                            #dynamic=self.dynamic,
                                                             trainable=self.trainable,
                                                             kernel_reg=use_kernel_regularization,
                                                             freeze_attention=freeze_attention)
@@ -336,14 +339,14 @@ class HourglassLayer(Layer):
                 data_format=None,
                 interpolation= "nearest", #"nearest",
                 name=f"Step{i}_UpSampling2D",
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,
             )
             downsampling["out"] = layers.Add(
                 name=f"Step{i}_Add",
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,
             )
         # endregion

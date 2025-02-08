@@ -14,12 +14,13 @@ class ResidualLayer(Layer):
         momentum: float = 0.97,
         epsilon: float = 0.001,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
         use_last_relu: bool = False,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.output_filters = output_filters
         self.momentum = momentum
@@ -51,8 +52,8 @@ class ResidualLayer(Layer):
             momentum=momentum,
             epsilon=epsilon,
             name="ConvBlock",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
         )
         #self.skip = SkipLayer(

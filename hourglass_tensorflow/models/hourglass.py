@@ -57,8 +57,8 @@ class HourglassModel(Model):
             kernel_size=7,
             output_filters=stage_filters,
             name="DownSampling",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
         )
         self.hourglasses = [
@@ -68,8 +68,8 @@ class HourglassModel(Model):
                 joint_filters_1J=channels_1joint,
                 joint_filters_2J=channels_2joint,
                 name=f"Hourglass{i+1}",
-                dtype=dtype,
-                dynamic=dynamic,
+                #dtype=dtype,
+                #dynamic=dynamic,
                 trainable=trainable,
                 intermed= True,
                 skip_attention = self._skip_AM,
@@ -155,8 +155,8 @@ def model_as_layers(
         kernel_size=7,
         output_filters=stage_filters,
         name="DownSampling",
-        dtype=dtype,
-        dynamic=dynamic,
+        #dtype=dtype,
+        #dynamic=dynamic,
         trainable=trainable,
     )
     hourglasses = [
@@ -165,8 +165,8 @@ def model_as_layers(
             feature_filters=stage_filters,
             output_filters=output_channels,
             name=f"Hourglass{i+1}",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
         )
         for i in range(stages)

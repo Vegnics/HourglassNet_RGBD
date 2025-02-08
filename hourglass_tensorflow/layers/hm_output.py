@@ -20,11 +20,12 @@ class HMOut(Layer):
         epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
-        dtype=None,
-        dynamic=False,
+        #dtype=None,
+        #dynamic=False,
         trainable: bool = True,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.filters = filters
         self.kernel_size = kernel_size

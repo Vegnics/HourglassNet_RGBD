@@ -281,8 +281,14 @@ class HourglassLayer(Layer):
         #)
         
         for i, downsampling in enumerate(self.layers):
-            downsampling["up_1"] = generate_residual_layer(layer_type=self.skip_att,feature_filters=self.feature_filters,
-                                                           name=f"Step{i}_ResidualUp1",dtype=self.dtype,dynamic=self.dynamic,trainable=self.trainable,kernel_reg=use_kernel_regularization,freeze_attention=freeze_attention)
+            downsampling["up_1"] = generate_residual_layer(layer_type=self.skip_att,
+                                                           feature_filters=self.feature_filters,
+                                                           name=f"Step{i}_ResidualUp1",
+                                                           #dtype=self.dtype,
+                                                           #dynamic=self.dynamic,
+                                                           trainable=self.trainable,
+                                                           kernel_reg=use_kernel_regularization,
+                                                           freeze_attention=freeze_attention)
             downsampling["low_"] = layers.MaxPool2D(
                 pool_size=(2, 2),
                 padding="valid",

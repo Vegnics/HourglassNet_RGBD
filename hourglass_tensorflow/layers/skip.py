@@ -60,4 +60,4 @@ class SkipLayer(Layer):
         return self.conv(inputs)
 
     def build(self, input_shape):
-        pass
+        self.built = True

@@ -75,4 +75,4 @@ class BatchNormConvReluLayer(Layer):
         x = self.relu(x)
         return x
     def build(self, input_shape):
-        pass
+        self.built = True

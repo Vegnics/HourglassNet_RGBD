@@ -85,4 +85,4 @@ class ResidualLayer(Layer):
             ])
         return self.relu(_sum)
     def build(self, input_shape):
-        pass
+        self.built = True

@@ -93,4 +93,4 @@ class ConvBatchNormReluLayer(Layer):
         x = self.conv(x)
         return x
     def build(self, input_shape):
-        pass
+        self.built = True

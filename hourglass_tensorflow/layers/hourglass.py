@@ -347,4 +347,4 @@ class HourglassLayer(Layer):
         return out_tensor, tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
         #return out_tensor, intermediate_1jhms 
     def build(self, input_shape):
-        pass
+        self.built = True

@@ -109,4 +109,4 @@ class DownSamplingLayer(Layer):
             x = layer(x, training=training)
         return x
     def build(self, input_shape):
-        pass
+        self.built = True

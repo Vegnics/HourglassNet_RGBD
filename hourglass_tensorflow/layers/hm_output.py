@@ -84,4 +84,4 @@ class HMOut(Layer):
         return x#self.relu(x)
 
     def build(self, input_shape):
-        pass
+        self.built = True

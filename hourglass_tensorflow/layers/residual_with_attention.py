@@ -100,4 +100,4 @@ class ResidualLayerAttention(Layer):
         #scores = self.attention(out)
         return  (1+scores)*out #(1+scores)*out#(scores+0.0001)*out
     def build(self, input_shape):
-        pass
+        self.built = True

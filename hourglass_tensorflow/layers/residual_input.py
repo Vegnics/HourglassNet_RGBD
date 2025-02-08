@@ -50,8 +50,8 @@ class ResidualLayerIn(Layer):
         self.match_layer =   SkipLayer(
             output_filters=output_filters,
             name="Skip",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
         )
 
@@ -61,8 +61,8 @@ class ResidualLayerIn(Layer):
             momentum=momentum,
             epsilon=epsilon,
             name="ConvBlock",
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
         )
 

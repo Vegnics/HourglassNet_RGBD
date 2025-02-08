@@ -31,8 +31,8 @@ class HourglassModel(Model):
         use_2jointHM: bool = False,
         use_kernel_regularization: bool = False,
         freeze_attention_weights: bool = False,
-        *args,
-        **kwargs,
+        #*args,
+        #**kwargs,
     ):
         super().__init__(name=name,trainable=trainable,)
             #dtype=dtype,

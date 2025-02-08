@@ -105,8 +105,8 @@ class MAE_custom(keras.losses.Loss):
         #SumWc = tf.reduce_sum(Wc)
         #Wc = Wc/SumWc
         
-        loss_1jnt = tf.reduce_mean(ndiff[:,:,0:self.n1joints],axis=2) #NS
-        loss_2jnt = tf.reduce_mean(ndiff[:,:,self.n1joints:self.n2joints],axis=2)#NS
+        loss_1jnt = tf.reduce_sum(ndiff[:,:,0:self.n1joints],axis=2)/tf.cast(self.n1joints,dtype=tf.float32) #NS
+        loss_2jnt = tf.reduce_sum(ndiff[:,:,self.n1joints:self.n1joints+self.n2joints],axis=2)/tf.cast(self.n2joints,dtype=tf.float32)#NS
 
         dist2 = 1.5*tf.reduce_mean(loss_1jnt)+0.5*loss_coords+0.3*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
         #dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS

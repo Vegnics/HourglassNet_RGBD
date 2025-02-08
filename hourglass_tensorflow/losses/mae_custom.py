@@ -7,7 +7,7 @@ class MAE_custom(keras.losses.Loss):
     def __init__(
         self, reduction=tf.keras.losses.Reduction.AUTO, name="MAEcustom", *args, **kwargs
     ):
-        super().__init__(reduction=None, name=name)
+        super().__init__(reduction="sum", name=name)
         self.stages = 3
         self.n1joints = 14
         self.n2joints = 12

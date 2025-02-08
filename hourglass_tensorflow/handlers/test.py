@@ -9,8 +9,12 @@ from keras.models import Model
 from keras.metrics import Metric
 from keras.callbacks import Callback
 from keras.optimizers import Optimizer
-from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedule
-#from keras.optimizers.schedules import LearningRateSchedule
+
+import keras as KERAS
+if KERAS.__version__ < "2.18.0":
+    from keras.optimizers.schedules.learning_rate_schedule import LearningRateSchedule
+else:
+    from keras.optimizers.schedules import LearningRateSchedule
 
 from hourglass_tensorflow.types.config import HTFTestConfig
 from hourglass_tensorflow.types.config import HTFObjectReference

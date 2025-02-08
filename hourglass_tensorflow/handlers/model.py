@@ -97,7 +97,6 @@ class HTFModelHandler(_HTFModelHandler):
         return self._input
 
     def _build_model_as_model(self, *args, **kwargs) -> HourglassModel:
-        print(self.params.model_dump())
         self._model = HourglassModel(**self.params.model_dump())
         self._layered_model = {}
         return self._model
@@ -115,7 +114,9 @@ class HTFModelHandler(_HTFModelHandler):
         if self.config.build_as_model:
             if not self.config.load_model:
                 print(f"Generating new model from scratch")
-                model = self._build_model_as_model(*args, **kwargs)
+                print(self.params.model_dump())
+                model = self._build_model_as_model()
+                #model = self._build_model_as_model(*args, **kwargs)
             else:
                 print(f"Loading model ... {self.config.model_path}")
                 model = tf.keras.models.load_model(self.config.model_path,

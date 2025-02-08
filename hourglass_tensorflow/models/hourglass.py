@@ -36,8 +36,8 @@ class HourglassModel(Model):
     ):
         super().__init__(
             name=name,
-            dtype=dtype,
-            dynamic=dynamic,
+            #dtype=dtype,
+            #dynamic=dynamic,
             trainable=trainable,
             *args,
             **kwargs,

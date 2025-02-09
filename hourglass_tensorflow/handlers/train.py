@@ -4,6 +4,7 @@ from typing import Union
 from typing import TypeVar
 
 import tensorflow as tf
+import numpy as np
 from keras.losses import Loss
 from keras.models import Model
 from keras.metrics import Metric
@@ -88,7 +89,7 @@ class HTFTrainHandler(_HTFTrainHandler):
         self._learning_rate = self._instantiate(self.config.learning_rate)
         self._loss = self._instantiate(self.config.loss)
         self._optimizer = self._instantiate(
-            self.config.optimizer, learning_rate=self._learning_rate
+            self.config.optimizer, learning_rate=np.float32(self._learning_rate)
         )
         self._metrics = [obj.init() for obj in self.config.metrics]
         self._callbacks = [obj.init() for obj in self.config.callbacks]

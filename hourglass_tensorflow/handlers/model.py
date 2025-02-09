@@ -91,7 +91,7 @@ class HTFModelHandler(_HTFModelHandler):
         channels =  int(self.params.channel_number)
         #channels = 4
         if self.config.data_format == "NHWC":
-            self._input = InputTensor(shape=(height, width, channels), batch_size=40, name="Input")
+            self._input = InputTensor(shape=(height, width, channels), batch_size=self.config.batch_size, name="Input")
         else:
             raise BadConfigurationError("The only supported data format is NHWC so far")
         return self._input

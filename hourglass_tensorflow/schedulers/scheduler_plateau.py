@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
     def __init__(self, monitor='val_accuracy', factor=0.5, patience=5, min_lr=1e-6, verbose=1):
@@ -9,7 +10,7 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
         self.min_lr = min_lr  # Minimum learning rate allowed
         self.verbose = verbose  # Verbosity mode
         self.wait = 0  # Wait counter
-        self.best = +float('inf')  # Best value of the monitored metric
+        self.best = np.float32(+float('inf'))  # Best value of the monitored metric
         self.lr_reduced = False  # Flag to track if LR was reduced
     
     def on_epoch_end(self, epoch, logs=None):
@@ -29,17 +30,20 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
             self.best = current
             self.wait = 0
             self.lr_reduced = False
+            old_lr = np.float32(float(tf.keras.backend.get_value(self.model.optimizer.learning_rate)))
+            self.model.optimizer.learning_rate.assign(old_lr)
+            print("LEARNING RATE",self.model.optimizer.learning_rate,type(self.model.optimizer.learning_rate))
         else:
             if self.verbose > 0:
                 print(f"\nThe value of {self.monitor} DIDNT improve from {self.best}|| Attempt :{self.wait+1}.")
             self.wait += 1
             if self.wait >= self.patience:
                 # Reduce the learning rate if the metric hasn't improved
-                old_lr = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
-                new_lr = max(old_lr * self.factor, self.min_lr)
+                old_lr = np.float32(float(tf.keras.backend.get_value(self.model.optimizer.learning_rate)))
+                new_lr = np.float32(max(old_lr * self.factor, self.min_lr))
                 
                 if old_lr > new_lr:  # Only update if the new LR is lower
-                    tf.keras.backend.set_value(self.model.optimizer.learning_rate, new_lr)
+                    tf.keras.backend.set_value(np.float32(self.model.optimizer.learning_rate), new_lr)
                     if self.verbose > 0:
                         print(f"\nEpoch {epoch+1}: {self.monitor} did not improve. Reducing learning rate to {new_lr}.")
                     self.lr_reduced = True
@@ -48,6 +52,6 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
 
     def on_train_begin(self, logs=None):
         # Initialization of the best metric value
-        self.best = +float('inf')
+        self.best = np.float32(+float('inf'))
         self.wait = 0
         self.lr_reduced = False

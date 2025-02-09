@@ -104,6 +104,7 @@ model:
       foo: bar
   build_as_model : true
   data_format: NHWC
+  batch_size: 1
   params:
     input_size: 256 #256
     output_size: 64 #64
@@ -118,7 +119,7 @@ model:
     skip_AM: "NoAM"
     s2f_AM: "NoAM" #"NoAM"
     f2s_AM: "NoAM" #"NoAM"
-    use_2jointHM: false
+    use_2jointHM: true
     use_kernel_regularization: false
     freeze_attention_weights: false
   #load_model: true
@@ -147,7 +148,7 @@ train:
       nstages: 3
       n1joints: 14  #16 ->26
       n2joints: 12
-      use2joints: false
+      use2joints: true
       foo: bar
   #loss: MeanSquaredError
   optimizer:

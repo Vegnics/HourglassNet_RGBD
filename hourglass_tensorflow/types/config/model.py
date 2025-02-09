@@ -64,3 +64,4 @@ class HTFModelConfig(HTFConfigField):
     build_as_model: bool = False
     data_format: DATA_FORMAT = "NHWC"
     params: Optional[HTFModelParams] = Field(default=HTFModelParams)
+    batch_size: int = 1

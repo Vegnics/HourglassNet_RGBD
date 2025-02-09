@@ -205,7 +205,7 @@ class HTFManager(ObjectLogger):
                 #plt.imshow(img_rgb)
                 #plt.show() 
         """
-        
+        self._config.model.batch_size = self._config.train.batch_size
         #"""
         # Launch Model Handler
         self.MODEL = self._import_object(

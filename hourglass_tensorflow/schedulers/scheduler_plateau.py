@@ -30,9 +30,9 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
             self.best = current
             self.wait = 0
             self.lr_reduced = False
-            old_lr = np.float32(float(tf.keras.backend.get_value(self.model.optimizer.learning_rate)))
-            self.model.optimizer.learning_rate.assign(old_lr)
-            print("LEARNING RATE",self.model.optimizer.learning_rate,type(self.model.optimizer.learning_rate))
+            #old_lr = np.float32(float(tf.keras.backend.get_value(self.model.optimizer.learning_rate)))
+            #self.model.optimizer.learning_rate.assign(old_lr)
+            #print("LEARNING RATE",self.model.optimizer.learning_rate,type(self.model.optimizer.learning_rate))
         else:
             if self.verbose > 0:
                 print(f"\nThe value of {self.monitor} DIDNT improve from {self.best}|| Attempt :{self.wait+1}.")
@@ -43,7 +43,8 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
                 new_lr = np.float32(max(old_lr * self.factor, self.min_lr))
                 
                 if old_lr > new_lr:  # Only update if the new LR is lower
-                    tf.keras.backend.set_value(np.float32(self.model.optimizer.learning_rate), new_lr)
+                    self.model.optimizer.learning_rate.assign(new_lr)
+                    #tf.keras.backend.set_value(np.float32(self.model.optimizer.learning_rate), )
                     if self.verbose > 0:
                         print(f"\nEpoch {epoch+1}: {self.monitor} did not improve. Reducing learning rate to {new_lr}.")
                     self.lr_reduced = True

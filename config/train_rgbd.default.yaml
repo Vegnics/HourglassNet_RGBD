@@ -9,7 +9,7 @@ data:
     mode: "RGBD"
     #source: data/images.ignore.folder
     #source: /content/SLP_RGBD_v2
-    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v2
+    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
     extensions:
       - png
       - jpeg

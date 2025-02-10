@@ -5,13 +5,16 @@ from hourglass_tensorflow.utils.tf import tf_batch_matrix_softargmax,tf_batch_mu
 
 class MAE_custom(keras.losses.Loss):
     def __init__(
-        self, reduction=tf.keras.losses.Reduction.AUTO, name="MAEcustom", *args, **kwargs
+        self, reduction=tf.keras.losses.Reduction.AUTO, name="MAEcustom",WL2_j1: float = 1.0,WL2_j2: float = 0.3, WCoords: float = 0.001, *args, **kwargs
     ):
         super().__init__(reduction="sum", name=name)
         self.stages = 3
         self.n1joints = 14
         self.n2joints = 12
         self.use2joints = True
+        self.wl2_j1 = tf.constant(WL2_j1,dtype=tf.float32)
+        self.wl2_j2 = tf.constant(WL2_j2,dtype=tf.float32)
+        self.wcoords = tf.constant(WCoords,dtype=tf.float32)
         for key, value in kwargs.items():
             if key == "nstages":
                 self.stages = int(value)
@@ -75,12 +78,10 @@ class MAE_custom(keras.losses.Loss):
         dist1 = tf.reduce_sum(dist1*Ws,axis=1)
         dist1 = tf.reduce_mean(dist1)
         """
-
-
         #"""
         gt_coords = tf_batch_multistage_matrix_softargmax_loss(y_true[:,:,:,:,0:self.n1joints])
         pred_coords = tf_batch_multistage_matrix_softargmax_loss(y_pred[:,:,:,:,0:self.n1joints])
-        loss_coords = tf.math.square(gt_coords-pred_coords)+0.0001
+        loss_coords = tf.math.square(gt_coords-pred_coords)+0.00001
         loss_coords = tf.math.sqrt(tf.reduce_mean(loss_coords))
 
         wEMAE0 = tf.zeros(shape=[1,S-1])
@@ -108,7 +109,7 @@ class MAE_custom(keras.losses.Loss):
         loss_1jnt = tf.reduce_sum(ndiff[:,:,0:self.n1joints],axis=2)/tf.cast(self.n1joints,dtype=tf.float32) #NS
         loss_2jnt = tf.reduce_sum(ndiff[:,:,self.n1joints:self.n1joints+self.n2joints],axis=2)/tf.cast(self.n2joints,dtype=tf.float32)#NS
 
-        dist2 = 1.5*tf.reduce_mean(loss_1jnt)+0.5*loss_coords+0.1*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
+        dist2 = self.wl2_j1*tf.reduce_mean(loss_1jnt)+self.wcoords*loss_coords+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
         #dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
         #dist2 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,0:16],axis=[2,3])) #NSC
         #dist3 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,16:31],axis=[2,3])) #NSC

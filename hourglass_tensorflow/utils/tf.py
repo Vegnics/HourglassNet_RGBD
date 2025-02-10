@@ -530,8 +530,10 @@ def tf_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
     Returns:
         tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
     """
-    _tensor = tf.nn.relu(tensor)
-    _tensor = tensor/(tf.reduce_max(_tensor,axis=[0,1],keepdims=True)+0.0001)
+    _tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
+    _tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
+    _tensor = (tensor-_tens_min)/(_tens_max-_tens_min+0.0001)
+    #_tensor = tensor/(tf.reduce_max(_tensor,axis=[0,1],keepdims=True)+0.0001)
     
     #thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
     _flat_tensor = tf.reshape(100.0*_tensor, (-1, tf.shape(tensor)[-1]))

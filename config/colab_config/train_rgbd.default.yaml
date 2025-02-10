@@ -147,7 +147,7 @@ train:
     params:
       WL2_j1: 1.0
       WL2_j2: 0.2
-      WCoords: 0.001
+      WCoords: 0.000
       nstages: 3
       n1joints: 14  #16 ->26
       n2joints: 12

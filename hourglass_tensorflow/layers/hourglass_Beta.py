@@ -276,6 +276,15 @@ class HourglassLayer(Layer):
                                             trainable=trainable,
         )
 
+        self.residual_brc = ResidualWithBNRC(
+                    output_filters=feature_filters,
+                    name=f"ResidualWithBNRC",
+                    #dtype=dtype,
+                    #dynamic=dynamic,
+                    trainable=trainable,
+                    attention= "NoAM" #self.f2s_att,
+                )
+
         #self.relu = layers.ReLU(
         #    name="ReLU",
         #)
@@ -324,14 +333,16 @@ class HourglassLayer(Layer):
                                                                   trainable=self.trainable,
                                                                   kernel_reg=use_kernel_regularization,
                                                                   freeze_attention=freeze_attention)
-                downsampling["low_out"] = ResidualWithBNRC(
-                    output_filters=feature_filters,
-                    name=f"Step{i}_ResidualMainOut",
-                    #dtype=dtype,
-                    #dynamic=dynamic,
-                    trainable=trainable,
-                    attention=self.f2s_att,
-                )
+                
+                downsampling["low_out"] = generate_residual_layer(layer_type=self.f2s_att,
+                                                            feature_filters=self.feature_filters,
+                                                            name=f"Step{i}_ResidualMainOut",
+                                                            #dtype=self.dtype,
+                                                            #dynamic=self.dynamic,
+                                                            trainable=self.trainable,
+                                                            kernel_reg=use_kernel_regularization,
+                                                            freeze_attention=freeze_attention)
+
             downsampling["low_3"] = generate_residual_layer(layer_type=self.f2s_att,
                                                             feature_filters=self.feature_filters,
                                                             name=f"Step{i}_ResidualLow3",
@@ -391,6 +402,7 @@ class HourglassLayer(Layer):
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
+        _x = self.residual_brc(_x)
         main_feats = self._merge_feats_main(_x)
         intermediate_2jhms = self._hm2_output(_x,training=training) 
         transit_2jhms = self._residual_2j(intermediate_2jhms, training=training)

@@ -465,17 +465,17 @@ def tf_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
         tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
     """
     #_tensor = tf.nn.relu(tensor)
-    _tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
-    _tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
-    _tensor = (tensor-_tens_min)/(_tens_max-_tens_min+0.0001)
+    #_tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
+    #_tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
+    #_tensor = (tensor-_tens_min)/(_tens_max-_tens_min+0.0001)
     #thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
-    _flat_tensor = tf.reshape(100.0*_tensor, (-1, tf.shape(tensor)[-1]))
+    _flat_tensor = tf.reshape(100.0*tensor, (-1, tf.shape(tensor)[-1]))
     flat_shape = tf.shape(_flat_tensor)
     val = 64*64-32
-    _zero_correction = tf.reshape(tf.convert_to_tensor([1.5]*32+[0.0]*val),shape=(flat_shape[0],1))
-    _flat_tensor = _flat_tensor + tf.cast(_zero_correction,dtype=tf.float32)
+    _zero_correction = tf.reshape(tf.convert_to_tensor([0.0001]*32+[0.0]*val),shape=(flat_shape[0],1))
+    #_flat_tensor = _flat_tensor + tf.cast(_zero_correction,dtype=tf.float32)
     # Apply softmax to normalize heatmaps
-    flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) #HWxC 
+    flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) + tf.cast(_zero_correction,dtype=tf.float32) #HWxC 
 
     # Create coordinate grids
     x_grid = tf.range(tf.shape(tensor)[0], dtype=tf.float32)

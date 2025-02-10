@@ -145,6 +145,9 @@ train:
     source: "hourglass_tensorflow.losses.MAE_custom"
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
     params:
+      WL2_j1: 0.0
+      WL2_j2: 0.0
+      WCoords: 1.000
       nstages: 3
       n1joints: 14  #16 ->26
       n2joints: 12

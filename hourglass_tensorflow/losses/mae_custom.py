@@ -61,7 +61,7 @@ class MAE_custom(keras.losses.Loss):
         #WC2 = tf.constant([_WC2])
         #WC2 = tf.reshape(WC2,shape=[1,1,C])
         
-        Ws = tf.reshape(tf.constant([0.31,0.33,0.36]),[1,3])
+        Ws = tf.reshape(tf.constant([0.25,0.35,0.4]),[1,3])
         """ 
         eps = tf.reshape(tf.constant(0.000001),shape=[-1,1,1,1,1])
         _normpred  = tf.reduce_sum(y_pred,axis=[2,3])
@@ -79,10 +79,13 @@ class MAE_custom(keras.losses.Loss):
         dist1 = tf.reduce_mean(dist1)
         """
         #"""
-        gt_coords = tf_batch_multistage_matrix_softargmax_loss(y_true[:,:,:,:,0:self.n1joints])
+        gt_coords = tf_batch_multistage_matrix_softargmax_loss(y_true[:,:,:,:,0:self.n1joints])#NSC
         pred_coords = tf_batch_multistage_matrix_softargmax_loss(y_pred[:,:,:,:,0:self.n1joints])
-        loss_coords = tf.math.square(gt_coords-pred_coords)+0.00001
-        loss_coords = tf.math.sqrt(tf.reduce_mean(loss_coords))
+        loss_coords = tf.math.square(gt_coords-pred_coords)#NSC2
+        loss_coords = tf.reduce_sum(loss_coords,axis=-1) #NSC
+        loss_coords = tf.reduce_mean(loss_coords,axis=-1) #NS
+        loss_coords = tf.math.sqrt(tf.reduce_sum(loss_coords*Ws,axis=1))
+        loss_coords = tf.reduce_mean(loss_coords)
 
         wEMAE0 = tf.zeros(shape=[1,S-1])
         wEMAE1 = tf.ones(shape=[1,1])

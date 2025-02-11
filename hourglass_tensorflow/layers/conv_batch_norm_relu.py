@@ -88,9 +88,9 @@ class ConvBatchNormReluLayer(Layer):
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         # Could it be CONV-> RELU -> BATCH NORM
         #x = self.conv_in(inputs)
-        x = self.batch_norm(inputs, training=training)
+        x = self.conv(inputs)
+        x = self.batch_norm(x, training=training)
         x = self.relu(x)
-        x = self.conv(x)
         return x
     def build(self, input_shape):
         self.built = True

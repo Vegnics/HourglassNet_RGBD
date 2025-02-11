@@ -84,7 +84,7 @@ def draw_pose_HG(img,hm):
 
 def draw_pose_mplib(depth,hms):
     fig,ax = plt.subplots()
-    scalimg = ax.imshow(depth,cmap="jet",vmin=0.0,vmax=9.0)
+    scalimg = ax.imshow(depth,cmap="jet",vmin=0.0,vmax=3000.0)
     #scalimg = ax.imshow(depth,cmap="jet")
     kpnts = []
     for i in range(14):

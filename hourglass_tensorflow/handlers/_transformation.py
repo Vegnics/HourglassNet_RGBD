@@ -210,7 +210,7 @@ def tf_train_map_affine_augmentation_RGB(
     
     return (_images,_coords,_visibilities)
 
-@tf.function(experimental_compile=False)
+@tf.function#(experimental_compile=False)
 def tf_train_map_affine_augmentation_RGBD(
     image: tf.Tensor,
     img_shape: tf.Tensor,
@@ -766,7 +766,7 @@ def tf_train_map_squarify(
 
     padding = tf_compute_padding_from_bbox(bbox)
     cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
-    scalimg = tf_normalize_tensor(cropped,15)
+    scalimg = cropped #tf_normalize_tensor(cropped,15)
 
     # Generate Squared Image with Padding
     image = tf.pad(scalimg,

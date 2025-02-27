@@ -21,12 +21,10 @@ class SpatialAttentionMechanism(Layer):
         outmax: float = 1.0,
         name: str = None,
         headnum: int = 8,
-        dtype=None,
-        dynamic=False,
         trainable: bool = True,
         kernel_reg: bool = False,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.filters = filters
         self.kernel_size = kernel_size
@@ -76,8 +74,6 @@ class SpatialAttentionMechanism(Layer):
             pool_size=(2, 2),
             padding="valid",
             name=f"AttSpatialMaxPool1",
-            dtype=dtype,
-            dynamic=dynamic,
             trainable=trainable,
         )
 
@@ -96,8 +92,6 @@ class SpatialAttentionMechanism(Layer):
             pool_size=(2, 2),
             padding="valid",
             name=f"AttSpatialMaxPool2",
-            dtype=dtype,
-            dynamic=dynamic,
             trainable=trainable,
         )
 

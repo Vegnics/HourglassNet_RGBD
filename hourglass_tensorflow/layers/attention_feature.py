@@ -20,7 +20,7 @@ class _SpatialBasedPooling(Layer):
         # Create layers
         self.spatial_layers = [
             layers.Conv2D(
-                filters=filters//4,
+                filters=filters//8,
                 kernel_size=(3,3),
                 strides=(1,1),
                 padding="same",
@@ -108,7 +108,7 @@ class FeatureAttentionMechanism(Layer):
         self.outmax = outmax
         self.head_num = headnum
         # Create layers
-        """
+        #"""
         self.heads = [
             layers.Dense(filters//4,
             activation=None,
@@ -121,14 +121,14 @@ class FeatureAttentionMechanism(Layer):
         )
         for i in range(self.head_num)
         ]
-        """
+        #"""
 
         # EXPERIMENTAL GAPP-FLATTEN
         self.spatialgap = _SpatialBasedPooling(filters)
 
-        self.score_mha = layers.MultiHeadAttention(num_heads=8,key_dim=filters//4,value_dim=filters//4,dropout=0.08)
+        #self.score_mha = layers.MultiHeadAttention(num_heads=3,key_dim=filters//16,value_dim=filters//16,dropout=0.08)
 
-        self.pre_projection = layers.Dense(filters,
+        self.pre_projection = layers.Dense(filters//16,
             activation=None,
             use_bias=True,
             kernel_initializer='glorot_uniform',
@@ -177,22 +177,31 @@ class FeatureAttentionMechanism(Layer):
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-9)
         _shape = tf.shape(inputs)
-        tf.print("inputs shape:", _shape)
+        #tf.print("inputs shape:", _shape)
         H = _shape[1]
         W = _shape[2]
         #gap = tf.reduce_mean(inputs,axis=[1,2])
         learned_gap = self.spatialgap(inputs)
+        learned_gap = tf.reduce_sum(learned_gap,axis=[1,2]) #NC
+        learned_gap = tf.reshape(learned_gap,shape=(-1,self.filters))
+        """
         learned_gap = tf.transpose(learned_gap,perm=[0,3,1,2])
-        tf.print("learned_gap shape:", tf.shape(learned_gap))
+        #tf.print("learned_gap shape:", tf.shape(learned_gap))
         flatten_gap = tf.reshape(learned_gap,shape=(-1,256,(H//4)*(W//4)))
         _flatten_gap = self.pre_projection(flatten_gap) # (-1)
-        #head_outs = []
-        #for i in range (self.head_num):
-        #    head_outs.append(self.heads[i](gap))
-        #head_out = tf.concat(head_outs,axis=-1)
-        mha_out = self.score_mha(_flatten_gap,_flatten_gap) #NCDim
-        mha_out = tf.reshape(mha_out,shape=(-1,64*64))
-        scores = self.last_projection(mha_out)
+        """
+        head_outs = []
+        for i in range (self.head_num):
+            head_outs.append(self.heads[i](learned_gap))
+        head_out = tf.concat(head_outs,axis=-1)
+        
+        """
+        #mha_out = self.score_mha(_flatten_gap,_flatten_gap) #NCDim
+        #print("SSShape:", tf.shape(mha_out)[1],tf.shape(mha_out)[2])
+        #tf.print("SSShape:", tf.shape(mha_out))
+        mha_out = tf.reshape(mha_out,shape=(-1,256*(self.filters//16)))
+        """
+        scores = self.last_projection(head_out)
         #_out = self.last_projection1(_out)
         scores = tf.expand_dims(scores,axis=1)
         scores = tf.expand_dims(scores,axis=1)

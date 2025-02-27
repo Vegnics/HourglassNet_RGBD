@@ -54,7 +54,7 @@ class ConvBlockLayer(Layer):
             #dynamic=dynamic,
             trainable=trainable,
             use_relu=True,
-            normalized = True,
+            normalized = False,
         )
         self.bnrc3 = BatchNormReluConvLayer(
         #self.bnrc3 = ConvBatchNormReluLayer(

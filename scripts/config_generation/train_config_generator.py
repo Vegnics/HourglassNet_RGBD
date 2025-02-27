@@ -24,15 +24,15 @@ heatmap_stddev =  1.1
 stddev_factor = 1.3
 
 # Related to the model and training
-model_name = "myModel_SLP_fAB7_1j"
+model_name = "myModel_SLP_fAB9_1j"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
-epochs = 200
-batch_size = 30
-stages = 3
+epochs = 400
+batch_size = 16
+stages = 2
 
 #Related to the attention mechanisms
-skip_AM = "SAM"
+skip_AM = "NoAM"
 s2f_AM =  "NoAM" 
 f2s_AM = "NoAM" 
 

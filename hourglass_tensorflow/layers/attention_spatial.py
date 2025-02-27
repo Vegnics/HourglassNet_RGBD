@@ -67,7 +67,7 @@ class SpatialAttentionMechanism(Layer):
             strides=strides,
             padding="same",
             name="AttConv2D",
-            activation=None,
+            activation="gelu",
             kernel_regularizer= RegL2(1e-6) if kernel_reg else None,
             kernel_initializer=kernel_initializer,
         )
@@ -82,12 +82,12 @@ class SpatialAttentionMechanism(Layer):
         )
 
         self.conv1x1x16 = layers.Conv2D(
-            filters=16,
+            filters=32,
             kernel_size=(3,3),
             strides=strides,
             padding="same",
             name="AttConv2D",
-            activation=None,
+            activation="gelu",
             kernel_regularizer= RegL2(1e-5) if kernel_reg else None,
             kernel_initializer=kernel_initializer,
         )
@@ -102,7 +102,7 @@ class SpatialAttentionMechanism(Layer):
         )
 
         self.last_proj = layers.Conv2D(
-            filters=1,
+            filters=16,
             kernel_size=(1,1),
             strides=strides,
             padding="same",
@@ -133,21 +133,29 @@ class SpatialAttentionMechanism(Layer):
         #gap = tf.reduce_mean(inputs,axis=-1)
         #gap = tf.expand_dims(gap,axis=-1)
         gap = self.gap_proj(inputs)
-        gshape = tf.shape(gap)
+        gshape = tf.shape(gap) #NHWC
         S = self.conv3x3x8(gap)
         S = self.maxpool1(S)
         S = self.conv1x1x16(S)
         S = self.maxpool2(S)
-        S = tf.reshape(S,shape=(-1,gshape[1]//4,gshape[2]*4,1))
-        S = tf.reshape(S,shape=(-1,gshape[1],gshape[2],1))
         S = self.last_proj(S)
+        # Ensure H and W are divisible by 4 before reshaping
+        H, W = gshape[1], gshape[2]
+
+        # Reshape channels into spatial patches (assuming 16 channels split into 4x4)
+        S = tf.reshape(S, shape=(-1, H//4,W //4, 4, 4))  # Shape: (B, H/4, 4, W/4, 4, 4)
+        S = tf.transpose(S, perm=[0, 1, 3, 2, 4])  # Swap inner spatial blocks
+
+        # Merge the new spatial structure back into H and W
+        S = tf.reshape(S, shape=(-1, H, W, 1))  # Final shape (B, H, W, C)
+
+        #S = tf.reshape(S,shape=(-1,gshape[1]//4,gshape[2]*4,1))
+        #S = tf.reshape(S,shape=(-1,gshape[1],gshape[2],1))
+        #S = tf.reshape(S,shape=(-1,gshape[1]//16,gshape[1]//16,gshape[1]//16,gshape[1]//16,16))
+        #S = tf.transpose(S, perm=[0,1,3,2,4,5] )
+        #S = tf.reshape(S,shape=(-1,gshape[1],gshape[2]))
+        #S = tf.reshape(S,shape=(-1,gshape[1],gshape[2],1))
         scores = S 
-        #head_outs = []
-        #for i in range (self.head_num):
-        #    head_outs.append(self.heads[i](gap))
-        #head_out = tf.concat(head_outs,axis=-1) 
-        #scores = tf.expand_dims(scores,axis=-1)
-        #scores = tf.expand_dims(scores,axis=1)
         return scores#(0.0001+scores)*inputs
     def build(self, input_shape):
         pass

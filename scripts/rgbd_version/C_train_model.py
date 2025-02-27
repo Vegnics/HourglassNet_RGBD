@@ -10,7 +10,7 @@ sys.path.insert(1,os.getcwd())
 
 from hourglass_tensorflow.handlers import HTFManager
 
-CONFIG_FILE = "config/train_rgbd.default.yaml"
+CONFIG_FILE = "config/train_rgbd_gen.yaml"
 
 if __name__ == "__main__":
     # Parse file as list of records

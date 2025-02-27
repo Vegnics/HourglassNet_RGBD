@@ -22,7 +22,7 @@ class ResidualLayerAttention(Layer):
         kernel_reg: bool = False,
         freeze_attention: bool = False,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name, trainable=trainable)
         # Store config
         self.output_filters = output_filters
         self.momentum = momentum
@@ -54,8 +54,6 @@ class ResidualLayerAttention(Layer):
             momentum=momentum,
             epsilon=epsilon,
             name="ConvBlock",
-            dtype=dtype,
-            dynamic=dynamic,
             trainable=trainable,
         )
 
@@ -87,17 +85,17 @@ class ResidualLayerAttention(Layer):
         #_inputs = self.batch_norm(inputs,training=training)
         #_inputs = self.conv_layer(_inputs ,training=training)
         #_inputs = self.attention(inputs)
-        #scores = self.attention(inputs)
+        scores = self.attention(inputs)
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
-                #scores*inputs,
+                scores*inputs,
                 #self.skip(inputs, training=training),
                 inputs,
             ])
         out = self.relu(_sum)
-        scores = self.attention(inputs)
+        #scores = self.attention(inputs)
         #scores = self.attention(out)
-        return  (1+scores)*out #(1+scores)*out#(scores+0.0001)*out
+        return  out#(1+scores)*out #(1+scores)*out#(scores+0.0001)*out
     def build(self, input_shape):
         self.built = True

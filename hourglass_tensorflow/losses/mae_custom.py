@@ -61,7 +61,8 @@ class MAE_custom(keras.losses.Loss):
         #WC2 = tf.constant([_WC2])
         #WC2 = tf.reshape(WC2,shape=[1,1,C])
         
-        Ws = tf.reshape(tf.constant([0.25,0.35,0.4]),[1,3])
+        #Ws = tf.reshape(tf.constant([0.25,0.35,0.4]),[1,3])
+        Ws = tf.reshape(tf.constant([0.32,0.33,0.35]),[1,3])
         """ 
         eps = tf.reshape(tf.constant(0.000001),shape=[-1,1,1,1,1])
         _normpred  = tf.reduce_sum(y_pred,axis=[2,3])
@@ -110,8 +111,8 @@ class MAE_custom(keras.losses.Loss):
         #Wc = Wc/SumWc
         
         loss_1jnt = tf.reduce_sum(ndiff[:,:,0:self.n1joints],axis=2)/tf.cast(self.n1joints,dtype=tf.float32) #NS
+        loss_1jnt = tf.reduce_sum(loss_1jnt*Ws,axis=1)
         loss_2jnt = tf.reduce_sum(ndiff[:,:,self.n1joints:self.n1joints+self.n2joints],axis=2)/tf.cast(self.n2joints,dtype=tf.float32)#NS
-
         dist2 = self.wl2_j1*tf.reduce_mean(loss_1jnt)+self.wcoords*loss_coords+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
         #dist2 = tf.reduce_sum(ndiff*Wc,axis=2) #NS
         #dist2 = tf.sqrt(tf.reduce_mean(ndiff[:,:,:,:,0:16],axis=[2,3])) #NSC

@@ -1,0 +1,185 @@
+mode: train
+version: 1.0.0
+data:
+  object:
+    source: hourglass_tensorflow.handlers.data.HTFDataHandler
+    params:
+      foo: bar
+  input:
+    mode: RGBD
+    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
+    extensions:
+    - png
+    - jpeg
+    - jpg
+  output:
+    source: data/htf_slp_dataset.ignore.json
+    source_prefixed: false
+    prefix_columns:
+    - set
+    - image
+    - depth
+    - scale
+    - bbox_tl_x
+    - bbox_tl_y
+    - bbox_br_x
+    - bbox_br_y
+    - center_x
+    - center_y
+    column_set: set
+    column_source: image
+    joints:
+      num: 14
+      dynamic_fields:
+      - SUFFIX
+      naming_convention: joint_{JOINT_ID}_{SUFFIX}
+      format:
+        id_field: JOINT_ID
+        SUFFIX:
+          x: X
+          y: Y
+          visible: visible
+      names:
+      - 00_rAnkle
+      - 01_rKnee
+      - 02_rHip
+      - 03_lHip
+      - 04_lKnee
+      - 05_lAnkle
+      - 06_rWrist
+      - 07_rElbow
+      - 08_rShoulder
+      - 09_lShoulder
+      - 10_lElbow
+      - 11_lWrist
+      - 12_thorax
+      - 13_topHead
+dataset:
+  object:
+    source: hourglass_tensorflow.handlers.dataset.HTFDatasetHandler
+    params:
+      foo: bar
+  image_size: 256
+  data_mode: RGBD
+  hip_idxs:
+    Lhip: 3
+    Rhip: 2
+  column_image: image
+  heatmap:
+    size: 64
+    stacks: 3
+    channels: 14
+    stddev: 1.1
+    stddev_factor: 1.3
+  normalization: Idem
+  augmentation: null
+  sets:
+    split_by_column: false
+    column_split: set
+    value_train: TRAIN
+    value_test: TEST
+    value_validation: VALIDATION
+    test: true
+    train: true
+    validation: true
+    ratio_test: 1.0e-06
+    ratio_train: 0.75
+    ratio_validation: 0.21
+  bbox:
+    activate: true
+    factor: 1.15
+model:
+  object:
+    source: hourglass_tensorflow.handlers.model.HTFModelHandler
+    params:
+      foo: bar
+  build_as_model: true
+  data_format: NHWC
+  batch_size: 1
+  params:
+    input_size: 256
+    output_size: 64
+    channel_number: 1
+    stages: 3
+    downsamplings_per_stage: 4
+    stage_filters: 256
+    channels_1joint: 14
+    channels_2joint: 12
+    name: HourglassSample
+    intermediate_supervision: true
+    skip_AM: NoAM
+    s2f_AM: NoAM
+    f2s_AM: NoAM
+    use_2jointHM: false
+    use_kernel_regularization: false
+    freeze_attention_weights: false
+train:
+  object:
+    source: hourglass_tensorflow.handlers.train.HTFTrainHandler
+    params:
+      foo: bar
+  epochs: 200
+  epoch_size: 92
+  batch_size: 30
+  learning_rate: 0.00025
+  loss:
+    source: hourglass_tensorflow.losses.MAE_custom
+    params:
+      WL2_j1: 1.0
+      WL2_j2: 0.0
+      WCoords: 0.0
+      nstages: 3
+      n1joints: 14
+      n2joints: 12
+      use2joints: false
+      foo: bar
+  optimizer:
+    source: keras.optimizers.Adam
+    params:
+      beta_1: 0.9
+      beta_2: 0.989
+      epsilon: 1.0e-08
+  metrics:
+  - source: hourglass_tensorflow.metrics.OverallMeanDistance
+    params:
+      name: MEDist
+      num_1joints: 14
+    num_1joints: 14
+  - source: hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints
+    params:
+      name: PCKh@0.5
+      ratio: 0.5
+      reference:
+      - 12
+      - 13
+      num_1joints: 14
+    num_1joints: 14
+  callbacks:
+  - source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
+    params:
+      monitor: val_PCKh@0.5
+      factor: 0.4
+      patience: 4
+      verbose: 1
+      min_lr: 2.0e-09
+  - source: tensorflow.keras.callbacks.ModelCheckpoint
+    params:
+      mode: max
+      filepath: data/model_t/myModel_SLP_fAB7_1j
+      save_weights_only: false
+      save_freq: epoch
+      monitor: val_PCKh@0.5
+      save_best_only: true
+      verbose: 1
+      initial_value_threshold: 0.0
+  - source: tensorflow.keras.callbacks.TensorBoard
+    params:
+      log_dir: logs/myModelLogs
+      histogram_freq: 1
+      write_graph: true
+      write_images: false
+      update_freq: epoch
+  - source: tensorflow.keras.callbacks.CSVLogger
+    params:
+      filename: logs/myModelLogs_myModel_SLP_fAB7_1j_12:20:35.csv
+test: null

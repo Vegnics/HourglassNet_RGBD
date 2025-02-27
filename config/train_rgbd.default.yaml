@@ -77,10 +77,10 @@ dataset:
   #normalization: "Normal"
   normalization: "Idem"
   augmentation:
-    - 
-      source: ""
-      params:
-        foo: bar
+    #- 
+    #  source: ""
+    #  params:
+    #    foo: bar
   sets:
     split_by_column: false
     column_split: set
@@ -106,14 +106,14 @@ model:
   data_format: NHWC
   batch_size: 1
   params:
-    input_size: 256 #256
-    output_size: 64 #64
-    channel_number: 1 #4
+    input_size: 256 
+    output_size: 64 
+    channel_number: 1 
     stages: 3
     downsamplings_per_stage: 4
-    stage_filters: 64 #64
-    channels_1joint: 14 #14 ->26
-    channels_2joint: 12 #14 ->26
+    stage_filters: 256 
+    channels_1joint: 14 
+    channels_2joint: 12 
     name: "HourglassSample"
     intermediate_supervision: true
     skip_AM: "NoAM"
@@ -145,9 +145,9 @@ train:
     source: "hourglass_tensorflow.losses.MAE_custom"
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
     params:
-      WL2_j1: 0.0
-      WL2_j2: 0.0
-      WCoords: 1.000
+      WL2_j1: 1.0
+      WL2_j2: 0.00
+      WCoords: 0.000
       nstages: 3
       n1joints: 14  #16 ->26
       n2joints: 12
@@ -170,10 +170,10 @@ train:
     #  beta_2: 0.99
     #  epsilon: 1e-08
   metrics:
-    - source: "hourglass_tensorflow.metrics.SoftargmaxMeanDist"
-      params: 
-        name: "SoftMedDist"
-        num_1joints: 14
+    #- source: "hourglass_tensorflow.metrics.SoftargmaxMeanDist"
+    #  params: 
+    #    name: "SoftMedDist"
+    #    num_1joints: 14
     - 
       source: "hourglass_tensorflow.metrics.OverallMeanDistance"
       params:
@@ -197,7 +197,7 @@ train:
     -
       source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
       params:
-        monitor: val_loss #val_MEDist #val_PCKh@0.5        # Metric to monitor (could also be 'loss' or 'accuracy')
+        monitor: val_PCKh@0.5 #val_MEDist #val_PCKh@0.5        # Metric to monitor (could also be 'loss' or 'accuracy')
         factor: 0.4                # Factor to reduce the learning rate, e.g., new_lr = lr * 0.5
         patience: 4                # Number of epochs with no improvement before reducing
         verbose: 1                 # Print updates
@@ -208,7 +208,7 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_SLP_fAB5_2j"
+        filepath: "data/model_t/myModel_SLP_fAB6_2j"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
@@ -228,3 +228,5 @@ train:
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
         filename: logs/myModelLogs.csv
+
+test: 

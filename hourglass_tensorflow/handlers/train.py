@@ -118,7 +118,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
-            train_dataset = train_dataset.repeat(7) #7
+            train_dataset = train_dataset.repeat(4) #7
             #validation_dataset = validation_dataset.repeat(2)
             batch_train = self._apply_batch(train_dataset) 
             #print("   ??????    >>>BATCH TRAIN: ",batch_train)

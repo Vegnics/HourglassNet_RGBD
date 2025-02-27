@@ -7,9 +7,7 @@ data:
       foo: bar
   input:
     mode: "RGBD"
-    #source: data/images.ignore.folder
     source: /content/SLP_RGBD_v3
-    #source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
     extensions:
       - png
       - jpeg
@@ -111,9 +109,9 @@ model:
     channel_number: 1 #4
     stages: 3
     downsamplings_per_stage: 4
-    stage_filters: 64 #64
-    channels_1joint: 14 #14 ->26
-    channels_2joint: 12 #14 ->26
+    stage_filters: 64
+    channels_1joint: 14 
+    channels_2joint: 12 
     name: "HourglassSample"
     intermediate_supervision: true
     skip_AM: "NoAM"
@@ -149,7 +147,7 @@ train:
       WL2_j2: 0.2
       WCoords: 0.000
       nstages: 3
-      n1joints: 14  #16 ->26
+      n1joints: 14 
       n2joints: 12
       use2joints: true
       foo: bar
@@ -205,8 +203,6 @@ train:
     -
       source: "tensorflow.keras.callbacks.ModelCheckpoint"
       params:
-        #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
-        #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
         filepath: "data/model_t/myModel_SLP_fAB5_2j.keras"
         save_weights_only: false
@@ -228,3 +224,5 @@ train:
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
         filename: logs/myModelLogs.csv
+
+test:

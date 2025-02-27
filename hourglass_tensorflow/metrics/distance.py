@@ -36,8 +36,9 @@ def softargmax_2d(heatmap):
     return coords
 
 class SoftargmaxMeanDist(keras.metrics.Metric):
-    def __init__(self, name="softargmax_medist",  intermediate_supervision: bool = True,num_1joints: int = 16, **kwargs):
-        super(SoftargmaxMeanDist, self).__init__(name=name, dtype=tf.float32, **kwargs)
+    def __init__(self, name="softargmax_medist",dtype=None, intermediate_supervision: bool = True,num_1joints: int = 16, **kwargs):
+        #super(SoftargmaxMeanDist, self).__init__(name=name, dtype=tf.float32, **kwargs)
+        super().__init__(name=name, dtype=tf.float32, **kwargs)
         self.intermediate_supervision = intermediate_supervision
         self.cum_mean_distance = self.add_weight(name="cum_mean_distance", initializer="zeros")
         self.count = self.add_weight(name="count", initializer="zeros")
@@ -50,12 +51,12 @@ class SoftargmaxMeanDist(keras.metrics.Metric):
             keepdims=True,
         )
     
-    def check_visibility(self,tensor):
+    def check_visibility(self,tensor,thresh):
         _tensor = 1.0*tensor[:,-1,:,:,:]
         sum = tf.reduce_max(_tensor,axis=[1,2])# NC
         vis0 = tf.zeros_like(sum)
         vis1 = tf.ones_like(sum)
-        vis = tf.where(sum<0.8,vis0,vis1)#NC
+        vis = tf.where(sum<thresh,vis0,vis1)#NC
         return vis
 
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -63,7 +64,10 @@ class SoftargmaxMeanDist(keras.metrics.Metric):
         y_true: Ground truth keypoint coordinates (bs, num_joints, 2)
         y_pred: Predicted heatmaps (bs, h, w, num_joints)
         """
-        vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
+        #vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
+        vis_true = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints],0.8)
+        vis_pred = self.check_visibility(y_pred[:,:,:,:,0:self.num_1joints],0.001)
+        vis = vis_true*vis_pred
         Njoints = tf.reduce_sum(vis)
         # Convert heatmaps to coordinates
         ground_truth_joints = tf.cast(self.argmax_tensor(y_true),dtype=tf.float32)
@@ -97,12 +101,12 @@ class OverallMeanDistance(keras.metrics.Metric):
         self.intermediate_supervision = intermediate_supervision
         self.num_1joints = num_1joints
 
-    def check_visibility(self,tensor):
+    def check_visibility(self,tensor,thresh):
         _tensor = 1.0*tensor[:,-1,:,:,:]
         sum = tf.reduce_max(_tensor,axis=[1,2])# NC
         vis0 = tf.zeros_like(sum)
         vis1 = tf.ones_like(sum)
-        vis = tf.where(sum<0.8,vis0,vis1)#NC
+        vis = tf.where(sum<thresh,vis0,vis1)#NC
         return vis
 
     def argmax_tensor(self, tensor):
@@ -113,7 +117,10 @@ class OverallMeanDistance(keras.metrics.Metric):
         )
 
     def _internal_update(self, y_true, y_pred):
-        vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
+        #vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
+        vis_true = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints],0.8)
+        vis_pred = self.check_visibility(y_pred[:,:,:,:,0:self.num_1joints],0.001)
+        vis = vis_true*vis_pred
         N = tf.ones_like(vis,dtype=tf.float32)
         N = tf.reduce_sum(N)/14.0
 

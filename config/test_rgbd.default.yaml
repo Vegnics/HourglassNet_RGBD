@@ -8,7 +8,7 @@ data:
   input:
     mode: "RGBD"
     #source: data/images.ignore.folder
-    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v2
+    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
     extensions:
       - png
       - jpeg
@@ -115,7 +115,7 @@ model:
     name: "HourglassSample"
     intermediate_supervision: true
   load_model: true
-  model_path: "data/model_t/myModel_SLP_fAB4_2j"
+  model_path: "data/model_t/myModel_SLP_fAB6_2j"
 
 
 test:
@@ -124,3 +124,6 @@ test:
     params:
       foo: bar
   batch_size: 100 #128
+
+
+train:

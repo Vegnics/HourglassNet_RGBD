@@ -23,7 +23,8 @@ class ResidualLayerAttentionSpatial(Layer):
         kernel_reg: bool = False,
         freeze_attention: bool = False,
     ) -> None:
-        super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
+        super().__init__(name=name,trainable=trainable)
         # Store config
         self.output_filters = output_filters
         self.momentum = momentum
@@ -55,8 +56,6 @@ class ResidualLayerAttentionSpatial(Layer):
             momentum=momentum,
             epsilon=epsilon,
             name="ConvBlock",
-            dtype=dtype,
-            dynamic=dynamic,
             trainable=trainable,
         )
 

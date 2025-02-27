@@ -200,17 +200,19 @@ class PercentageOfCorrectKeypoints(Metric):
         return out #NxCx2
     """
         
-    def check_visibility(self,tensor):
+    def check_visibility(self,tensor,thresh):
         _tensor = 1.0*tensor[:,-1,:,:,:]
         sum = tf.reduce_max(_tensor,axis=[1,2])# NC
         vis0 = tf.zeros_like(sum)
         vis1 = tf.ones_like(sum)
-        vis = tf.where(sum<0.8,vis0,vis1)#NC
+        vis = tf.where(sum<thresh,vis0,vis1)#NC
         return vis
 
     def _internal_update(self, y_true, y_pred):
         #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
-        vis = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints])
+        vis_true = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints],0.8)
+        vis_pred = self.check_visibility(y_pred[:,:,:,:,0:self.num_1joints],0.001)
+        vis = vis_true*vis_pred
         N = tf.ones_like(vis,dtype=tf.float32)
         N = tf.reduce_sum(N)/14.0
         #Njoints = tf.reduce_sum(vis, axis=1) #N
@@ -225,11 +227,13 @@ class PercentageOfCorrectKeypoints(Metric):
         #pred_joints = self.interpolate_joints()
         ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
         ground_truth_joints = tf.cast(ground_truth_joints,dtype = tf.float32)
-        #predicted_joints = self.argmax_tensor(y_pred) #NxCx2
-        predicted_joints = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:self.num_1joints]) #NxCx2
+        predicted_joints = self.argmax_tensor(y_pred) #NxCx2
+        predicted_joints = tf.cast(predicted_joints,dtype = tf.float32)
+        #predicted_joints = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:self.num_1joints]) #NxCx2
+
         
         # We compute distance between ground truth and prediction
-        error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32)
+        error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32)/6.4
         distance = tf.norm(error, ord=2, axis=-1) #NxC
         # We compute the norm of the reference limb from the ground truth
         reference_limb_error = tf.cast(
@@ -247,8 +251,9 @@ class PercentageOfCorrectKeypoints(Metric):
         
         reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
         # We apply the thresholding condition
-        condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
-                                dtype=tf.float32)
+        #condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
+        #                        dtype=tf.float32)
+        condition = tf.cast(tf.math.less(distance,self.ratio),dtype=tf.float32) #NC
         correct_keypoints = tf.reduce_sum(condition*vis)
         
         """    

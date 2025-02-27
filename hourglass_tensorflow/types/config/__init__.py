@@ -41,7 +41,7 @@ class HTFConfig(HTFConfigField):
     dataset: Optional[HTFDatasetConfig]
     model: Optional[HTFModelConfig]
     train: Optional[HTFTrainConfig]
-    #test: Optional[HTFTestConfig]
+    test: Optional[HTFTestConfig]
 
 
 # region ConfigParser

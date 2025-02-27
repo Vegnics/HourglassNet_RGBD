@@ -224,7 +224,7 @@ class HTFTestHandler(_HTFTestHandler):
             #print("BBOXES:::", bboxes)
             #bboxes = tf.convert_to_tensor(list(bboxes.as_numpy_iterator()))
             visibility = tf.cast(tf.convert_to_tensor(list(visibility.as_numpy_iterator())),dtype=tf.float32)
-            Njoints = tf.reduce_sum(visibility)#,axis=1)
+            
             print("visibility: ", visibility.shape)
             gtcoords = test_dataset.map(lambda imgs,coords,vis: coords)#.get_single_element()
             gtcoords = tf.cast(tf.convert_to_tensor(list(gtcoords.as_numpy_iterator())),dtype=tf.float32)
@@ -239,19 +239,24 @@ class HTFTestHandler(_HTFTestHandler):
             #preds = preds*hm_scale/(normpreds+0.00001)
             print(preds.shape)
             
+            max_preds = tf.reduce_max(preds[:,:,:,0:14],axis=[1,2])
+            vis_preds = tf.reshape(tf.where(max_preds>0.001,1.0,0.0),shape=(-1,14))
+            
+            print("VIS PRED SHAPE:", vis_preds.shape)
+
             predcoords = self.refine_predictions(preds)#,bboxes)
             #predcoords = gtcoords + 5.0
             print("Refined predictions : ..")
             #print(predcoords,"\n",gtcoords)
 
 
-            error = tf.cast(tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32), dtype=tf.dtypes.float32)
+            error = tf.cast(tf.cast(gtcoords,tf.float32)/(64*0.1) - tf.cast(predcoords,tf.float32)/(64*0.1), dtype=tf.dtypes.float32)
             distance = tf.norm(error, ord=2, axis=-1) #NxC
             #distance = _distance+(1-visibility)*64.0
             # We compute the norm of the reference limb from the ground truth
             reference_limb_error = tf.cast(
-                gtcoords[:, 13, :]
-                - gtcoords[:, 12, :],
+                gtcoords[:, 13, :]/64.0
+                - gtcoords[:, 12, :]/64.0,
                 dtype=tf.float32,
             )# Nx2
             # Compute the reference distance (It could be the head distance, or torso distance)
@@ -265,10 +270,13 @@ class HTFTestHandler(_HTFTestHandler):
             
             reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
             # We apply the thresholding condition
-            condition = tf.cast(tf.math.less(distance,reference_distance * 0.7),
-                                    dtype=tf.float32) #NC
+            condition = tf.cast(tf.math.less(distance,0.5),dtype=tf.float32) #NC
+            #condition = tf.cast(tf.math.less(distance,reference_distance * 0.5),
+            #                        dtype=tf.float32) #NC
             
-            correct_keypoints = tf.reduce_sum(condition*visibility)#,axis=1)
+            mod_vis = vis_preds*visibility
+            Njoints = tf.reduce_sum(mod_vis)#,axis=1)
+            correct_keypoints = tf.reduce_sum(condition*mod_vis)#,axis=1)
             bsize = 150
             batches = condition.shape[0]//bsize
             remaining = condition.shape[0]%bsize

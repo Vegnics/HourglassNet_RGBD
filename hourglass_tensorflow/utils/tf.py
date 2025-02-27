@@ -275,8 +275,9 @@ def tf_expand_bbox(
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
 
     N = tf.maximum(height,width)
-    bfactorW = (tf.minimum((N/width),1.05)+0.4*(1.0-(width/N)))*bbox_factor
-    bfactorH = (tf.minimum((N/height),1.05)+0.4*(1.0-(height/N)))*bbox_factor
+    sqfactor = tf.random.uniform(shape=[],minval=0.05,maxval=0.26)
+    bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
+    bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
 
     # Increase BBox Size
     c_tl_x =  top_left_x - width * (bfactorW - 1.0)/2
@@ -357,7 +358,7 @@ def tf_bivariate_normal_pdf(
             ),
         )
         
-        #mean = tf.clip_by_value(tf.round(mean),0,63)
+        mean = tf.clip_by_value(tf.round(mean),0,63)
         mean = tf.clip_by_value(mean,0,63)
         
         #R = tf.sqrt(tf.math.square((X - mean[0])) + tf.math.square((Y - mean[1])))/stddev[0]
@@ -366,9 +367,11 @@ def tf_bivariate_normal_pdf(
 
         #R1 = tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1])
         R1 = tf.math.square((X - mean[0])/stddev) + tf.math.square((Y - mean[1])/stddev)
+        #R1 = tf.math.maximum(tf.math.square((X - mean[0])/stddev),tf.math.square((Y - mean[1])/stddev))
+        #R1 = tf.abs((X - mean[0])/stddev)+tf.abs((Y - mean[1])/stddev)
         Z = tf.exp(-0.5*R1)#-0.000001 #+ 0.00001#- 0.0001
     else:
-        Z = 0.000001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)#-0.001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
+        Z = 0.00000000000000000001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)#-0.001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
     #R2 = tf.math.square((X - mean[0])/(4.0*stddev[0])) + tf.math.square((Y - mean[1])/(4.0*stddev[1]))
     #R3 = tf.math.square((X - mean[0])/(16.0*stddev[0])) + tf.math.square((Y - mean[1])/(16.0*stddev[1]))
     #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
@@ -533,9 +536,9 @@ def tf_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
     _tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
     _tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
     _tensor = (tensor-_tens_min)/(_tens_max-_tens_min+0.0001)
-    #_tensor = tensor/(tf.reduce_max(_tensor,axis=[0,1],keepdims=True)+0.0001)
+    _tensor = tensor/(tf.reduce_max(_tensor,axis=[0,1],keepdims=True)+0.0001)
     
-    #thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
+    #thresh_tensor = tf.where(tensor > 0.1, tensor, 0.1*tf.ones_like(tensor))
     _flat_tensor = tf.reshape(100.0*_tensor, (-1, tf.shape(tensor)[-1]))
     # Apply softmax to normalize heatmaps
     flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) #HWxC 
@@ -592,9 +595,16 @@ def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
     mask = tf.where(tensor<=thresh_val,0.0,1.0)
     numpx = tf.reduce_sum(mask)
     mean = tf.reduce_sum(tensor*mask)/numpx
-    stddev = tf.sqrt(tf.reduce_sum(tf.square(tensor*mask-mean))/numpx+0.0000001)
+    stddev = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean)*mask))/numpx+0.000000001)
     _tensor = (tensor-mean)/stddev
-    return tf.clip_by_value(1.5*(_tensor+3.5)+1.5,0.0,800.0)*mask
+    mask_bg = tf.where(_tensor>=1.7,0.0,1.0)
+    mask_full = mask*mask_bg
+    numpx_full = tf.reduce_sum(mask_full)
+    mean2 = tf.reduce_sum(tensor*mask_full)/numpx_full
+    stddev2 = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean2)*mask_full))/numpx_full+0.000000001)
+    _tensor_full = (tensor-mean2)/stddev2
+    _tensor_full = tf.clip_by_value(_tensor_full,-3.3,2.0)+3.5
+    return _tensor_full*mask#tf.clip_by_value(_tensor,-3.2,2.7) #tf.clip_by_value(1.5*(_tensor+3.5)+1.5,0.0,800.0)*mask
 
 @tf.function
 def tf_dynamic_matrix_argmax(

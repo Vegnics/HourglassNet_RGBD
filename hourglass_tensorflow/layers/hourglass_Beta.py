@@ -18,7 +18,7 @@ def generate_residual_layer(layer_type: str ,
                             trainable = True,
                             kernel_reg = False,
                             freeze_attention=False):
-        
+        print("Feature filters",feature_filters)
         if layer_type == "NoAM":
             return  ResidualLayer(
                 output_filters= feature_filters,
@@ -222,6 +222,7 @@ class HourglassLayer(Layer):
         self.skip_att = skip_attention
         self.s2f_att = s2f_attention
         self.f2s_att = f2s_attention
+        print("Hourglass filters",self.feature_filters)
         # Init parameters
         self.layers = [{} for i in range(self.downsamplings)]
         # Create Layers

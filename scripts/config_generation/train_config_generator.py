@@ -32,7 +32,7 @@ batch_size = 30
 stages = 3
 
 #Related to the attention mechanisms
-skip_AM = "NoAM"
+skip_AM = "SAM"
 s2f_AM =  "NoAM" 
 f2s_AM = "NoAM" 
 

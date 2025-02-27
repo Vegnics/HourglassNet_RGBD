@@ -107,7 +107,7 @@ model:
     channels_2joint: 12
     name: HourglassSample
     intermediate_supervision: true
-    skip_AM: NoAM
+    skip_AM: SAM
     s2f_AM: NoAM
     f2s_AM: NoAM
     use_2jointHM: false
@@ -181,5 +181,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_fAB7_1j_12:20:35.csv
+      filename: logs/myModelLogs_myModel_SLP_fAB7_1j_14:39:13.csv
 test: null

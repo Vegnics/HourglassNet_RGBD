@@ -15,10 +15,10 @@ class DummyCallback(tf.keras.callbacks.Callback):
         if int(epoch+1) % 10 ==0:
             print(f"Executing dummy callback at epoch: {epoch}")
             # Save the model and check consistency in the results
-            self.model.save("data/dummy_model2",save_format='tf')
+            self.model.save("data/dummy_model2.keras",save_format='tf')
             self.model.trainable = False  # Set to inference mode (no training layers active)
             self.model.summary()
-            self.dummymodel = tf.keras.models.load_model("data/dummy_model2",
+            self.dummymodel = tf.keras.models.load_model("data/dummy_model2.keras",
                                         custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
                                             "HourglassModel": HourglassModel,
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,

@@ -417,6 +417,8 @@ def tf_bivariate_segment_normal_pdf(
     signs = tf.sign(tf.reduce_sum(signs,axis=1))
 
     if vis[0]==1 or vis[1]==1 and signs[0]==1 and signs[1]==1:
+        Z0 = tf_bivariate_normal_pdf(mean=means[0],vis=vis[0] , stddev=1.5*stddev, shape=shape, precision=precision)
+        Z1 = tf_bivariate_normal_pdf(mean=means[1],vis=vis[1] , stddev=1.5*stddev, shape=shape, precision=precision)
         X, Y = tf.meshgrid(
             tf.range(
                 start=0.0, limit=tf.cast(shape[0], precision), delta=1.0, dtype=precision
@@ -428,8 +430,11 @@ def tf_bivariate_segment_normal_pdf(
         D1 = tf.math.sqrt(tf.math.square(X - means[0][0]) + tf.math.square(Y - means[0][1])) 
         D2 = tf.math.sqrt(tf.math.square(X - means[1][0]) + tf.math.square(Y - means[1][1])) 
         DS = tf.math.sqrt(tf.math.square(means[1][0] - means[0][0]) + tf.math.square(means[1][1] - means[0][1]))
-        R = tf.math.square((D1+D2-DS)/2.0)/(tf.square(stddev))
-        Z = tf.exp(-0.5*R)
+        RDS = tf.math.square((D1+D2-DS)/2.0)/(tf.square(stddev))
+        ZDS = tf.exp(-0.8*RDS)
+        Z = 0.8*(0.5*Z0+0.5*Z1)+0.2*ZDS
+        Zmax = tf.reduce_max(Z)
+        Z = tf.math.divide_no_nan(Z,Zmax)
     elif vis[0]==1 and vis[1]==0 and signs[0]==1 and signs[1]==-1 and False:
         Z = tf_bivariate_normal_pdf(mean=means[0],vis=vis[0] , stddev=stddev, shape=shape, precision=precision)
     elif vis[1]==1 and vis[0]==0 and signs[1]==1 and signs[0]==-1 and False:

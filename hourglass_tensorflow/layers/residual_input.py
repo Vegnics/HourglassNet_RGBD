@@ -26,48 +26,13 @@ class ResidualLayerIn(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
-        # Batch Norm layer 
-        #self.batch_norm = layers.BatchNormalization(
-        #    axis=-1,
-        #    momentum=momentum,
-        #    epsilon=epsilon,
-        #    trainable=trainable,
-        #    name="BatchNorm",
-        #)
-
-        # Conv Layer
-        #self.conv_layer = layers.Conv2D(
-        #    filters=self.output_filters,
-        #    kernel_size=1,
-        #    strides=1,
-        #    padding="same",
-        #    name="Conv2D",
-        #    activation=None, #"relu"
-        #    kernel_initializer="glorot_uniform",
-        #)
-
         # Input layer (used just to match the dimensionality)
-        self.match_layer =   SkipLayer(
-            output_filters=output_filters,
-            name="Skip",
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-        )
-
+        self.match_layer =  None
         # Convolutional block
-        self.conv_block = ConvBlockLayer(
-            output_filters=output_filters,
-            momentum=momentum,
-            epsilon=epsilon,
-            name="ConvBlock",
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-        )
+        self.conv_block = None
 
-        self.add = layers.Add(name="Add")
-        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        self.add = None
+        self.relu= None
     def get_config(self):
         return {
             **super().get_config(),
@@ -75,6 +40,7 @@ class ResidualLayerIn(Layer):
                 "output_filters": self.output_filters,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "use_last_relu": self.use_last_relu 
             },
         }
 
@@ -88,4 +54,29 @@ class ResidualLayerIn(Layer):
             ])
         return self.relu(_sum)
     def build(self, input_shape):
+        self.match_layer =   SkipLayer(
+            output_filters=self.output_filters,
+            name="Skip",
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+        )
+
+        # Convolutional block
+        self.conv_block = ConvBlockLayer(
+            output_filters=self.output_filters,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            name="ConvBlock",
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+        )
+
+        self.add = layers.Add(name="Add")
+        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        super().build(input_shape) 
         self.built = True
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)

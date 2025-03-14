@@ -14,6 +14,7 @@ from hourglass_tensorflow.losses.mae_custom import *
 from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD,tf_test_map_squarify
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance,SoftargmaxMeanDist
+from hourglass_tensorflow.models import HourglassModel
 
 def read_landmark_data(csv_path: str):
     with open(csv_path,"r") as csv_file:
@@ -154,13 +155,13 @@ def load_bboxes(fpath):
         jdata = json.load(file)
         return jdata["bboxes"]
     
-Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB6_2j",
+Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_1j",
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
+                                            "HourglassModel": HourglassModel,
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom,
-                                            "OverallMeanDistance":OverallMeanDistance})
-                                            #"SoftargmaxMeanDist":SoftargmaxMeanDist})
-
+                                            "OverallMeanDistance":OverallMeanDistance,
+                                            "SoftargmaxMeanDist":SoftargmaxMeanDist})
 
 print(Model)
             
@@ -212,7 +213,7 @@ while cap.isOpened():
         _obbox = tbbox[0:2,0:2]
         padding = tbbox[2,0:2]
         hms = Model.predict(tf.expand_dims(_depthimg,axis=0))
-        preds = hms[0,2,:,:,:]
+        preds = hms[0,-1,:,:,:]
         img_bgr = draw_pose(imgrgb,preds,_obbox,padding)
         fig, ax = plt.subplots()
         ax.set_axis_off()  # Hide the axes

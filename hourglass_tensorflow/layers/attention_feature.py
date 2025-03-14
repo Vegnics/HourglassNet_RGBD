@@ -18,43 +18,7 @@ class _SpatialBasedPooling(Layer):
         self.filters = filters
         self.kernel_initializer = kernel_initializer
         # Create layers
-        self.spatial_layers = [
-            layers.Conv2D(
-                filters=filters//8,
-                kernel_size=(3,3),
-                strides=(1,1),
-                padding="same",
-                name="AttConv2D1",
-                activation="relu",
-                #kernel_regularizer= RegL2(1e-5) if kernel_reg else None,
-                kernel_initializer=kernel_initializer,
-            ),
-
-            layers.MaxPooling2D(
-                pool_size=(2, 2),
-                padding="valid",
-                name=f"AttFeaturelMaxPool1",
-                trainable=trainable,
-            ),
-
-            layers.Conv2D(
-                filters=filters,
-                kernel_size=(3,3),
-                strides=(1,1),
-                padding="same",
-                name="AttConv2D2",
-                activation="relu",
-                #kernel_regularizer= RegL2(1e-5) if kernel_reg else None,
-                kernel_initializer=kernel_initializer,
-            ),
-
-            layers.MaxPooling2D(
-                pool_size=(2, 2),
-                padding="valid",
-                name=f"AttFeatureMaxPool2",
-                trainable=trainable,
-            )
-        ]
+        self.spatial_layers = []
     def get_config(self):
         return {
             **super().get_config(),
@@ -71,7 +35,41 @@ class _SpatialBasedPooling(Layer):
         return x
     
     def build(self, input_shape):
-        pass
+        self.spatial_layers = [
+        layers.Conv2D(
+            filters=self.filters//8,
+            kernel_size=(3,3),
+            strides=(1,1),
+            padding="same",
+            name="AttConv2D1",
+            activation="relu",
+            kernel_initializer=self.kernel_initializer,
+        ),
+
+        layers.MaxPooling2D(
+            pool_size=(2, 2),
+            padding="valid",
+            name=f"AttFeaturelMaxPool1",
+        ),
+
+        layers.Conv2D(
+            filters=self.filters,
+            kernel_size=(3,3),
+            strides=(1,1),
+            padding="same",
+            name="AttConv2D2",
+            activation="gelu",
+            kernel_initializer=self.kernel_initializer,
+        ),
+
+        layers.MaxPooling2D(
+            pool_size=(2, 2),
+            padding="valid",
+            name=f"AttFeatureMaxPool2",
+        )
+        ]
+        super().build(input_shape)
+        self.built = True
 
 class FeatureAttentionMechanism(Layer):
     """
@@ -90,8 +88,6 @@ class FeatureAttentionMechanism(Layer):
         outmax: float = 1.0,
         name: str = None,
         headnum: int = 8,
-        dtype=None,
-        dynamic=False,
         trainable: bool = True,
         kernel_reg: bool = False,
     ) -> None:
@@ -107,57 +103,14 @@ class FeatureAttentionMechanism(Layer):
         self.epsilon = epsilon
         self.outmax = outmax
         self.head_num = headnum
+        self.trainable = trainable
+        self.kernel_reg = kernel_reg
         # Create layers
         #"""
-        self.heads = [
-            layers.Dense(filters//4,
-            activation=None,
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "Head_{}".format(i),
-            bias_initializer='glorot_uniform',
-            kernel_regularizer=L2(1e-5) if kernel_reg else None,
-            #bias_regularizer=L2(1e-3)
-        )
-        for i in range(self.head_num)
-        ]
-        #"""
-
+        self.heads = []
         # EXPERIMENTAL GAPP-FLATTEN
-        self.spatialgap = _SpatialBasedPooling(filters)
-
-        #self.score_mha = layers.MultiHeadAttention(num_heads=3,key_dim=filters//16,value_dim=filters//16,dropout=0.08)
-
-        self.pre_projection = layers.Dense(filters//16,
-            activation=None,
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "PreProjection",
-            bias_initializer='glorot_uniform',
-            kernel_regularizer=L1(1e-5) if kernel_reg else None,
-            #bias_regularizer=L2(1e-5)
-        )
-        """
-        self.last_projection1 = layers.Dense(filters,
-            activation="relu",
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "LastProjection",
-            bias_initializer='glorot_uniform',
-            kernel_regularizer=L1(1e-5) if kernel_reg else None,
-            #bias_regularizer=L2(1e-5)
-        )
-        """
-
-        self.last_projection = layers.Dense(filters,
-            activation="softmax",
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "LastProjection",
-            bias_initializer='glorot_uniform',
-            kernel_regularizer=L1(1e-5) if kernel_reg else None,
-            #bias_regularizer=L2(1e-5)
-        )
+        self.spatialgap = None
+        self.last_projection = None
         
     def get_config(self):
         return {
@@ -171,6 +124,10 @@ class FeatureAttentionMechanism(Layer):
                 "kernel_initializer": self.kernel_initializer,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "outmax":self.outmax,
+                "headnum":self.head_num,
+                "trainable":self.trainable,
+                "kernel_reg":self.kernel_reg,
             },
         }
 
@@ -182,7 +139,7 @@ class FeatureAttentionMechanism(Layer):
         W = _shape[2]
         #gap = tf.reduce_mean(inputs,axis=[1,2])
         learned_gap = self.spatialgap(inputs)
-        learned_gap = tf.reduce_sum(learned_gap,axis=[1,2]) #NC
+        learned_gap = tf.reduce_mean(learned_gap,axis=[1,2]) #NC
         learned_gap = tf.reshape(learned_gap,shape=(-1,self.filters))
         """
         learned_gap = tf.transpose(learned_gap,perm=[0,3,1,2])
@@ -207,4 +164,34 @@ class FeatureAttentionMechanism(Layer):
         scores = tf.expand_dims(scores,axis=1)
         return scores
     def build(self, input_shape):
-        pass
+        self.heads = [
+            layers.Dense(self.filters//4,
+            activation=None,
+            use_bias=True,
+            kernel_initializer='glorot_uniform',
+            name = "Head_{}".format(i),
+            kernel_regularizer=L2(1e-5) if self.kernel_reg else None,
+        )
+        for i in range(self.head_num)
+        ]
+
+        # EXPERIMENTAL GAPP-FLATTEN
+        self.spatialgap = _SpatialBasedPooling(self.filters)
+
+        self.pre_projection = layers.Dense(self.filters//16,
+            activation=None,
+            use_bias=True,
+            kernel_initializer='glorot_uniform',
+            name = "PreProjection",
+            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+        )
+
+        self.last_projection = layers.Dense(self.filters,
+            activation="sigmoid",
+            use_bias=True,
+            kernel_initializer='glorot_uniform',
+            name = "LastProjection",
+            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+        )
+        super().build(input_shape)
+        self.built = True

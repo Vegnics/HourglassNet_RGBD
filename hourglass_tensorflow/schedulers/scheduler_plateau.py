@@ -21,6 +21,8 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
             if self.verbose > 0:
                 print(f"Warning: Metric '{self.monitor}' is not available. Available metrics are: {', '.join(list(logs.keys()))}")
             return
+        # Save the model and check consistency in the results
+        
 
         # Check if the metric has improved
         if current > self.best:

@@ -4,6 +4,8 @@ import tensorflow as tf
 import keras.layers
 import keras.models
 from keras import Input as InputTensor
+import inspect
+
 
 from hourglass_tensorflow.utils import BadConfigurationError
 from hourglass_tensorflow.models import HourglassModel
@@ -17,6 +19,7 @@ from hourglass_tensorflow.metrics.correct_keypoints import PercentageOfCorrectKe
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
+import hourglass_tensorflow.layers
 
 # region Abstract Class
 
@@ -33,6 +36,10 @@ class _HTFModelHandler(_HTFHandler):
         self._output: keras.layers.Layer = None
         self._model: keras.models.Model = None
 
+        # ADDED JUST FOR TESTING CONSISTENCY AFTER LOADING A MODEL
+        self._dummy_model: keras.models.Model = None
+
+
     @property
     def config(self) -> HTFModelConfig:
         return self._config
@@ -47,6 +54,7 @@ class _HTFModelHandler(_HTFHandler):
                 "inputs": self._input,
                 "outputs": self._output,
                 "model": self._model,
+                "dummy": self._dummy_model,
             }
         else:
             self.warning(
@@ -77,6 +85,7 @@ class HTFModelHandler(_HTFModelHandler):
                 "inputs": self._input,
                 "outputs": self._output,
                 "model": self._model,
+                "dummy": self._dummy_model,
                 "layers": self._layered_model,
             }
         else:
@@ -91,13 +100,14 @@ class HTFModelHandler(_HTFModelHandler):
         channels =  int(self.params.channel_number)
         #channels = 4
         if self.config.data_format == "NHWC":
-            self._input = InputTensor(shape=(height, width, channels), batch_size=self.config.batch_size, name="Input")
+            self._input = InputTensor(shape=(height, width, channels), batch_size=self.config.batch_size, name="InputHG")
         else:
             raise BadConfigurationError("The only supported data format is NHWC so far")
         return self._input
 
     def _build_model_as_model(self, *args, **kwargs) -> HourglassModel:
         self._model = HourglassModel(**self.params.model_dump())
+        self._dummy_model = HourglassModel(**self.params.model_dump())
         self._layered_model = {}
         return self._model
 
@@ -117,15 +127,30 @@ class HTFModelHandler(_HTFModelHandler):
                 print(f"Generating new model from scratch")
                 #model = self._build_model_as_model()
                 model = self._build_model_as_model(*args, **kwargs)
+                print(model.get_config())
+                print(model.stages,model.channels_1J,model.channels_2J)
+                #custom_objects = {name: obj for name, obj in inspect.getmembers(hourglass_tensorflow.layers, inspect.isclass) if issubclass(obj, tf.keras.layers.Layer)}
+                #print(custom_objects)
             else:
+                #model = self._build_model_as_model(*args, **kwargs)
+                #model.build(input_shape=(None,self.config.params.input_size,
+                #                         self.config.params.input_size,
+                #                         self.config.params.channel_number))
+                #model.load_weights(filepath=self.config.model_path)
                 print(f"Loading model ... {self.config.model_path}")
                 model = tf.keras.models.load_model(self.config.model_path,
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
+                                            "HourglassModel": HourglassModel,
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom,
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist})
-                model.compile()
+                
+                print(model.get_config())
+                #print(model.compile())
+                print(model.__dir__())
+                print(model.stages,model.channels_1J,model.channels_2J)
+                model.summary()
                 self._model = model
             # Link Input Shape to Model
             self._output = model(inputs=input_tensor, *args, **kwargs)

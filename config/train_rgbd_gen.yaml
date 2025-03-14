@@ -82,7 +82,7 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 1.0e-06
+    ratio_test: 0.025
     ratio_train: 0.75
     ratio_validation: 0.21
   bbox:
@@ -110,7 +110,7 @@ model:
     skip_AM: NoAM
     s2f_AM: NoAM
     f2s_AM: NoAM
-    use_2jointHM: false
+    use_2jointHM: true
     use_kernel_regularization: false
     freeze_attention_weights: false
 train:
@@ -118,20 +118,20 @@ train:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
     params:
       foo: bar
-  epochs: 400
+  epochs: 200
   epoch_size: 92
-  batch_size: 16
+  batch_size: 20
   learning_rate: 0.00025
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
       WL2_j1: 1.0
-      WL2_j2: 0.0
+      WL2_j2: 0.4
       WCoords: 0.0
       nstages: 2
       n1joints: 14
       n2joints: 12
-      use2joints: false
+      use2joints: true
       foo: bar
   optimizer:
     source: keras.optimizers.Adam
@@ -144,7 +144,6 @@ train:
     params:
       name: MEDist
       num_1joints: 14
-    num_1joints: 14
   - source: hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints
     params:
       name: PCKh@0.5
@@ -153,7 +152,6 @@ train:
       - 12
       - 13
       num_1joints: 14
-    num_1joints: 14
   callbacks:
   - source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
     params:
@@ -165,7 +163,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_fAB9_1j
+      filepath: data/model_t/myModel_SLP_fAB10_2j
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -181,5 +179,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_fAB9_1j_16:24:46.csv
+      filename: logs/myModelLogs_myModel_SLP_fAB10_2j_17:03:29.csv
 test: null

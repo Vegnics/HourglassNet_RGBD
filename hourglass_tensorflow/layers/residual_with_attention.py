@@ -15,8 +15,6 @@ class ResidualLayerAttention(Layer):
         momentum: float = 0.97,
         epsilon: float = 0.001,
         name: str = None,
-        dtype=None,
-        dynamic=False,
         trainable: bool = True,
         use_last_relu: bool = False,
         kernel_reg: bool = False,
@@ -28,50 +26,15 @@ class ResidualLayerAttention(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
-        # Batch Norm layer 
-        #self.batch_norm = layers.BatchNormalization(
-        #    axis=-1,
-        #    momentum=momentum,
-        #    epsilon=epsilon,
-        #    trainable=trainable,
-        #    name="BatchNorm",
-        #)
-
-        # Conv Layer
-        #self.conv_layer = layers.Conv2D(
-        #    filters=self.output_filters,
-        #    kernel_size=1,
-        #    strides=1,
-        #    padding="same",
-        #    name="Conv2D",
-        #    activation=None,
-        #    kernel_initializer="glorot_uniform",
-        #)
+        self.kernel_reg = kernel_reg
+        self.freeze_attention = freeze_attention
+        self.trainable = trainable
 
         # Convolutional block
-        self.conv_block = ConvBlockLayer(
-            output_filters=output_filters,
-            momentum=momentum,
-            epsilon=epsilon,
-            name="ConvBlock",
-            trainable=trainable,
-        )
-
-        self.attention = FeatureAttentionMechanism(
-            filters = output_filters,
-            kernel_size = 1,
-            kernel_reg = kernel_reg,
-            trainable = False if freeze_attention else True
-        )
-        #self.skip = SkipLayer(
-        #    output_filters=output_filters,
-        #    name="Skip",
-        #    dtype=dtype,
-        #    dynamic=dynamic,
-        #    trainable=trainable,
-        #)
-        self.add = layers.Add(name="Add")
-        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        self.conv_block = None
+        self.attention = None
+        self.add = None
+        self.relu= None
     def get_config(self):
         return {
             **super().get_config(),
@@ -79,23 +42,42 @@ class ResidualLayerAttention(Layer):
                 "output_filters": self.output_filters,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "trainable":self.trainable,
+                "use_last_relu":self.use_last_relu,
+                "kernel_reg":self.kernel_reg,
+                "freeze_attention":self.freeze_attention
             },
         }
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        #_inputs = self.batch_norm(inputs,training=training)
-        #_inputs = self.conv_layer(_inputs ,training=training)
-        #_inputs = self.attention(inputs)
         scores = self.attention(inputs)
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
-                scores*inputs,
+                0.5*scores*inputs,
                 #self.skip(inputs, training=training),
-                inputs,
+                0.5*inputs,
             ])
         out = self.relu(_sum)
         #scores = self.attention(inputs)
         #scores = self.attention(out)
         return  out#(1+scores)*out #(1+scores)*out#(scores+0.0001)*out
     def build(self, input_shape):
+        # Convolutional block
+        self.conv_block = ConvBlockLayer(
+            output_filters=self.output_filters,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            name="ConvBlock",
+            trainable=self.trainable,
+        )
+
+        self.attention = FeatureAttentionMechanism(
+            filters = self.output_filters,
+            kernel_size = 1,
+            kernel_reg = self.kernel_reg,
+            trainable = False if self.freeze_attention else True
+        )
+        self.add = layers.Add(name="Add")
+        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        super().build(input_shape) 
         self.built = True

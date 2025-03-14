@@ -69,10 +69,10 @@ dataset:
   column_image: image
   heatmap:
     size: 64 #64
-    stacks: 3
+    stacks: 2
     channels: 14 
-    stddev: 1.2
-    stddev_factor: 1.36
+    stddev: 1.1
+    stddev_factor: 1.3
   #normalization: "Normal"
   normalization: "Idem"
   augmentation:
@@ -89,9 +89,9 @@ dataset:
     test: true
     train: false
     validation: false
-    ratio_test: 0.000001
-    ratio_train: 0.94
-    ratio_validation: 0.05
+    ratio_test: 1.0
+    ratio_train: 0.0
+    ratio_validation: 0.00
   bbox:
     activate: true
     factor: 1.15 #1.155
@@ -99,23 +99,31 @@ dataset:
 
 model:
   object:
-    source: "hourglass_tensorflow.handlers.model.HTFModelHandler"
+    source: hourglass_tensorflow.handlers.model.HTFModelHandler
     params:
       foo: bar
-  build_as_model : true
+  build_as_model: true
   data_format: NHWC
+  batch_size: 1
   params:
-    input_size: 256 #256
-    output_size: 64 #64
-    channel_number: 1 #4
-    stages: 3
+    input_size: 256
+    output_size: 64
+    channel_number: 1
+    stages: 2
     downsamplings_per_stage: 4
-    stage_filters: 64 #64
-    output_channels: 14 #14
-    name: "HourglassSample"
+    stage_filters: 256
+    channels_1joint: 14
+    channels_2joint: 12
+    name: HourglassSample
     intermediate_supervision: true
+    skip_AM: NoAM
+    s2f_AM: NoAM
+    f2s_AM: NoAM
+    use_2jointHM: true
+    use_kernel_regularization: false
+    freeze_attention_weights: false
   load_model: true
-  model_path: "data/model_t/myModel_SLP_fAB6_2j"
+  model_path: data/model_t/myModel_SLP_fAB10_2j #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #"data/model_t/myModel_SLP_fAB6_2j"
 
 
 test:
@@ -123,7 +131,7 @@ test:
     source: "hourglass_tensorflow.handlers.test.HTFTestHandler"
     params:
       foo: bar
-  batch_size: 100 #128
+  batch_size: 80 #128
 
 
 train:

@@ -105,6 +105,21 @@ class HTFManager(ObjectLogger):
             data=data,
         )
         self.DATASET()
+        """
+        train_dataset=self.DATASET._train_dataset
+        test_dataset=self.DATASET._test_dataset
+        validation_dataset = self.DATASET._validation_dataset
+        for k,data in enumerate(test_dataset):
+            if k%9!=0 and False:
+                continue
+            img = data[0].numpy()
+            coords = data[1].numpy()
+            vis = np.float32(np.reshape(data[2].numpy(),(14,1)))
+            xcoords = np.hstack([coords,vis])
+            img_rgb = np.uint8(np.copy(img[:,:,0]))
+            depth = img[:,:,0]#*255.0/3.5
+            draw_pose_mplib(depth,None,use_hms=False,kpnts_loc=xcoords)
+        """
 
         self.MODEL = self._import_object(
             obj_model,
@@ -177,16 +192,16 @@ class HTFManager(ObjectLogger):
             #depth = cv2.applyColorMap(depth,cv2.COLORMAP_JET)
             #img = np.copy(depth)
             
-            #plt.figure() 
+            plt.figure() 
             if cntld < 14 or True: 
                 _maxargs = tf_batch_matrix_argmax(hmp[:,-1,:,:,:])
-                for stg in [0]:#range(3):
+                for stg in [1]:#range(3):
                     print(f"Stage {stg}:::")
                     for i in range(26):
                         print(f"\t Landmark {i}")
-                        #plt.imshow(hmp[0,stg,:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
-                        #plt.colorbar(location="left",orientation="vertical",cmap="jet")
-                        #plt.show()
+                        plt.imshow(hmp[0,stg,:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
+                        plt.colorbar(location="left",orientation="vertical",cmap="jet")
+                        plt.show()
                         
                         
                         #print(_maxidx)
@@ -222,6 +237,7 @@ class HTFManager(ObjectLogger):
         )
         self.TRAIN(
             model=self.MODEL._model,
+            dummy=self.MODEL._dummy_model,
             train_dataset=self.DATASET._train_dataset,
             test_dataset=self.DATASET._test_dataset,
             validation_dataset=self.DATASET._validation_dataset,

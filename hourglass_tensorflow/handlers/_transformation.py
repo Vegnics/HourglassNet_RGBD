@@ -666,20 +666,15 @@ def tf_test_map_affine_woaugment_RGBD(
 
     annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
     annotated = tf.where(annotated<0.0,0.0,1.0)
+    _image = tf.cast(image,dtype=tf.float32)
    # Hip center
     #center = tf.floor(0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32)))
     bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
     center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
-
-    nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
-    cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
-    #meandepth = tf.reduce_mean(cropped ,axis=[0,1,2])
-    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(cropped -meandepth),axis=[0,1,2])+0.0000001)
-
-    image = tf.cast(image,dtype=tf.float32)
+    
     _images = tf.map_fn(
         fn=(
-            lambda affine: tf_rotate_tensor(image,
+            lambda affine: tf_rotate_tensor(_image,
                                             img_shape,
                                             affine[0],
                                             affine[1],
@@ -715,8 +710,8 @@ def tf_test_map_affine_woaugment_RGBD(
     mask0 = tf.expand_dims(mask0,axis=0)
     mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2]#*0.0+1.0#*mask0+mask1
-    #_visibilities  = _coordinates_map[:,:,2]
+    #_visibilities  = _coordinates_map[:,:,2]*0.0+1.0#*mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
     """
     if task_mode=="train":
@@ -728,7 +723,7 @@ def tf_test_map_affine_woaugment_RGBD(
     
     _zipped = tf.map_fn(
         fn=(
-            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+            lambda imgncoords: tf_evaluate_map_squarify(imgncoords[0],
                                                      imgncoords[1],
                                                      imgncoords[2],
                                                      annotated,
@@ -815,17 +810,16 @@ def tf_train_map_squarify(
         # Simulate a Bbox being the whole image
         shape = tf.shape(image)
         bbox = tf.cast([[0, 0], [shape[1] - 1, shape[0] - 1]])
-    nshape = tf.shape(image)[0:2]
-    
     # Get Padding
     # Once the bbox is computed we compute
     # how much V/H padding should be applied
     # Padding is necessary to conserve proportions
     # when resizing
+    nnshape = tf.shape(image)
     bbox = tf.cast(bbox,dtype=tf.float32)
-    bbox_dev = tf.random.uniform(shape=[2,2],minval=-0.05*tf.cast(tf.reduce_min(nshape),dtype=tf.float32),maxval=0.05*tf.cast(tf.reduce_min(nshape),dtype=tf.float32))
-    bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev[:,0],0,tf.cast(nshape[1]-1,dtype=tf.float32)),shape=(2,1))
-    bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev[:,1],0,tf.cast(nshape[0]-1,dtype=tf.float32)),shape=(2,1))
+    bbox_dev = tf.random.uniform(shape=[2,2],minval=-0.05*tf.cast(tf.reduce_min(nnshape),dtype=tf.float32),maxval=0.05*tf.cast(tf.reduce_min(nnshape),dtype=tf.float32))
+    bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev[:,0],0,tf.cast(nnshape[1]-1,dtype=tf.float32)),shape=(2,1))
+    bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev[:,1],0,tf.cast(nnshape[0]-1,dtype=tf.float32)),shape=(2,1))
     bbox_mod = tf.concat((bbox_mod_x,bbox_mod_y),axis=1)
     bbox = tf.cast(1.0*bbox_mod,dtype=tf.int32)
     padding = tf_compute_padding_from_bbox(bbox)
@@ -834,22 +828,97 @@ def tf_train_map_squarify(
     scalimg = cropped#255.0*tf.clip_by_value((cropped-1000.0)/2000.0,0.0,1.0)*mask #tf_normalize_tensor(cropped,15)
     max_val = tf.reduce_max(scalimg)
     # Generate Squared Image with Padding
-    image = tf.pad(scalimg,
+    padimage = tf.pad(scalimg,
         paddings=tf_generate_padding_tensor(padding),constant_values=0.0
     )
     #meandepth = tf.reduce_mean(image,axis=[0,1,2])
     #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(image-meandepth),axis=[0,1,2])+0.0000001)
     #image = tf.clip_by_value(127.0*((image-meandepth)/stddevdepth+1.5),-0.5,1500.0)
 
-    nshape = tf.shape(image)[0:2]
-    scale = 256.0/(tf.cast(nshape,dtype=tf.dtypes.float64))
+    nshape = tf.shape(padimage)[0:2]
+    #tf.print("NSHAPE",nshape)
+    scale = 256.0/(tf.cast(tf.reduce_max(nshape),dtype=tf.dtypes.float64))
     # Recompute coordinates (shifting and scaling)
     coordinates = tf.cast(coordinates,dtype=tf.dtypes.float64) - tf.cast(bbox[0] - padding,dtype=tf.dtypes.float64)
     coordinates = scale*(coordinates)#((coordinates-_center)*bboxf64)+_center)
-    image_depth = tf_resize_tensor(image,256)
+    image_depth = tf_resize_tensor(padimage,256)
     noise = tf.random.uniform(shape=(256,256,1),minval=0.0,maxval=1.0)
     condition_noise = 1.0-tf.cast(tf.math.less_equal(noise,0.15),dtype=tf.float32)
     image_depth = image_depth*condition_noise
+    _img_depth = tf_normalize_tensor(image_depth,15)
+    return (
+        _img_depth, #image_depth,
+        tf.cast(coordinates,dtype=tf.dtypes.float32),
+        visibility,
+        tf.cast(tf.concat([bbox,tf.reshape(padding,(1,-1))],axis=0),tf.float32)
+    )
+
+@tf.function
+def tf_evaluate_map_squarify(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    annotated: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    if bbox_enabled:
+        # Compute Bounding Box
+        bbox,add_padding = tf_expand_bbox(
+            tf_compute_bbox(coordinates,annotated),
+            tf.shape(image),
+            bbox_factor=bbox_factor,
+        )
+    else:
+        # Simulate a Bbox being the whole image
+        shape = tf.shape(image)
+        bbox = tf.cast([[0, 0], [shape[1] - 1, shape[0] - 1]])
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    padding = tf_compute_padding_from_bbox(bbox)
+    cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
+    mask = tf.where(cropped<=15,0.0,1.0)
+    scalimg = cropped#255.0*tf.clip_by_value((cropped-1000.0)/2000.0,0.0,1.0)*mask #tf_normalize_tensor(cropped,15)
+    max_val = tf.reduce_max(scalimg)
+    # Generate Squared Image with Padding
+    padimage = tf.pad(scalimg,
+        paddings=tf_generate_padding_tensor(padding),constant_values=0.0
+    )
+    nshape = tf.shape(padimage)[0:2]
+    #tf.print("NSHAPE",nshape)
+    #meandepth = tf.reduce_mean(image,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(image-meandepth),axis=[0,1,2])+0.0000001)
+    #image = tf.clip_by_value(127.0*((image-meandepth)/stddevdepth+1.5),-0.5,1500.0)
+
+    scale = 256.0/(tf.cast(tf.reduce_max(nshape),dtype=tf.dtypes.float64))
+    # Recompute coordinates (shifting and scaling)
+    coordinates = tf.cast(coordinates,dtype=tf.dtypes.float64) - tf.cast(bbox[0] - padding,dtype=tf.dtypes.float64)
+    coordinates = scale*(coordinates)#((coordinates-_center)*bboxf64)+_center)
+    image_depth = tf_resize_tensor(padimage,256)
     _img_depth = tf_normalize_tensor(image_depth,15)
     return (
         _img_depth, #image_depth,

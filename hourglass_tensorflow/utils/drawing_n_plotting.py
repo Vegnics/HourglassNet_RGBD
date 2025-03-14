@@ -82,18 +82,21 @@ def draw_pose_HG(img,hm):
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
 
-def draw_pose_mplib(depth,hms):
+def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
     fig,ax = plt.subplots()
     scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.5)
     #scalimg = ax.imshow(depth,cmap="jet")
-    kpnts = []
-    for i in range(14):
-        pnt = np.argmax(hms[:,:,i])
-        x = int((pnt%64))
-        y = int((pnt//64))
-        val = hms[int(pnt//64),int(pnt%64),i]
-        kpnts.append([x,y,val])
-    kpnts = np.array(kpnts)
+    if use_hms:
+        kpnts = []
+        for i in range(14):
+            pnt = np.argmax(hms[:,:,i])
+            x = int((pnt%64))
+            y = int((pnt//64))
+            val = hms[int(pnt//64),int(pnt%64),i]
+            kpnts.append([x,y,val])
+        kpnts = np.array(kpnts)
+    else:
+        kpnts = kpnts_loc.copy()
     _visible_kpts = np.array([i for i in range(14)])
     _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.45])
     KEYPOINT_EDGE_INDS_TO_COLOR = {

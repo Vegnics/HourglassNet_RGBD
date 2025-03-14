@@ -34,64 +34,10 @@ class DownSamplingLayer(Layer):
         self.output_size = output_size
         self.kernel_size = kernel_size
         self.output_filters = output_filters
+        self.trainableD = trainable
         # Init Computation
         self.downsamplings = int(math.log2(input_size // output_size) + 1)
-        self.layers = []
-        # Create Layers
-        for i in range(self.downsamplings):
-            if i == 0:
-                self.layers.append(
-                    ConvBatchNormReluLayer(
-                    #BatchNormConvReluLayer(
-                        filters=(
-                            output_filters // 4
-                            if self.downsamplings > 1
-                            else output_filters
-                        ),
-                        kernel_size=kernel_size,
-                        strides=(2 if self.downsamplings > 1 else 1),
-                        name="CNBR",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=trainable,
-                        use_relu=True,
-                    )
-                )
-            elif i == self.downsamplings - 1:
-                self.layers.append(
-                    ResidualLayer(
-                        output_filters=output_filters // 2,
-                        name=f"Residual{i}",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=trainable,
-                    )
-                )
-                self.layers.append(
-                    ResidualLayerIn(
-                        output_filters=output_filters,
-                        name=f"Residual{i}",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=trainable,
-                    )
-                )
-            else:
-                self.layers.append(
-                    ResidualLayerIn(
-                        output_filters=output_filters // 2,
-                        name=f"Residual{i}",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=trainable,
-                    )
-                )
-                self.layers.append(
-                    layers.MaxPool2D(
-                        pool_size=(2, 2), padding="valid", name=f"MaxPool{i}"
-                    )
-                )
-
+        self.layer_list = []
     def get_config(self):
         return {
             **super().get_config(),
@@ -105,8 +51,63 @@ class DownSamplingLayer(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
         x = tf.cast(inputs,dtype=tf.dtypes.float32)
-        for layer in self.layers:
+        for layer in self.layer_list:
             x = layer(x, training=training)
         return x
     def build(self, input_shape):
+        # Create Layers
+        for i in range(self.downsamplings):
+            if i == 0:
+                self.layer_list.append(
+                    ConvBatchNormReluLayer(
+                    #BatchNormConvReluLayer(
+                        filters=(
+                            self.output_filters // 4
+                            if self.downsamplings > 1
+                            else self.output_filters
+                        ),
+                        kernel_size=self.kernel_size,
+                        strides=(2 if self.downsamplings > 1 else 1),
+                        name="CNBR",
+                        #dtype=dtype,
+                        #dynamic=dynamic,
+                        trainable=self.trainableD,
+                        use_relu=True,
+                    )
+                )
+            elif i == self.downsamplings - 1:
+                self.layer_list.append(
+                    ResidualLayer(
+                        output_filters=self.output_filters // 2,
+                        name=f"Residual{i}_last",
+                        #dtype=dtype,
+                        #dynamic=dynamic,
+                        trainable=self.trainableD,
+                    )
+                )
+                self.layer_list.append(
+                    ResidualLayerIn(
+                        output_filters=self.output_filters,
+                        name=f"Residual{i}_in",
+                        #dtype=dtype,
+                        #dynamic=dynamic,
+                        trainable=self.trainableD,
+                    )
+                )
+            else:
+                self.layer_list.append(
+                    ResidualLayerIn(
+                        output_filters=self.output_filters // 2,
+                        name=f"Residual{i}_middle",
+                        #dtype=dtype,
+                        #dynamic=dynamic,
+                        trainable=self.trainable,
+                    )
+                )
+                self.layer_list.append(
+                    layers.MaxPool2D(
+                        pool_size=(2, 2), padding="valid", name=f"MaxPool{i}"
+                    )
+                )
+        super().build(input_shape)
         self.built = True

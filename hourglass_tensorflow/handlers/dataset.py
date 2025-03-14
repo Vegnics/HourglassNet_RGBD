@@ -157,9 +157,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         if self.has_train:
             # Has training samples
             if self.has_test & self.has_validation:
+                print("TEST AND VALIDATION")
                 # + Validation and Test
                 train, test = split_train_test(
-                    images, self.ratio_train + self.ratio_validation
+                    images, self.ratio_train + self.ratio_validation,self.ratio_test
                 )
                 train, validation = split_train_test(
                     train, self.ratio_train / (self.ratio_train + self.ratio_validation)

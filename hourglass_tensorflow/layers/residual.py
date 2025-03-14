@@ -47,24 +47,9 @@ class ResidualLayer(Layer):
         #)
 
         # Convolutional block
-        self.conv_block = ConvBlockLayer(
-            output_filters=output_filters,
-            momentum=momentum,
-            epsilon=epsilon,
-            name="ConvBlock",
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-        )
-        #self.skip = SkipLayer(
-        #    output_filters=output_filters,
-        #    name="Skip",
-        #    dtype=dtype,
-        #    dynamic=dynamic,
-        #    trainable=trainable,
-        #)
-        self.add = layers.Add(name="Add")
-        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        self.conv_block = None
+        self.add = None
+        self.relu= None
     def get_config(self):
         return {
             **super().get_config(),
@@ -72,6 +57,7 @@ class ResidualLayer(Layer):
                 "output_filters": self.output_filters,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "use_last_relu": self.use_last_relu,
             },
         }
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
@@ -85,4 +71,19 @@ class ResidualLayer(Layer):
             ])
         return self.relu(_sum)
     def build(self, input_shape):
+        self.conv_block = ConvBlockLayer(
+            output_filters=self.output_filters,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            name="ConvBlock",
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+        )
+        self.add = layers.Add(name="Add")
+        self.relu= layers.ReLU(name="ReLU",)  if self.use_last_relu else lambda x:x
+        super().build(input_shape)
         self.built = True
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)

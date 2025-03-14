@@ -19,16 +19,16 @@ annotations_path = "data/htf_slp_dataset.ignore.json"
 # Related to the ground truth data
 n1joints = 14
 n2joints = 12
-use2joints = False
+use2joints = True
 heatmap_stddev =  1.1
 stddev_factor = 1.3
 
 # Related to the model and training
-model_name = "myModel_SLP_fAB9_1j"
+model_name = "myModel_SLP_fAB10_2j"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
-epochs = 400
-batch_size = 16
+epochs = 200
+batch_size = 20
 stages = 2
 
 #Related to the attention mechanisms
@@ -74,8 +74,8 @@ conf["train"]["loss"]["params"]["n1joints"] = n1joints
 conf["train"]["loss"]["params"]["n2joints"] = n2joints
 conf["train"]["loss"]["params"]["use2joints"] = use2joints
 
-conf["train"]["metrics"][0]["num_1joints"] = n1joints
-conf["train"]["metrics"][1]["num_1joints"] = n1joints
+conf["train"]["metrics"][0]["params"]["num_1joints"] = n1joints
+conf["train"]["metrics"][1]["params"]["num_1joints"] = n1joints
 
 conf["train"]["callbacks"][1]["params"]["filepath"] = chkpnt_path
 conf["train"]["callbacks"][3]["params"]["filename"] = csv_logger

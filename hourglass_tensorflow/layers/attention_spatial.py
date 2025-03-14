@@ -36,75 +36,16 @@ class SpatialAttentionMechanism(Layer):
         self.epsilon = epsilon
         self.outmax = outmax
         self.head_num = headnum
+        self.trainable = trainable
+        self.kernel_reg = kernel_reg
         # Create layers
-
-        #self.conv1x1x64 = layers.Conv2D(
-        #    filters=64,
-        #    kernel_size=(1,1),
-        #    strides=strides,
-        #    padding="same",
-        #    name="AttConv2D",
-        #    activation=None,
-        #    kernel_initializer=kernel_initializer,
-        #)
-
-        self.gap_proj = layers.Conv2D(
-            filters=1,
-            kernel_size=(1,1),
-            strides=strides,
-            padding="same",
-            name="proj_gap",
-            activation=None,
-            kernel_regularizer= RegL2(1e-6) if kernel_reg else None,
-            kernel_initializer=kernel_initializer,
-        )
-
-        self.conv3x3x8 = layers.Conv2D(
-            filters=64,
-            kernel_size=(5,5),
-            strides=strides,
-            padding="same",
-            name="AttConv2D",
-            activation="gelu",
-            kernel_regularizer= RegL2(1e-6) if kernel_reg else None,
-            kernel_initializer=kernel_initializer,
-        )
-
-        self.maxpool1 = layers.MaxPooling2D(
-            pool_size=(2, 2),
-            padding="valid",
-            name=f"AttSpatialMaxPool1",
-            trainable=trainable,
-        )
-
-        self.conv1x1x16 = layers.Conv2D(
-            filters=32,
-            kernel_size=(3,3),
-            strides=strides,
-            padding="same",
-            name="AttConv2D",
-            activation="gelu",
-            kernel_regularizer= RegL2(1e-5) if kernel_reg else None,
-            kernel_initializer=kernel_initializer,
-        )
-        
-        self.maxpool2 = layers.MaxPooling2D(
-            pool_size=(2, 2),
-            padding="valid",
-            name=f"AttSpatialMaxPool2",
-            trainable=trainable,
-        )
-
-        self.last_proj = layers.Conv2D(
-            filters=16,
-            kernel_size=(1,1),
-            strides=strides,
-            padding="same",
-            name="AttConv2D_last",
-            activation="sigmoid",
-            kernel_regularizer=RegL2(1e-4) if kernel_reg else None,
-            kernel_initializer=kernel_initializer,
-        )
+        self.gap_proj = None
+        self.conv3x3x8 = None
+        self.maxpool1 = None
+        self.conv1x1x16 = None
+        self.maxpool2 = None
+        self.patches_proj = None
+        self.score_gen = None
         
     def get_config(self):
         return {
@@ -118,6 +59,10 @@ class SpatialAttentionMechanism(Layer):
                 "kernel_initializer": self.kernel_initializer,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "outmax": self.outmax,
+                "headnum": self.head_num,
+                "trainable": self.trainable,
+                "kernel_reg": self.kernel_reg
             },
         }
 
@@ -132,24 +77,85 @@ class SpatialAttentionMechanism(Layer):
         S = self.maxpool1(S)
         S = self.conv1x1x16(S)
         S = self.maxpool2(S)
-        S = self.last_proj(S)
+        S = self.patches_proj(S)
         # Ensure H and W are divisible by 4 before reshaping
         H, W = gshape[1], gshape[2]
-
         # Reshape channels into spatial patches (assuming 16 channels split into 4x4)
         S = tf.reshape(S, shape=(-1, H//4,W //4, 4, 4))  # Shape: (B, H/4, 4, W/4, 4, 4)
         S = tf.transpose(S, perm=[0, 1, 3, 2, 4])  # Swap inner spatial blocks
-
         # Merge the new spatial structure back into H and W
         S = tf.reshape(S, shape=(-1, H, W, 1))  # Final shape (B, H, W, C)
-
-        #S = tf.reshape(S,shape=(-1,gshape[1]//4,gshape[2]*4,1))
-        #S = tf.reshape(S,shape=(-1,gshape[1],gshape[2],1))
-        #S = tf.reshape(S,shape=(-1,gshape[1]//16,gshape[1]//16,gshape[1]//16,gshape[1]//16,16))
-        #S = tf.transpose(S, perm=[0,1,3,2,4,5] )
-        #S = tf.reshape(S,shape=(-1,gshape[1],gshape[2]))
-        #S = tf.reshape(S,shape=(-1,gshape[1],gshape[2],1))
-        scores = S 
-        return scores#(0.0001+scores)*inputs
+        scores = self.score_gen(S) 
+        return scores
+    
     def build(self, input_shape):
-        pass
+        self.gap_proj = layers.Conv2D(
+            filters=1,
+            kernel_size=(1,1),
+            strides=self.strides,
+            padding="same",
+            name="proj_gap",
+            activation=None,
+            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+            kernel_initializer= self.kernel_initializer,
+        )
+
+        self.conv3x3x8 = layers.Conv2D(
+            filters=64,
+            kernel_size=(5,5),
+            strides=self.strides,
+            padding="same",
+            name="AttConv2D",
+            activation="gelu",
+            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+            kernel_initializer= self.kernel_initializer,
+        )
+
+        self.maxpool1 = layers.MaxPooling2D(
+            pool_size=(2, 2),
+            padding="valid",
+            name=f"AttSpatialMaxPool1",
+            trainable=self.trainable,
+        )
+
+        self.conv1x1x16 = layers.Conv2D(
+            filters=32,
+            kernel_size=(3,3),
+            strides=self.strides,
+            padding="same",
+            name="AttConv2D",
+            activation="gelu",
+            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+            kernel_initializer= self.kernel_initializer,
+        )
+        
+        self.maxpool2 = layers.MaxPooling2D(
+            pool_size=(2, 2),
+            padding="valid",
+            name=f"AttSpatialMaxPool2",
+            trainable=self.trainable,
+        )
+
+        self.patches_proj = layers.Conv2D(
+            filters=16,
+            kernel_size=(1,1),
+            strides=self.strides,
+            padding="same",
+            name="AttConv2D_patch",
+            activation=None,
+            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+            kernel_initializer= self.kernel_initializer,
+        )
+
+        self.score_gen = layers.Conv2D(
+            filters=1,
+            kernel_size=(3,3),
+            strides=self.strides,
+            padding="same",
+            name="AttConv2D_scores",
+            activation="sigmoid",
+            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+            kernel_initializer= self.kernel_initializer,
+        )
+        super().build(input_shape)
+        self.built = True

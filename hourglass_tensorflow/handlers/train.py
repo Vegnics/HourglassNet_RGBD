@@ -20,6 +20,8 @@ from hourglass_tensorflow.types.config import HTFTrainConfig
 from hourglass_tensorflow.types.config import HTFObjectReference
 from hourglass_tensorflow.handlers.meta import _HTFHandler
 
+from hourglass_tensorflow.callbacks.dummycallback import DummyCallback
+
 # region Abstract Class
 
 R = TypeVar("R")
@@ -94,14 +96,18 @@ class HTFTrainHandler(_HTFTrainHandler):
         self._metrics = [obj.init() for obj in self.config.metrics]
         self._callbacks = [obj.init() for obj in self.config.callbacks]
 
-    def compile(self, model: Model, *args, **kwargs) -> None:
+    def compile(self, model: Model,dummy: Model, *args, **kwargs) -> None:
+        print("Compiling the models ...")
         model.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss, jit_compile=False)
+        dummy.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss, jit_compile=False)
+
     def _apply_batch(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         if isinstance(dataset, tf.data.Dataset):
             return dataset.batch(self._batch_size)
     def fit(
         self,
         model: Model,
+        dummy: Model,
         train_dataset: tf.data.Dataset = None,
         test_dataset: tf.data.Dataset = None,
         validation_dataset: tf.data.Dataset = None,
@@ -109,6 +115,7 @@ class HTFTrainHandler(_HTFTrainHandler):
         **kwargs,
     ) -> None:
         with tf.device('/GPU:0'):
+            imgs_ds = test_dataset.map(lambda imgs,hms: imgs)
             _ = self._apply_batch(test_dataset)
 
             #tds_card = int(train_dataset.cardinality().numpy())
@@ -118,12 +125,30 @@ class HTFTrainHandler(_HTFTrainHandler):
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
-            train_dataset = train_dataset.repeat(4) #7
+            train_dataset = train_dataset.repeat(2) #7
+            
+            #batch_testimgs = imgs_ds.batch(80) 
+            
             #validation_dataset = validation_dataset.repeat(2)
             batch_train = self._apply_batch(train_dataset) 
             #print("   ??????    >>>BATCH TRAIN: ",batch_train)
             batch_validation = validation_dataset.batch(80)#self._apply_batch(validation_dataset)
             batch_num = batch_train.__len__()
+
+        with tf.device('/CPU:0'):
+            batch_testimgs_cpu = tf.identity(imgs_ds)
+            imgs = []
+            for img in batch_testimgs_cpu:
+                imgs.append(img)
+            _testimgs = tf.convert_to_tensor(imgs,dtype=tf.float32)
+            _test_ds = tf.data.Dataset.from_tensor_slices(_testimgs)
+            batch_testds = _test_ds.batch(40)
+            print("test images cpu:",batch_testds)
+
+        with tf.device('/GPU:0'):
+            dummy_callback = DummyCallback(batch_testds,dummy)
+            self._callbacks.append(dummy_callback)
+
             print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
             model.summary()
             model.fit(

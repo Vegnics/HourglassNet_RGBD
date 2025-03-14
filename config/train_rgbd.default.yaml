@@ -111,7 +111,7 @@ model:
     channel_number: 1 
     stages: 3
     downsamplings_per_stage: 4
-    stage_filters: 256 
+    stage_filters: 256 #256 
     channels_1joint: 14 
     channels_2joint: 12 
     name: "HourglassSample"

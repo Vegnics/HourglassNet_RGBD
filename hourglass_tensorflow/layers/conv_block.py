@@ -28,49 +28,10 @@ class ConvBlockLayer(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         # Create layers
-        self.bnrc1 = BatchNormReluConvLayer(
-        #self.bnrc1 = ConvBatchNormReluLayer(
-            # 1x1 convolution
-            filters=output_filters // 2,
-            kernel_size=1,
-            name="BNRC1",
-            momentum=momentum,
-            epsilon=epsilon,
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-            use_relu=True,
-            normalized = True,
-        )
-        self.bnrc2 = BatchNormReluConvLayer(
-        #self.bnrc2 = ConvBatchNormReluLayer(
-            # 3x3 convolution
-            filters=output_filters // 2,
-            kernel_size=3,
-            name="BNRC2",
-            momentum=momentum,
-            epsilon=epsilon,
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-            use_relu=True,
-            normalized = False,
-        )
-        self.bnrc3 = BatchNormReluConvLayer(
-        #self.bnrc3 = ConvBatchNormReluLayer(
-            # 1x1 convolution
-            filters=output_filters,
-            kernel_size=1,
-            name="BNRC3",
-            momentum=momentum,
-            epsilon=epsilon,
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-            use_relu=True,
-            normalized = True, # Previous True
-        )
-
+        self.bnrc1 = None
+        self.bnrc2 = None
+        self.bnrc3 = None
+        
     def get_config(self):
         return {
             **super().get_config(),
@@ -87,4 +48,47 @@ class ConvBlockLayer(Layer):
         x = self.bnrc3(x, training=training)
         return x
     def build(self, input_shape):
+        self.bnrc1 = BatchNormReluConvLayer(
+        #self.bnrc1 = ConvBatchNormReluLayer(
+            # 1x1 convolution
+            filters=self.output_filters // 2,
+            kernel_size=1,
+            name="BNRC1",
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+            use_relu=True,
+            normalized = True,
+        )
+        self.bnrc2 = BatchNormReluConvLayer(
+        #self.bnrc2 = ConvBatchNormReluLayer(
+            # 3x3 convolution
+            filters=self.output_filters // 2,
+            kernel_size=3,
+            name="BNRC2",
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+            use_relu=True,
+            normalized = True,
+        )
+        self.bnrc3 = BatchNormReluConvLayer(
+        #self.bnrc3 = ConvBatchNormReluLayer(
+            # 1x1 convolution
+            filters=self.output_filters,
+            kernel_size=1,
+            name="BNRC3",
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+            use_relu=True,
+            normalized = True, # Previous True
+        )
+
         self.built = True

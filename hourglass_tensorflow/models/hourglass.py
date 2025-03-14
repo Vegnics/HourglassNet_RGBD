@@ -19,11 +19,8 @@ class HourglassModel(Model):
         stage_filters: int = 256,
         channels_1joint: int = 16,
         channels_2joint: int = 16,
-        output_channels: int = 16,
         intermediate_supervision: bool = True,
         name: str = None,
-        #dtype=None,
-        #dynamic=False,
         trainable: bool = True,
         skip_AM: ATTENTION_MECHANISMS = "NoAM",
         s2f_AM: ATTENTION_MECHANISMS = "NoAM",
@@ -31,27 +28,35 @@ class HourglassModel(Model):
         use_2jointHM: bool = False,
         use_kernel_regularization: bool = False,
         freeze_attention_weights: bool = False,
-        #*args,
-        #**kwargs,
-    ):
+        *args,
+        **kwargs,
+    )-> None:
         super().__init__(name=name,trainable=trainable)
+        # Init
+        self.channels_1J = channels_1joint
+        self.channels_2J = channels_2joint
+        self.intermediate_supervision = intermediate_supervision
+        self.skip_AM = skip_AM
+        self.s2f_AM = s2f_AM
+        self.f2s_AM = f2s_AM
+        self.stages = stages
+        self.channelnum = channel_number
+        self.use_2jointHM = use_2jointHM
+        self.use_kernel_reg = use_kernel_regularization
+        self.freeze_attention = freeze_attention_weights
+        self.stage_filters = stage_filters
+        self.input_size = input_size
+        self.output_size = output_size
+        self.ndownsamplings = downsamplings_per_stage
             #dtype=dtype,
             #dynamic=dynamic,
             #*args,
             #**kwargs,
         #)
-        # Init
-        self._channels_1J = channels_1joint
-        self._channels_2J = channels_2joint
-        self._intermediate_supervision = intermediate_supervision
-        self._skip_AM = skip_AM
-        self._s2f_AM = s2f_AM
-        self._f2s_AM = f2s_AM
-        self._use_2jointHM = use_2jointHM
-        self._use_kernel_reg = use_kernel_regularization
-        self._freeze_attention = freeze_attention_weights
         # Layers
-        self.downsampling = DownSamplingLayer(
+        self.downsampling = None
+        """
+        DownSamplingLayer(
             input_size=input_size,
             output_size=output_size,
             kernel_size=7,
@@ -61,7 +66,9 @@ class HourglassModel(Model):
             #dynamic=dynamic,
             trainable=trainable,
         )
-        self.hourglasses = [
+        """
+        self.hourglasses = []
+        """
             HourglassLayer(
                 downsamplings=downsamplings_per_stage,
                 feature_filters=stage_filters,
@@ -72,15 +79,16 @@ class HourglassModel(Model):
                 #dynamic=dynamic,
                 trainable=trainable,
                 intermed= True,
-                skip_attention = self._skip_AM,
-                s2f_attention = self._s2f_AM,
-                f2s_attention = self._f2s_AM,
-                use_2jointHM = self._use_2jointHM,
-                use_kernel_regularization=self._use_kernel_reg,
-                freeze_attention = self._freeze_attention
+                skip_attention = self.skip_AM,
+                s2f_attention = self.s2f_AM,
+                f2s_attention = self.f2s_AM,
+                use_2jointHM = self.use_2jointHM,
+                use_kernel_regularization=self.use_kernel_reg,
+                freeze_attention = self.freeze_attention
             )
             for i in range(stages)
         ]
+        """
         """
         self.hourglasses.append(HourglassLayerLast(
                 downsamplings=downsamplings_per_stage,
@@ -102,11 +110,11 @@ class HourglassModel(Model):
         # You can print the input shape to verify it
         print("---------Model configuration summary------------")
         print(f'Building model with input shape: {input_shape}')
-        print(f"Attention mechanism in the Skip Layers: {self._skip_AM}")
-        print(f"Attention mechanism in the S2F Layers (Bottom-up): {self._s2f_AM}")
-        print(f"Attention mechanism in the F2S Layers (Top-down): {self._f2s_AM}")
-        print(f"Use 2-Joint Heatmaps: {self._yes_no_str(self._use_2jointHM)}")
-        print(f"Use kernel regularization: {self._yes_no_str(self._use_kernel_reg)}")
+        print(f"Attention mechanism in the Skip Layers: {self.skip_AM}")
+        print(f"Attention mechanism in the S2F Layers (Bottom-up): {self.s2f_AM}")
+        print(f"Attention mechanism in the F2S Layers (Top-down): {self.f2s_AM}")
+        print(f"Use 2-Joint Heatmaps: {self._yes_no_str(self.use_2jointHM)}")
+        print(f"Use kernel regularization: {self._yes_no_str(self.use_kernel_reg)}")
         print("------------------------------------------------")
         # Optionally, you can use the input_shape to dynamically define layers
         super(HourglassModel, self).build(input_shape)
@@ -131,6 +139,69 @@ class HourglassModel(Model):
             outputs_list.append(y)
         self._outputs = tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
         return self._outputs
+    
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+            "input_size":self.input_size,
+            "output_size":self.output_size,
+            "downsamplings_per_stage":self.ndownsamplings,
+            "stages": self.stages,
+            "channel_number":self.channelnum,
+            "channels_1joint": self.channels_1J,
+            "channels_2joint": self.channels_2J,
+            "intermediate_supervision": self.intermediate_supervision,
+            "skip_AM": self.skip_AM,
+            "s2f_AM": self.s2f_AM,
+            "f2s_AM": self.f2s_AM,
+            "use_2jointHM": self.use_2jointHM,
+            "use_kernel_regularization": self.use_kernel_reg,
+            "freeze_attention_weights":self.freeze_attention,
+            "stage_filters":self.stage_filters
+            },
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        print("Restored Config [HOURGLASS MODEL]:", config)  # Debugging output
+        return cls(**config)
+
+    def build(self, input_shape):
+        # Layers
+        self.downsampling = DownSamplingLayer(
+            input_size=self.input_size,
+            output_size=self.output_size,
+            kernel_size=7,
+            output_filters=self.stage_filters,
+            name="DownSampling",
+            #dtype=dtype,
+            #dynamic=dynamic,
+            trainable=self.trainable,
+        )
+        self.hourglasses = [
+            HourglassLayer(
+                downsamplings=self.ndownsamplings,
+                feature_filters=self.stage_filters,
+                joint_filters_1J=self.channels_1J,
+                joint_filters_2J=self.channels_2J,
+                name=f"Hourglass{i+1}",
+                #dtype=dtype,
+                #dynamic=dynamic,
+                trainable=self.trainable,
+                intermed= True,
+                skip_attention = self.skip_AM,
+                s2f_attention = self.s2f_AM,
+                f2s_attention = self.f2s_AM,
+                use_2jointHM = self.use_2jointHM,
+                use_kernel_regularization=self.use_kernel_reg,
+                freeze_attention = self.freeze_attention
+            )
+            for i in range(self.stages)
+        ]
+        super().build(input_shape) 
+        self.built = True
+
 
 
 def model_as_layers(

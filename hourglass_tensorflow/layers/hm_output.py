@@ -37,6 +37,8 @@ class HMOut(Layer):
         self.epsilon = epsilon
         self.outmax = outmax
         # Create layers
+        self.conv = None
+
         #self.batch_norm = layers.BatchNormalization(
         #    axis=-1,
         #    momentum=momentum,
@@ -45,15 +47,7 @@ class HMOut(Layer):
         #    name="BatchNorm",
         #)
 
-        self.conv = layers.Conv2D(
-            filters=filters,
-            kernel_size=kernel_size,
-            strides=strides,
-            padding=padding,
-            name="Conv2D",
-            activation=activation,
-            kernel_initializer=kernel_initializer,
-        )
+       
         #self.relu = layers.ReLU(max_value=self.outmax,
         #    name="ReLU",
         #)
@@ -70,6 +64,7 @@ class HMOut(Layer):
                 "kernel_initializer": self.kernel_initializer,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "outmax": self.outmax
             },
         }
 
@@ -84,4 +79,17 @@ class HMOut(Layer):
         return x#self.relu(x)
 
     def build(self, input_shape):
+        self.conv = layers.Conv2D(
+            filters=self.filters,
+            kernel_size=self.kernel_size,
+            strides=self.strides,
+            padding=self.padding,
+            name="Conv2D",
+            activation=self.activation,
+            kernel_initializer=self.kernel_initializer,
+        )
+        super().build(input_shape) 
         self.built = True
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)

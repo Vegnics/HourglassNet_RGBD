@@ -930,7 +930,7 @@ def tf_evaluate_map_squarify(
 @tf.function
 def tf_test_map_squarify(
     image: tf.Tensor,
-    bbox: tf.Tensor
+    _bbox: tf.Tensor
 ) -> tf.Tensor:
     """Second step tf.data.Dataset mapper to make squared input images
 
@@ -959,11 +959,12 @@ def tf_test_map_squarify(
     # how much V/H padding should be applied
     # Padding is necessary to conserve proportions
     # when resizing
-    #bbox,add_padding = tf_expand_bbox(
-    #        _bbox,
-    #        tf.shape(image),
-    #        bbox_factor=1.03,
-    #    )
+    bbox,add_padding = tf_expand_bbox(
+            _bbox,
+            tf.shape(image),
+            bbox_factor=1.025,
+            randomw=0.0
+        )
     padding = tf_compute_padding_from_bbox(bbox)
     cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
     mask = tf.where(cropped<=15,0.0,1.0)

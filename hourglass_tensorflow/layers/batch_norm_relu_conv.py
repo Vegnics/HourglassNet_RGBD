@@ -1,8 +1,10 @@
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
+from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
+from tensorflow.keras.utils import register_keras_serializable
 
-
+@register_keras_serializable(package="lBNReLuConv")
 class BatchNormReluConvLayer(Layer):
     """
     This layer performs Batch normalization, ReLu, and finally 2D convolution.
@@ -18,13 +20,10 @@ class BatchNormReluConvLayer(Layer):
         momentum: float = 0.9,
         epsilon: float = 1e-5,
         name: str = None,
-        #dtype=None,
-        #dynamic=False,
         trainable: bool = True,
         use_relu: bool = True,
         normalized: bool = True,
     ) -> None:
-        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         super().__init__(name=name, trainable=trainable)
         # Store Config
         self.filters = filters
@@ -38,25 +37,9 @@ class BatchNormReluConvLayer(Layer):
         self.use_relu = use_relu
         self.normalized = normalized
         # Create Layers
-        self.batch_norm = layers.BatchNormalization(
-            axis=-1,
-            momentum=momentum,
-            epsilon=epsilon,
-            trainable=trainable,
-            name="BatchNorm",
-        ) if self.normalized else lambda x,**y:x
-        self.conv = layers.Conv2D(
-            filters=filters,
-            kernel_size=kernel_size,
-            strides=strides,
-            padding=padding,
-            name="Conv2D",
-            activation=activation,
-            kernel_initializer=kernel_initializer,
-        )
-        self.relu = layers.ReLU(
-            name="ReLU",
-        ) if self.use_relu else lambda x:x
+        self.batch_norm = None
+        self.conv = None
+        self.relu = None
 
     def get_config(self):
         return {
@@ -70,6 +53,8 @@ class BatchNormReluConvLayer(Layer):
                 "kernel_initializer": self.kernel_initializer,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
+                "use_relu": self.use_relu,
+                "normalized": self.normalized,
             },
         }
 
@@ -79,4 +64,33 @@ class BatchNormReluConvLayer(Layer):
         x = self.conv(x)
         return x
     def build(self, input_shape):
+        print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
+        self.batch_norm = layers.BatchNormalization(
+            axis=-1,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            trainable=self.trainable,
+            name="BatchNorm",
+        ) if self.normalized else lambda x,**y:x
+        self.conv = layers.Conv2D(
+            filters=self.filters,
+            kernel_size=self.kernel_size,
+            strides=self.strides,
+            padding=self.padding,
+            name="Conv2D",
+            activation=self.activation,
+            kernel_initializer=self.kernel_initializer,
+        )
+        self.relu = layers.ReLU(
+            name="ReLU_identity",
+        ) if self.use_relu else IdentityLayer(name="ReLU_identity")
+        super().build(input_shape)
         self.built = True
+    
+    @classmethod
+    def from_config(cls, config):
+        instance = cls(**config)
+        instance.batch_norm = None
+        instance.conv = None
+        instance.relu = None
+        return instance

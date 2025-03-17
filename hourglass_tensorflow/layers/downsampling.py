@@ -1,16 +1,17 @@
+from logging import debug
 import math
 
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
+from tensorflow.keras.utils import register_keras_serializable
 
-from hourglass_tensorflow.layers.residual import ResidualLayer
-from hourglass_tensorflow.layers.residual_input import ResidualLayerIn
+from hourglass_tensorflow.layers.residual import ResidualLayer,ResidualLayerIn
 #from hourglass_tensorflow.layers.residual_2 import ResidualLayerSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 from hourglass_tensorflow.layers.batch_norm_conv_relu import BatchNormConvReluLayer
 
-
+@register_keras_serializable(package="lDownsampling")
 class DownSamplingLayer(Layer):
     """
     This is the downsampling layer. The one which receives the input image with a size of 
@@ -23,18 +24,18 @@ class DownSamplingLayer(Layer):
         kernel_size: int = 7,
         output_filters: int = 256,
         name: str = None,
-        #dtype=None,
-        #dynamic=False,
+        residual_nblocks: int = None,
         trainable: bool = True,
     ) -> None:
-        #super().__init__(name=name, dtype=dtype, dynamic=dynamic, trainable=trainable)
         super().__init__(name=name, trainable=trainable)
         # Store config
         self.input_size = input_size
         self.output_size = output_size
         self.kernel_size = kernel_size
         self.output_filters = output_filters
-        self.trainableD = trainable
+        self.trainable = trainable
+        self.residual_nblocks = residual_nblocks
+        
         # Init Computation
         self.downsamplings = int(math.log2(input_size // output_size) + 1)
         self.layer_list = []
@@ -46,6 +47,8 @@ class DownSamplingLayer(Layer):
                 "output_size": self.output_size,
                 "kernel_size": self.kernel_size,
                 "output_filters": self.output_filters,
+                "residual_nblocks": self.residual_nblocks,
+                "trainable":self.trainable
             },
         }
 
@@ -54,7 +57,9 @@ class DownSamplingLayer(Layer):
         for layer in self.layer_list:
             x = layer(x, training=training)
         return x
+    
     def build(self, input_shape):
+        print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         # Create Layers
         for i in range(self.downsamplings):
             if i == 0:
@@ -69,9 +74,8 @@ class DownSamplingLayer(Layer):
                         kernel_size=self.kernel_size,
                         strides=(2 if self.downsamplings > 1 else 1),
                         name="CNBR",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=self.trainableD,
+                        padding="same",
+                        trainable=self.trainable,
                         use_relu=True,
                     )
                 )
@@ -79,28 +83,25 @@ class DownSamplingLayer(Layer):
                 self.layer_list.append(
                     ResidualLayer(
                         output_filters=self.output_filters // 2,
+                        nblocks=self.residual_nblocks,
                         name=f"Residual{i}_last",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=self.trainableD,
+                        trainable=self.trainable,
                     )
                 )
                 self.layer_list.append(
                     ResidualLayerIn(
                         output_filters=self.output_filters,
+                        nblocks=self.residual_nblocks,
                         name=f"Residual{i}_in",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
-                        trainable=self.trainableD,
+                        trainable=self.trainable,
                     )
                 )
             else:
                 self.layer_list.append(
                     ResidualLayerIn(
                         output_filters=self.output_filters // 2,
+                        nblocks=self.residual_nblocks,
                         name=f"Residual{i}_middle",
-                        #dtype=dtype,
-                        #dynamic=dynamic,
                         trainable=self.trainable,
                     )
                 )
@@ -111,3 +112,8 @@ class DownSamplingLayer(Layer):
                 )
         super().build(input_shape)
         self.built = True
+    @classmethod
+    def from_config(cls, config):
+        instance = cls(**config)
+        instance.layer_list = [] 
+        return instance

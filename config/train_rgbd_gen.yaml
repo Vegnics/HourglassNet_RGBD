@@ -83,8 +83,8 @@ dataset:
     train: true
     validation: true
     ratio_test: 0.025
-    ratio_train: 0.75
-    ratio_validation: 0.21
+    ratio_train: 0.6
+    ratio_validation: 0.1
   bbox:
     activate: true
     factor: 1.15
@@ -110,9 +110,10 @@ model:
     skip_AM: NoAM
     s2f_AM: NoAM
     f2s_AM: NoAM
-    use_2jointHM: true
+    use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
+    residual_nblocks: 2
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
@@ -126,12 +127,12 @@ train:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
       WL2_j1: 1.0
-      WL2_j2: 0.4
+      WL2_j2: 0.0
       WCoords: 0.0
       nstages: 2
       n1joints: 14
       n2joints: 12
-      use2joints: true
+      use2joints: false
       foo: bar
   optimizer:
     source: keras.optimizers.Adam
@@ -163,7 +164,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_fAB10_2j
+      filepath: data/model_t/myModel_SLP_fABC10_2j.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -179,5 +180,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_fAB10_2j_17:03:29.csv
+      filename: logs/myModelLogs_myModel_SLP_fABC10_2j.keras_23:11:59.csv
 test: null

@@ -52,6 +52,7 @@ class HTFModelParams(HTFConfigField):
     use_2jointHM: bool = False
     use_kernel_regularization: bool = False
     freeze_attention_weights: bool = False
+    residual_nblocks: int = None
 
 class HTFModelConfig(HTFConfigField):
     object: Optional[HTFObjectReference] = Field(

@@ -18,7 +18,7 @@ class HMOut(Layer):
         kernel_initializer: str = "glorot_uniform",
         momentum: float = 0.9,
         epsilon: float = 1e-3,
-        outmax: float = 1.0,
+        outmax: float = None,
         name: str = None,
         #dtype=None,
         #dynamic=False,

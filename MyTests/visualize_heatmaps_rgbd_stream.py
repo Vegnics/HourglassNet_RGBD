@@ -155,15 +155,17 @@ def load_bboxes(fpath):
         jdata = json.load(file)
         return jdata["bboxes"]
     
-Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_1j",
+Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
                                             "HourglassModel": HourglassModel,
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom,
                                             "OverallMeanDistance":OverallMeanDistance,
-                                            "SoftargmaxMeanDist":SoftargmaxMeanDist})
-
+                                            "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
+Model.trainable = False
 print(Model)
+print(Model.get_config())
+Model.summary()
             
 
 LM_NAMES = ["00_rAnkle",

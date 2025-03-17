@@ -248,7 +248,7 @@ def tf_compute_bbox(coordinates: tf.Tensor,annotated: tf.Tensor, **kwargs) -> tf
 
 @tf.function
 def tf_expand_bbox(
-    bbox: tf.Tensor, image_shape: tf.Tensor, bbox_factor: float = 1.0, **kwargs
+    bbox: tf.Tensor, image_shape: tf.Tensor,randomw: float = 0.0, bbox_factor: float = 1.0, **kwargs
 ) -> tf.Tensor:
     """Expand a bounding box area by a given factor
 
@@ -275,7 +275,8 @@ def tf_expand_bbox(
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
 
     N = tf.maximum(height,width)
-    sqfactor = tf.random.uniform(shape=[],minval=0.05,maxval=0.26)
+    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06)
+
     bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
     bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
 

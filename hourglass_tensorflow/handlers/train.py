@@ -121,7 +121,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             #tds_card = int(train_dataset.cardinality().numpy())
             #vds_card = int(validation_dataset.cardinality().numpy())
             #print("CARDINALITY",tds_card,vds_card)
-            tds_card = 2400
+            tds_card = 100 #2400
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)

@@ -144,7 +144,7 @@ class HTFModelHandler(_HTFModelHandler):
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom,
                                             "OverallMeanDistance":OverallMeanDistance,
-                                            "SoftargmaxMeanDist":SoftargmaxMeanDist})
+                                            "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
                 
                 print(model.get_config())
                 #print(model.compile())

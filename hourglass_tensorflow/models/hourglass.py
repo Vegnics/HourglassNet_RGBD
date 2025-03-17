@@ -1,5 +1,6 @@
 import tensorflow as tf
 from keras.models import Model
+from tensorflow.keras.utils import register_keras_serializable
 
 from hourglass_tensorflow.types.config import HTFModelAsLayers
 from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
@@ -8,6 +9,7 @@ from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
 from hourglass_tensorflow.types.config.model import ATTENTION_MECHANISMS
 
+@register_keras_serializable(package="cHourglassModel")
 class HourglassModel(Model):
     def __init__(
         self,
@@ -28,6 +30,7 @@ class HourglassModel(Model):
         use_2jointHM: bool = False,
         use_kernel_regularization: bool = False,
         freeze_attention_weights: bool = False,
+        residual_nblocks: int = None,
         *args,
         **kwargs,
     )-> None:
@@ -48,6 +51,8 @@ class HourglassModel(Model):
         self.input_size = input_size
         self.output_size = output_size
         self.ndownsamplings = downsamplings_per_stage
+        self.residual_nblocks = residual_nblocks
+        self.trainable = trainable
             #dtype=dtype,
             #dynamic=dynamic,
             #*args,
@@ -107,21 +112,51 @@ class HourglassModel(Model):
         return "Yes" if val else "No"
 
     def build(self, input_shape = (None, 256, 256, 4)):
+        # Layers
+        self.downsampling = DownSamplingLayer(
+            input_size=self.input_size,
+            output_size=self.output_size,
+            kernel_size=7,
+            output_filters=self.stage_filters,
+            name="DownSampling",
+            residual_nblocks=self.residual_nblocks,
+            trainable=self.trainable,
+        )
+        self.hourglasses = [
+            HourglassLayer(
+                downsamplings=self.ndownsamplings,
+                feature_filters=self.stage_filters,
+                joint_filters_1J=self.channels_1J,
+                joint_filters_2J=self.channels_2J,
+                name=f"Hourglass{i+1}",
+                trainable=self.trainable,
+                intermed= True,
+                skip_attention = self.skip_AM,
+                s2f_attention = self.s2f_AM,
+                f2s_attention = self.f2s_AM,
+                use_2jointHM = self.use_2jointHM,
+                use_kernel_regularization=self.use_kernel_reg,
+                freeze_attention = self.freeze_attention,
+                residual_nblocks=self.residual_nblocks
+            )
+            for i in range(self.stages)
+        ]
+        super().build(input_shape) 
+        self.built = True
         # You can print the input shape to verify it
         print("---------Model configuration summary------------")
         print(f'Building model with input shape: {input_shape}')
+        print(f"Number of features: {self.stage_filters}")
+        print(f"Residual blocks: {self.residual_nblocks}")
         print(f"Attention mechanism in the Skip Layers: {self.skip_AM}")
         print(f"Attention mechanism in the S2F Layers (Bottom-up): {self.s2f_AM}")
         print(f"Attention mechanism in the F2S Layers (Top-down): {self.f2s_AM}")
         print(f"Use 2-Joint Heatmaps: {self._yes_no_str(self.use_2jointHM)}")
         print(f"Use kernel regularization: {self._yes_no_str(self.use_kernel_reg)}")
         print("------------------------------------------------")
-        # Optionally, you can use the input_shape to dynamically define layers
-        super(HourglassModel, self).build(input_shape)
 
     def call(self, inputs: tf.Tensor, training=True):
         x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))
-        #x = self.downsampling(inputs)
         outputs_list = []
         """
         for layer in self.hourglasses:
@@ -156,51 +191,21 @@ class HourglassModel(Model):
             "s2f_AM": self.s2f_AM,
             "f2s_AM": self.f2s_AM,
             "use_2jointHM": self.use_2jointHM,
+            "trainable": self.trainable,
             "use_kernel_regularization": self.use_kernel_reg,
             "freeze_attention_weights":self.freeze_attention,
-            "stage_filters":self.stage_filters
+            "stage_filters":self.stage_filters,
+            "residual_nblocks":self.residual_nblocks
             },
         }
 
     @classmethod
     def from_config(cls, config):
-        print("Restored Config [HOURGLASS MODEL]:", config)  # Debugging output
-        return cls(**config)
-
-    def build(self, input_shape):
-        # Layers
-        self.downsampling = DownSamplingLayer(
-            input_size=self.input_size,
-            output_size=self.output_size,
-            kernel_size=7,
-            output_filters=self.stage_filters,
-            name="DownSampling",
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=self.trainable,
-        )
-        self.hourglasses = [
-            HourglassLayer(
-                downsamplings=self.ndownsamplings,
-                feature_filters=self.stage_filters,
-                joint_filters_1J=self.channels_1J,
-                joint_filters_2J=self.channels_2J,
-                name=f"Hourglass{i+1}",
-                #dtype=dtype,
-                #dynamic=dynamic,
-                trainable=self.trainable,
-                intermed= True,
-                skip_attention = self.skip_AM,
-                s2f_attention = self.s2f_AM,
-                f2s_attention = self.f2s_AM,
-                use_2jointHM = self.use_2jointHM,
-                use_kernel_regularization=self.use_kernel_reg,
-                freeze_attention = self.freeze_attention
-            )
-            for i in range(self.stages)
-        ]
-        super().build(input_shape) 
-        self.built = True
+        instance = cls(**config)
+        instance.downsampling = None
+        instance.hourglasses = []
+        print("Restored Config [Hourglass Model]:", config)  # Debugging output
+        return instance
 
 
 

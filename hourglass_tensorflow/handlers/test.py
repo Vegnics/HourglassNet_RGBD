@@ -91,7 +91,8 @@ class HTFTestHandler(_HTFTestHandler):
         """
 
     def compile(self, model: Model, *args, **kwargs) -> None:
-        model.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss)
+        pass
+        #model.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss)
     
     def _apply_batch(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         if isinstance(dataset, tf.data.Dataset):
@@ -212,6 +213,8 @@ class HTFTestHandler(_HTFTestHandler):
             #batch_validation = validation_dataset.batch(150)#self._apply_batch(validation_dataset)
             batch_num = batch_test.__len__()
             print("BATCH INFO :", batch_num.numpy().tolist())
+            #model.build(input_shape=(None,256,256,1))
+            model.trainable = False
             model.summary()
 
             hm_scale = tf.constant(2.1269474)

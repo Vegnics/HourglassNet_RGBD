@@ -19,17 +19,19 @@ annotations_path = "data/htf_slp_dataset.ignore.json"
 # Related to the ground truth data
 n1joints = 14
 n2joints = 12
-use2joints = True
+use2joints = False
 heatmap_stddev =  1.1
 stddev_factor = 1.3
 
 # Related to the model and training
-model_name = "myModel_SLP_fAB10_2j"
+model_name = "myModel_SLP_fABC10_2j.keras"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
 epochs = 200
 batch_size = 20
 stages = 2
+stage_filters = 256
+residual_nblocks = 2
 
 #Related to the attention mechanisms
 skip_AM = "NoAM"
@@ -61,6 +63,8 @@ conf["model"]["params"]["skip_AM"] = skip_AM
 conf["model"]["params"]["s2f_AM"] = s2f_AM
 conf["model"]["params"]["f2s_AM"] = f2s_AM
 conf["model"]["params"]["stages"] = stages
+conf["model"]["params"]["stage_filters"] = stage_filters
+conf["model"]["params"]["residual_nblocks"] = residual_nblocks
 
 
 conf["train"]["epochs"] = epochs

@@ -1,12 +1,12 @@
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
-
-from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
+from keras.activations import swish
 from tensorflow.keras.utils import register_keras_serializable
 
-@register_keras_serializable(package="lConvBNRelu")
-class ConvBatchNormReluLayer(Layer):
+
+@register_keras_serializable(package="lLinearProj")
+class LinearProjection(Layer):
     """
     This layer performs 2D convolution, Batch Normalization, and ReLU.
     """
@@ -18,12 +18,9 @@ class ConvBatchNormReluLayer(Layer):
         padding: str = "same",
         activation: str = None,
         kernel_initializer: str = "glorot_uniform",
-        momentum: float = 0.9,
-        epsilon: float = 0.001,
+        outmax: float = None,
         name: str = None,
         trainable: bool = True,
-        use_relu: bool = True,
-        normalized: bool = True,
     ) -> None:
         super().__init__(name=name, trainable=trainable)
         # Store config
@@ -33,26 +30,9 @@ class ConvBatchNormReluLayer(Layer):
         self.padding = padding
         self.activation = activation
         self.kernel_initializer = kernel_initializer
-        self.momentum = momentum
-        self.epsilon = epsilon
-        self.use_relu = use_relu
-        self.normalized = normalized
-        
+        self.outmax = outmax
         # Create layers
-        self.batch_norm = None
         self.conv = None
-        self.relu = None
-        
-        #self.conv_in = layers.Conv2D(
-        #    filters=4,
-        #    kernel_size=1,
-        #    strides=1,
-        #    padding="same",
-        #    name="Conv2DIn",
-        #    activation=None,
-        #    kernel_initializer="glorot_uniform",
-        #)
-
     def get_config(self):
         return {
             **super().get_config(),
@@ -63,29 +43,21 @@ class ConvBatchNormReluLayer(Layer):
                 "padding": self.padding,
                 "activation": self.activation,
                 "kernel_initializer": self.kernel_initializer,
-                "momentum": self.momentum,
-                "epsilon": self.epsilon,
+                "outmax": self.outmax
             },
         }
 
-    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        # Could it be CONV-> RELU -> BATCH NORM
-        #x = self.conv_in(inputs)
-        x = self.conv(inputs)
-        x = self.batch_norm(x, training=training)
-        x = self.relu(x)
+    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
+        # 我的Method
+        #x = self.batch_norm(inputs,training=training)
+        #x = self.conv(x)
+        #return self.relu(x)
+        #
+        x = self.conv(inputs)     
         return x
-    
+
     def build(self, input_shape):
         print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
-        self.batch_norm = layers.BatchNormalization(
-            axis=-1,
-            momentum=self.momentum,
-            epsilon=self.epsilon,
-            trainable=self.trainable,
-            name="BatchNorm",
-        ) if self.normalized else lambda x,**y:x
-        
         self.conv = layers.Conv2D(
             filters=self.filters,
             kernel_size=self.kernel_size,
@@ -95,16 +67,10 @@ class ConvBatchNormReluLayer(Layer):
             activation=self.activation,
             kernel_initializer=self.kernel_initializer,
         )
-        self.relu = layers.ReLU(
-            name="ReLU_identity",
-        ) if self.use_relu else IdentityLayer(name="ReLU_identity")
-        super().build(input_shape)
+        super().build(input_shape) 
         self.built = True
-
     @classmethod
     def from_config(cls, config):
-        instance = cls(**config)
-        instance.batch_norm = None
+        instance =  cls(**config)
         instance.conv = None
-        instance.relu = None
         return instance

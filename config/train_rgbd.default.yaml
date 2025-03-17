@@ -90,7 +90,7 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 0.000001
+    ratio_test: 0.025
     ratio_train: 0.75
     ratio_validation: 0.21
   bbox:
@@ -122,6 +122,7 @@ model:
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
+    residual_nblocks: 2 
   #load_model: true
   #model_path: "data/model_t/myModel_SLP_fAB4_2j"
 

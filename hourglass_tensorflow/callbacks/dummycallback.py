@@ -55,7 +55,7 @@ class DummyCallback(Callback):
             #self.model.trainable = False  # Set to inference mode (no training layers active)
             print("LOADING DUMMY MODEL")
             cfgmodel = self.model.get_config()
-            print(cfgmodel)
+            #print(cfgmodel)
             #dummymodel = keras.models.clone_model(self.model)  # Ensure identical structure
             #dummymodel = HourglassModel(**cfgmodel)
             #dummymodel.build((None, 256, 256, 1))

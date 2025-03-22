@@ -1,7 +1,9 @@
 import tensorflow as tf
 import numpy as np
+from keras.callbacks import Callback
+import keras
 
-class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
+class MetricReduceLROnPlateau(Callback):
     def __init__(self, monitor='val_accuracy', factor=0.5, patience=5, min_lr=1e-6, verbose=1):
         super(MetricReduceLROnPlateau, self).__init__()
         self.monitor = monitor  # The metric you want to monitor
@@ -41,7 +43,8 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
             self.wait += 1
             if self.wait >= self.patience:
                 # Reduce the learning rate if the metric hasn't improved
-                old_lr = np.float32(float(tf.keras.backend.get_value(self.model.optimizer.learning_rate)))
+                old_lr =  np.float32(self.model.optimizer.learning_rate.numpy())
+                #np.float32(float(keras.backend.get_value(self.model.optimizer.learning_rate)))
                 new_lr = np.float32(max(old_lr * self.factor, self.min_lr))
                 
                 if old_lr > new_lr:  # Only update if the new LR is lower
@@ -51,7 +54,8 @@ class MetricReduceLROnPlateau(tf.keras.callbacks.Callback):
                         print(f"\nEpoch {epoch+1}: {self.monitor} did not improve. Reducing learning rate to {new_lr}.")
                     self.lr_reduced = True
                 self.wait = 0  # Reset wait counter
-        logs['LR'] = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
+        #logs['LR'] = float(keras.backend.get_value(self.model.optimizer.learning_rate))
+        logs['LR'] = np.float32(self.model.optimizer.learning_rate.numpy())
 
     def on_train_begin(self, logs=None):
         # Initialization of the best metric value

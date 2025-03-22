@@ -1,6 +1,6 @@
 import tensorflow as tf
 import keras.metrics
-
+from keras.utils import register_keras_serializable
 from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax, tf_batch_matrix_softargmax
 
 def softargmax_2d(heatmap):
@@ -90,6 +90,7 @@ class SoftargmaxMeanDist(keras.metrics.Metric):
         self.cum_mean_distance.assign(0)
         self.count.assign(0)
 
+@register_keras_serializable(package="mymetrics")
 class OverallMeanDistance(keras.metrics.Metric):
     def __init__(
         self, name=None, dtype=None, intermediate_supervision: bool = True, num_1joints: int = 16, **kwargs

@@ -1,18 +1,17 @@
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
-from tensorflow.keras.utils import register_keras_serializable
+from keras.saving import register_keras_serializable
+
 
 from hourglass_tensorflow.layers.residual import ResidualLayer,ResidualLayerIn
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer
-#from hourglass_tensorflow.layers.residual_input import ResidualLayerIn
-#from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
-#from hourglass_tensorflow.layers.hm_output import HMOut
 from hourglass_tensorflow.layers.linear_projection import LinearProjection
 #from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
 from hourglass_tensorflow.layers.residual_with_attention import ResidualLayerAttention
 from hourglass_tensorflow.layers.residual_with_attention_spatial import ResidualLayerAttentionSpatial
 
+@register_keras_serializable(package="lHourglass")
 def generate_residual_layer(layer_type: str ,
                             feature_filters: int ,
                             nblocks: int,
@@ -20,6 +19,14 @@ def generate_residual_layer(layer_type: str ,
                             trainable = True,
                             kernel_reg = False,
                             freeze_attention=False):
+        return  ResidualLayer(
+                output_filters= feature_filters,
+                nblocks = nblocks,
+                name=name,
+                trainable=trainable,
+                use_last_relu=False,
+                attentionType=layer_type)
+        """
         #print("Feature filters",feature_filters)
         if layer_type == "NoAM":
             return  ResidualLayer(
@@ -45,7 +52,7 @@ def generate_residual_layer(layer_type: str ,
                 freeze_attention=freeze_attention)
         else:
             raise Exception(f"The residual layer type: {layer_type} is invalid.")
-
+        """
 
 
 @register_keras_serializable(package="lHourglass")
@@ -60,46 +67,22 @@ class ResidualWithBNRC(Layer):
         name: str = None,
         trainable: bool = True,
         attention: str = None,
+        **kwargs
     ) -> None:
-        super().__init__(name=name, trainable=trainable)
+        super().__init__(name=name, trainable=trainable,**kwargs)
         # Store Config
         self.feature_filters = output_filters
         self.attention = attention
-        self.trainable = trainable
         self.nblocks = nblocks
         self.kernel_initializer = kernel_initializer
         self.momentum = momentum
         self.epsilon = epsilon
-        self.trainable = trainable
 
-        self.conv = None
-        self.batch_norm = None
-        self.relu = None
-        self.residual1 = None
-    
-    def get_config(self):
-        return {
-            **super().get_config(),
-            **{
-                "output_filters": self.feature_filters,
-                "nblocks": self.nblocks,
-                "attention": self.attention,
-                "trainable": self.trainable,
-                "momentum": self.momentum,
-                "epsilon": self.epsilon,
-                "kernel_initializer": self.kernel_initializer
-            },
-        }
-    
-    def call(self,inputs, training=True):
-        x = self.residual1(inputs, training=training)
-        x = self.batch_norm(x, training=training)
-        x = self.relu(x)
-        x = self.conv(x)
-        return x
-    
-    def build(self, input_shape):
-        print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
+        #self.conv = None
+        #self.batch_norm = None
+        #self.relu = None
+        #self.residual1 = None
+
         self.conv = layers.Conv2D(
             filters=self.feature_filters,
             kernel_size=1,
@@ -114,7 +97,7 @@ class ResidualWithBNRC(Layer):
             axis=-1,
             momentum=self.momentum,
             epsilon=self.epsilon,
-            trainable=self.trainable,
+            trainable=trainable,
             name="BatchNorm",
         ) 
 
@@ -125,24 +108,44 @@ class ResidualWithBNRC(Layer):
                                                 feature_filters=self.feature_filters,
                                                 nblocks = self.nblocks,
                                                 name="Residual",
-                                                trainable=self.trainable,)
+                                                trainable=trainable,)
+    
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "output_filters": self.feature_filters,
+                "nblocks": self.nblocks,
+                "attention": self.attention,
+                "momentum": self.momentum,
+                "epsilon": self.epsilon,
+                "kernel_initializer": self.kernel_initializer
+            },
+        }
+    
+    def call(self,inputs, training=True):
+        x = self.residual1(inputs, training=training)
+        x = self.batch_norm(x, training=training)
+        x = self.relu(x)
+        x = self.conv(x)
+        return x
+    
+    def build(self, input_shape):
+        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         super().build(input_shape)
     
+    """
     @classmethod
     def from_config(cls, config):
         instance = cls(**config)
-        instance.conv = None
-        instance.batch_norm = None
-        instance.relu = None
-        instance.residual1 = None
         return instance
+    """
 
 @register_keras_serializable(package="lHourglass") 
 class HourglassLayer(Layer):
     def __init__(
         self,
         feature_filters: int = 256,# Number of feature maps
-        in_feature_size: int = 64,
         joint_filters_1J: int = 16,  # Number of 1-joint heatmaps
         joint_filters_2J: int = 16,  # Number of 2-joint heatmaps
         downsamplings: int = 4,    # Number of Downsamplings and upsamplings. 
@@ -155,15 +158,15 @@ class HourglassLayer(Layer):
         f2s_attention: str = None,
         use_kernel_regularization: bool = False,
         residual_nblocks: int = None,
-        freeze_attention: bool = False
+        freeze_attention: bool = False,
+        **kwargs
     ) -> None:
-        super().__init__(name=name, trainable=trainable)
+        super().__init__(name=name, trainable=trainable,**kwargs)
         self.downsamplings = downsamplings
         self.feature_filters = feature_filters
         self.joint_filters_1J= joint_filters_1J
         self.joint_filters_2J= joint_filters_2J
         self.intermed = intermed
-        self.trainable = trainable
         self.skip_att = skip_attention
         self.s2f_att = s2f_attention
         self.f2s_att = f2s_attention
@@ -171,10 +174,11 @@ class HourglassLayer(Layer):
         self.use_2jointHM = use_2jointHM
         self.freeze_attention = freeze_attention
         self.residual_nblocks = residual_nblocks
-        self.in_feature_size = in_feature_size
+        #self.in_feature_size = in_feature_size
         # Store Config
         #print("Hourglass filters",self.feature_filters)
         # Init parameters
+        """
         self.layer_list = [{} for i in range(self.downsamplings)]
         self.hm1_output = None
         self.hm2_output = None
@@ -183,6 +187,151 @@ class HourglassLayer(Layer):
         self.merge_feats_main = None
         self.merge_feats_1j = None
         self.residual_brc = None
+        """
+        
+        #self.layer_list = [{} for i in range(self.downsamplings)]
+        # Create Layers
+        #ConvBatchNormReluLayer
+        self.hm1_output = LinearProjection(
+            # Layer for heatmaps output.
+            filters=self.joint_filters_1J, #output_filters
+            kernel_size=1,
+            name="HeatmapOutput",
+            trainable=trainable,
+            outmax=None,
+        )
+
+        self.hm2_output = LinearProjection(
+            # Layer for heatmaps output.
+            filters=self.joint_filters_2J,#14,
+            kernel_size=1,
+            name="Heatmap2Output",
+            trainable=trainable,
+            outmax=None,
+        ) if self.use_2jointHM else zeroLayer(self.joint_filters_2J,name="Heatmap2Output")
+
+        self.features_hm2 = LinearProjection(
+            # Layer for projecting the 2J heatmaps into the feature space.
+            filters=self.feature_filters,
+            kernel_size=1,
+            name="Heatmap2Features",
+            trainable=trainable,
+            outmax=None,
+        ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Heatmap2Features")
+
+        self.residual_2j = ResidualLayer(output_filters=self.feature_filters,
+                                           nblocks=self.residual_nblocks,
+                                            name="Transit_Output",
+                                            trainable=trainable,
+                                            epsilon=0.001,
+                                            momentum=0.97,
+                                            attentionType="NoAM",
+        ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Transit_Output")
+        
+        #self.in_feature_size = in_feature_size
+        self.merge_feats_main = LinearProjection(filters=self.feature_filters,
+                                            kernel_size=1,
+                                            name="Merge_Feats_main",
+                                            trainable=trainable,
+        )
+
+        self.merge_feats_1j = LinearProjection(filters=self.feature_filters,
+                                            kernel_size=1,
+                                            name="Merge_Feats_1J",
+                                            trainable=trainable,
+        )
+
+        self.residual_brc = ResidualWithBNRC(
+                    output_filters=self.feature_filters,
+                    nblocks=self.residual_nblocks,
+                    name=f"ResidualWithBNRC",
+                    trainable=trainable,
+                    attention= "NoAM"
+                )
+        
+        self.layer_list = {}
+        for i in range(self.downsamplings):
+            _downsampl = {}
+            _downsampl["up_1"] = generate_residual_layer(layer_type=self.skip_att,
+                                                           feature_filters=self.feature_filters,
+                                                           nblocks=self.residual_nblocks,
+                                                           name=f"Step{i}_ResidualUp1",
+                                                           trainable=trainable,
+                                                           kernel_reg=self.use_kernel_reg,
+                                                           freeze_attention=self.freeze_attention)
+            self.__setattr__(f"dstep_{i}_up_1", _downsampl["up_1"])
+            
+            _downsampl["low_"] = layers.MaxPool2D(
+                pool_size=(2, 2),
+                padding="valid",
+                name=f"Step{i}_MaxPool",
+                trainable=trainable,
+            )
+            self.__setattr__(f"dstep_{i}_low_", _downsampl["low_"])
+
+            _downsampl["low_1"] = generate_residual_layer(layer_type=self.s2f_att,
+                                                            feature_filters=self.feature_filters,
+                                                            nblocks=self.residual_nblocks,
+                                                            name=f"Step{i}_ResidualLow1",
+                                                            trainable=trainable,
+                                                            kernel_reg=self.use_kernel_reg,
+                                                           freeze_attention=self.freeze_attention)
+            self.__setattr__(f"dstep_{i}_low_1", _downsampl["low_1"])
+
+            if i == 0:
+                _downsampl["low_2"] = generate_residual_layer(layer_type= "NoAM", #self.s2f_att,
+                                                                feature_filters=self.feature_filters,
+                                                                nblocks=self.residual_nblocks,
+                                                                name=f"Step{i}_ResidualLow2",
+                                                                trainable=trainable,
+                                                                kernel_reg=self.use_kernel_reg,
+                                                                freeze_attention=self.freeze_attention)
+                self.__setattr__(f"dstep_{i}_low_2", _downsampl["low_2"])
+            """
+            elif i == 3:
+                downsampling["low_in"] =  generate_residual_layer(layer_type=self.s2f_att,
+                                                                  feature_filters=self.feature_filters,
+                                                                  name=f"Step{i}_ResidualMainIn",
+                                                                  trainable=self.trainable,
+                                                                  kernel_reg=self.use_kernel_reg,
+                                                           freeze_attention=self.freeze_attention)
+                
+                downsampling["low_out"] = generate_residual_layer(layer_type=self.f2s_att,
+                                                            feature_filters=self.feature_filters,
+                                                            name=f"Step{i}_ResidualMainOut",
+                                                            trainable=self.trainable,
+                                                            kernel_reg=self.use_kernel_reg,
+                                                           freeze_attention=self.freeze_attention)
+            """
+            _downsampl["low_3"] = generate_residual_layer(layer_type=self.f2s_att,
+                                                            feature_filters=self.feature_filters,
+                                                            nblocks=self.residual_nblocks,
+                                                            name=f"Step{i}_ResidualLow3",
+                                                            trainable=trainable,
+                                                            kernel_reg=self.use_kernel_reg,
+                                                           freeze_attention=self.freeze_attention)
+            self.__setattr__(f"dstep_{i}_low_3", _downsampl["low_3"])
+
+            _downsampl["up_2"] = layers.UpSampling2D(
+                size=(2, 2),
+                data_format=None,
+                interpolation= "nearest", #"nearest",
+                name=f"Step{i}_UpSampling2D",
+                trainable=trainable,
+            )
+            self.__setattr__(f"dstep_{i}_up_2", _downsampl["up_2"])
+
+            _downsampl["out"] = layers.Add(
+                name=f"Step{i}_Add",
+                trainable=trainable,
+            )
+            self.__setattr__(f"dstep_{i}_out", _downsampl["out"])
+
+            self.layer_list[f"STEP_{i}"] = dict(_downsampl)
+
+        # endregion
+    
+    
     def get_config(self):
         return {
             **super().get_config(),
@@ -199,12 +348,11 @@ class HourglassLayer(Layer):
                 "freeze_attention":self.freeze_attention,
                 "use_2jointHM": self.use_2jointHM,
                 "residual_nblocks":self.residual_nblocks,
-                "in_feature_size":self.in_feature_size
             },
         }
         
     def _recursive_call(self, input_tensor, step, training=True):
-        step_layers = self.layer_list[step]
+        step_layers = self.layer_list[f"STEP_{step}"]#self.layer_list[step]
         _input = input_tensor
         #_input = step_layers["low_in"](_input, training=training) if step == 3 else input_tensor
         #if step == 3:
@@ -227,7 +375,7 @@ class HourglassLayer(Layer):
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        _x = self.residual_brc(_x)
+        _x = self.residual_brc(_x,training=training)
         main_feats = self.merge_feats_main(_x)
         intermediate_2jhms = self.hm2_output(_x,training=training)
         features_2jhms = self.features_hm2(intermediate_2jhms) 
@@ -247,138 +395,13 @@ class HourglassLayer(Layer):
         
         return out_tensor, tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
     def build(self, input_shape):
-        print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
-        # Create Layers
-        #ConvBatchNormReluLayer
-        self.hm1_output = LinearProjection(
-            # Layer for heatmaps output.
-            filters=self.joint_filters_1J, #output_filters
-            kernel_size=1,
-            name="HeatmapOutput",
-            trainable=self.trainable,
-            outmax=None,
-        )
-
-        self.hm2_output = LinearProjection(
-            # Layer for heatmaps output.
-            filters=self.joint_filters_2J,#14,
-            kernel_size=1,
-            name="Heatmap2Output",
-            trainable=self.trainable,
-            outmax=None,
-        ) if self.use_2jointHM else zeroLayer(self.joint_filters_2J,name="Heatmap2Output")
-
-        self.features_hm2 = LinearProjection(
-            # Layer for projecting the 2J heatmaps into the feature space.
-            filters=self.feature_filters,
-            kernel_size=1,
-            name="Heatmap2Features",
-            trainable=self.trainable,
-            outmax=None,
-        ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Heatmap2Features")
-
-        self.residual_2j = ResidualLayer(output_filters=self.feature_filters,
-                                           nblocks=self.residual_nblocks,
-                                            name="Transit_Output",
-                                            trainable=self.trainable,
-                                            epsilon=0.001,
-                                            momentum=0.97,
-        ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Transit_Output")
-        
-        self.merge_feats_main = LinearProjection(filters=self.feature_filters,
-                                            kernel_size=1,
-                                            name="Merge_Feats_main",
-                                            trainable=self.trainable,
-        )
-
-        self.merge_feats_1j = LinearProjection(filters=self.feature_filters,
-                                            kernel_size=1,
-                                            name="Merge_Feats_1J",
-                                            trainable=self.trainable,
-        )
-
-        self.residual_brc = ResidualWithBNRC(
-                    output_filters=self.feature_filters,
-                    nblocks=self.residual_nblocks,
-                    name=f"ResidualWithBNRC",
-                    trainable=self.trainable,
-                    attention= "NoAM"
-                )
-        
-        for i, downsampling in enumerate(self.layer_list):
-            downsampling["up_1"] = generate_residual_layer(layer_type=self.skip_att,
-                                                           feature_filters=self.feature_filters,
-                                                           nblocks=self.residual_nblocks,
-                                                           name=f"Step{i}_ResidualUp1",
-                                                           trainable=self.trainable,
-                                                           kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention)
-            downsampling["low_"] = layers.MaxPool2D(
-                pool_size=(2, 2),
-                padding="valid",
-                name=f"Step{i}_MaxPool",
-                trainable=self.trainable,
-            )
-            downsampling["low_1"] = generate_residual_layer(layer_type=self.s2f_att,
-                                                            feature_filters=self.feature_filters,
-                                                            nblocks=self.residual_nblocks,
-                                                            name=f"Step{i}_ResidualLow1",
-                                                            trainable=self.trainable,
-                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention)
-
-            if i == 0:
-                downsampling["low_2"] = generate_residual_layer(layer_type= "NoAM", #self.s2f_att,
-                                                                feature_filters=self.feature_filters,
-                                                                nblocks=self.residual_nblocks,
-                                                                name=f"Step{i}_ResidualLow2",
-                                                                trainable=self.trainable,
-                                                                kernel_reg=self.use_kernel_reg,
-                                                                freeze_attention=self.freeze_attention)
-            """
-            elif i == 3:
-                downsampling["low_in"] =  generate_residual_layer(layer_type=self.s2f_att,
-                                                                  feature_filters=self.feature_filters,
-                                                                  name=f"Step{i}_ResidualMainIn",
-                                                                  trainable=self.trainable,
-                                                                  kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention)
-                
-                downsampling["low_out"] = generate_residual_layer(layer_type=self.f2s_att,
-                                                            feature_filters=self.feature_filters,
-                                                            name=f"Step{i}_ResidualMainOut",
-                                                            trainable=self.trainable,
-                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention)
-            """
-            downsampling["low_3"] = generate_residual_layer(layer_type=self.f2s_att,
-                                                            feature_filters=self.feature_filters,
-                                                            nblocks=self.residual_nblocks,
-                                                            name=f"Step{i}_ResidualLow3",
-                                                            trainable=self.trainable,
-                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention)
-            downsampling["up_2"] = layers.UpSampling2D(
-                size=(2, 2),
-                data_format=None,
-                interpolation= "nearest", #"nearest",
-                name=f"Step{i}_UpSampling2D",
-                trainable=self.trainable,
-            )
-            downsampling["out"] = layers.Add(
-                name=f"Step{i}_Add",
-                trainable=self.trainable,
-            )
-        # endregion
+        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
+        #print("CONFIG: ", self.get_config())
         super().build(input_shape) 
 
+    """
     @classmethod
-    def from_config(cls, config):    
-        print("Restored Config:", config)  # Debugging output
-        nfeatures = config["feature_filters"]
-        feat_size = config["in_feature_size"]
-        instance = cls(**config)  # Correctly restores the layer
-        # Ensure layer is properly initialized by calling it once
-        dummy_input = tf.zeros((1, feat_size, feat_size,nfeatures))  # Adjust shape as needed
-        instance(dummy_input, training=False)  # This will trigger build()
+    def from_config(cls, config):
+        instance = cls(**config)
         return instance
+    """

@@ -2,13 +2,13 @@ import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
 from keras.activations import swish
-from tensorflow.keras.utils import register_keras_serializable
+from keras.saving import register_keras_serializable
 
 
 @register_keras_serializable(package="lLinearProj")
 class LinearProjection(Layer):
     """
-    This layer performs 2D convolution, Batch Normalization, and ReLU.
+    This layer performs 2D convolution
     """
     def __init__(
         self,
@@ -21,8 +21,9 @@ class LinearProjection(Layer):
         outmax: float = None,
         name: str = None,
         trainable: bool = True,
+        **kwargs
     ) -> None:
-        super().__init__(name=name, trainable=trainable)
+        super().__init__(name=name, trainable=trainable,**kwargs)
         # Store config
         self.filters = filters
         self.kernel_size = kernel_size
@@ -32,7 +33,17 @@ class LinearProjection(Layer):
         self.kernel_initializer = kernel_initializer
         self.outmax = outmax
         # Create layers
-        self.conv = None
+        #self.conv = None
+        self.conv = layers.Conv2D(
+            filters=self.filters,
+            kernel_size=self.kernel_size,
+            strides=self.strides,
+            padding=self.padding,
+            name="Conv2D",
+            activation=self.activation,
+            kernel_initializer=self.kernel_initializer,
+            trainable=trainable,
+        )
     def get_config(self):
         return {
             **super().get_config(),
@@ -57,20 +68,13 @@ class LinearProjection(Layer):
         return x
 
     def build(self, input_shape):
-        print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
-        self.conv = layers.Conv2D(
-            filters=self.filters,
-            kernel_size=self.kernel_size,
-            strides=self.strides,
-            padding=self.padding,
-            name="Conv2D",
-            activation=self.activation,
-            kernel_initializer=self.kernel_initializer,
-        )
+        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         super().build(input_shape) 
         self.built = True
+    
+    """
     @classmethod
     def from_config(cls, config):
-        instance =  cls(**config)
-        instance.conv = None
+        instance = cls(**config)
         return instance
+    """

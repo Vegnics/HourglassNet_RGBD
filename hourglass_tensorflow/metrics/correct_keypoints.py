@@ -1,7 +1,7 @@
 import tensorflow as tf
 from keras.metrics import Metric
 from typing import Tuple
-
+from keras.utils import register_keras_serializable
 from hourglass_tensorflow.utils.tf import tf_dynamic_matrix_argmax,tf_batch_matrix_softargmax
 
 
@@ -96,6 +96,8 @@ class RatioCorrectKeypoints(Metric):
         self.total_keypoints.assign(0.0)
 
 
+
+@register_keras_serializable(package="mymetrics")
 class PercentageOfCorrectKeypoints(Metric):
     """PercentageOfCorrectKeypoints metric measures if predicted keypoint and true joint are within a distance threshold
 

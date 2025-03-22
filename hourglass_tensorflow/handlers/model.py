@@ -8,7 +8,7 @@ import inspect
 
 
 from hourglass_tensorflow.utils import BadConfigurationError
-from hourglass_tensorflow.models import HourglassModel
+from hourglass_tensorflow.models import HourglassModel,build_hourglassModel
 from hourglass_tensorflow.models import model_as_layers
 from hourglass_tensorflow.types.config import HTFModelConfig
 from hourglass_tensorflow.types.config import HTFModelParams
@@ -37,7 +37,7 @@ class _HTFModelHandler(_HTFHandler):
         self._model: keras.models.Model = None
 
         # ADDED JUST FOR TESTING CONSISTENCY AFTER LOADING A MODEL
-        self._dummy_model: keras.models.Model = None
+        #self._dummy_model: keras.models.Model = None
 
 
     @property
@@ -54,7 +54,6 @@ class _HTFModelHandler(_HTFHandler):
                 "inputs": self._input,
                 "outputs": self._output,
                 "model": self._model,
-                "dummy": self._dummy_model,
             }
         else:
             self.warning(
@@ -85,7 +84,6 @@ class HTFModelHandler(_HTFModelHandler):
                 "inputs": self._input,
                 "outputs": self._output,
                 "model": self._model,
-                "dummy": self._dummy_model,
                 "layers": self._layered_model,
             }
         else:
@@ -106,8 +104,9 @@ class HTFModelHandler(_HTFModelHandler):
         return self._input
 
     def _build_model_as_model(self, *args, **kwargs) -> HourglassModel:
-        self._model = HourglassModel(**self.params.model_dump())
-        self._dummy_model = HourglassModel(**self.params.model_dump())
+        hgmodel = HourglassModel(**self.params.model_dump())
+        self._model = hgmodel.wrap_model()
+        #self._dummy_model = HourglassModel(**self.params.model_dump())
         self._layered_model = {}
         return self._model
 
@@ -127,8 +126,8 @@ class HTFModelHandler(_HTFModelHandler):
                 print(f"Generating new model from scratch")
                 #model = self._build_model_as_model()
                 model = self._build_model_as_model(*args, **kwargs)
-                print(model.get_config())
-                print(model.stages,model.channels_1J,model.channels_2J)
+                #print(model.get_config())
+                #print(model.stages,model.channels_1J,model.channels_2J)
                 #custom_objects = {name: obj for name, obj in inspect.getmembers(hourglass_tensorflow.layers, inspect.isclass) if issubclass(obj, tf.keras.layers.Layer)}
                 #print(custom_objects)
             else:

@@ -1,0 +1,1 @@
+from hourglass_tensorflow.utils.loaders.weight_loader import recursive_weight_transfer 

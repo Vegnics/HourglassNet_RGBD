@@ -1,13 +1,30 @@
+from os import name
 import tensorflow as tf
 from keras.models import Model
-from tensorflow.keras.utils import register_keras_serializable
-
+from keras.utils import register_keras_serializable
+from keras.layers import Lambda,Layer
+from typing import List
+from keras import Input as InputTensor
 from hourglass_tensorflow.types.config import HTFModelAsLayers
 from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
-#from hourglass_tensorflow.layers.hourglass import HourglassLayer
-#from hourglass_tensorflow.layers.hourglass_mod import HourglassLayerLast
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
+from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
 from hourglass_tensorflow.types.config.model import ATTENTION_MECHANISMS
+
+@register_keras_serializable(package="cHourglassModel")
+class stack_tensors_layer(Layer):
+    def __init__(
+        self,
+        name: str = None,
+        trainable: bool = False,
+        **kwargs,
+    )-> None:
+        super().__init__(name=name, trainable=trainable,**kwargs)
+    def call(self, inputs: List[tf.Tensor], training=True):
+        return tf.stack(inputs, axis=1)
+    def build(self, input_shape):
+        super().build(input_shape)
+    
 
 @register_keras_serializable(package="cHourglassModel")
 class HourglassModel(Model):
@@ -59,60 +76,6 @@ class HourglassModel(Model):
             #**kwargs,
         #)
         # Layers
-        self.downsampling = None
-        """
-        DownSamplingLayer(
-            input_size=input_size,
-            output_size=output_size,
-            kernel_size=7,
-            output_filters=stage_filters,
-            name="DownSampling",
-            #dtype=dtype,
-            #dynamic=dynamic,
-            trainable=trainable,
-        )
-        """
-        self.hourglasses = []
-        """
-            HourglassLayer(
-                downsamplings=downsamplings_per_stage,
-                feature_filters=stage_filters,
-                joint_filters_1J=channels_1joint,
-                joint_filters_2J=channels_2joint,
-                name=f"Hourglass{i+1}",
-                #dtype=dtype,
-                #dynamic=dynamic,
-                trainable=trainable,
-                intermed= True,
-                skip_attention = self.skip_AM,
-                s2f_attention = self.s2f_AM,
-                f2s_attention = self.f2s_AM,
-                use_2jointHM = self.use_2jointHM,
-                use_kernel_regularization=self.use_kernel_reg,
-                freeze_attention = self.freeze_attention
-            )
-            for i in range(stages)
-        ]
-        """
-        """
-        self.hourglasses.append(HourglassLayerLast(
-                downsamplings=downsamplings_per_stage,
-                feature_filters=stage_filters,
-                output_filters=output_channels,
-                name=f"Hourglass_LAST",
-                dtype=dtype,
-                dynamic=dynamic,
-                trainable=trainable,
-                intermed= False 
-            )
-        )
-        """
-
-    def _yes_no_str(self,val: bool):
-        return "Yes" if val else "No"
-
-    def build(self, input_shape = (None, 256, 256, 4)):
-        # Layers
         self.downsampling = DownSamplingLayer(
             input_size=self.input_size,
             output_size=self.output_size,
@@ -141,6 +104,26 @@ class HourglassModel(Model):
             )
             for i in range(self.stages)
         ]
+        self.stacker = stack_tensors_layer(name="StackedOutput",trainable=False)
+    def _yes_no_str(self,val: bool):
+        return "Yes" if val else "No"
+    
+    def wrap_model(self):
+        inputs = InputTensor(shape=(256, 256, 1))
+        outputs = self.call(inputs)
+        wrapped = Model(inputs, outputs,name="FunctionalHourglassModel")
+        wrapped.core = self
+        original_get_config = wrapped.get_config
+        def merged_get_config():
+            config = original_get_config()
+            config["core_config"] = self.get_config()
+            return config
+
+        wrapped.get_config = merged_get_config
+        return wrapped
+
+
+    def build(self, input_shape = (None, 256, 256, 4)):
         super().build(input_shape) 
         self.built = True
         # You can print the input shape to verify it
@@ -156,7 +139,8 @@ class HourglassModel(Model):
         print("------------------------------------------------")
 
     def call(self, inputs: tf.Tensor, training=True):
-        x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))
+        #x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))
+        x = self.downsampling(inputs,training=training)
         outputs_list = []
         """
         for layer in self.hourglasses:
@@ -172,8 +156,10 @@ class HourglassModel(Model):
         for hglayer in self.hourglasses:
             x, y = hglayer(x) # x is the output features, y is the intermediate output heatmaps
             outputs_list.append(y)
-        self._outputs = tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
-        return self._outputs
+        
+        outputs = self.stacker(outputs_list)
+        #tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
+        return outputs #self._outputs
     
     def get_config(self):
         return {
@@ -198,15 +184,79 @@ class HourglassModel(Model):
             "residual_nblocks":self.residual_nblocks
             },
         }
-
+    """
     @classmethod
     def from_config(cls, config):
         instance = cls(**config)
-        instance.downsampling = None
-        instance.hourglasses = []
         print("Restored Config [Hourglass Model]:", config)  # Debugging output
         return instance
+    """
 
+def build_hourglassModel(
+        input_size: int = 256,
+        output_size: int = 64,
+        stages: int = 4,
+        channel_number: int = 3,
+        downsamplings_per_stage: int = 4,
+        stage_filters: int = 256,
+        channels_1joint: int = 16,
+        channels_2joint: int = 16,
+        intermediate_supervision: bool = True,
+        name: str = None,
+        trainable: bool = True,
+        skip_AM: ATTENTION_MECHANISMS = "NoAM",
+        s2f_AM: ATTENTION_MECHANISMS = "NoAM",
+        f2s_AM: ATTENTION_MECHANISMS = "NoAM",
+        use_2jointHM: bool = False,
+        use_kernel_regularization: bool = False,
+        freeze_attention_weights: bool = False,
+        residual_nblocks: int = None,
+        ):
+    
+    input_shape=(input_size,input_size, channel_number)
+    downsampling = DownSamplingLayer(
+            input_size=input_size,
+            output_size=output_size,
+            kernel_size=7,
+            output_filters=stage_filters,
+            name="DownSampling",
+            residual_nblocks=residual_nblocks,
+            trainable=trainable,
+        )
+    hourglasses = [
+            HourglassLayer(
+                downsamplings=downsamplings_per_stage,
+                feature_filters=stage_filters,
+                joint_filters_1J=channels_1joint,
+                joint_filters_2J=channels_2joint,
+                name=f"Hourglass{i+1}",
+                trainable=trainable,
+                intermed= True,
+                skip_attention = skip_AM,
+                s2f_attention = s2f_AM,
+                f2s_attention = f2s_AM,
+                use_2jointHM = use_2jointHM,
+                use_kernel_regularization=use_kernel_regularization,
+                freeze_attention = freeze_attention_weights,
+                residual_nblocks= residual_nblocks
+            )
+            for i in range(stages)
+        ]
+    stacker = stack_tensors_layer(name="StackedOutput",trainable=False)
+    inputs = InputTensor(shape=input_shape, name="InputHG")
+    outputs_list = []
+    x = inputs
+    x  = downsampling(x)
+    for _layer in hourglasses:
+        x,y = _layer(x)
+        outputs_list.append(y)
+        
+    #stacked_output = Lambda(stack_tensors_ax1,
+    #                        output_shape=(stages,output_size,output_size,channels_1joint+channels_2joint),
+    #                        name="StackOutputs")(outputs_list)
+    
+    outputs = stacker(outputs_list)#IdentityLayer(name="NetworkStackedOutput")(stacked_output)
+    return Model(inputs, outputs, name=name)
 
 
 def model_as_layers(

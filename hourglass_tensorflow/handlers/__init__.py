@@ -237,7 +237,7 @@ class HTFManager(ObjectLogger):
         )
         self.TRAIN(
             model=self.MODEL._model,
-            dummy=self.MODEL._dummy_model,
+            #dummy=self.MODEL._dummy_model,
             train_dataset=self.DATASET._train_dataset,
             test_dataset=self.DATASET._test_dataset,
             validation_dataset=self.DATASET._validation_dataset,

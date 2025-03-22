@@ -1,2 +1,3 @@
 from hourglass_tensorflow.models.hourglass import HourglassModel
 from hourglass_tensorflow.models.hourglass import model_as_layers
+from hourglass_tensorflow.models.hourglass import build_hourglassModel

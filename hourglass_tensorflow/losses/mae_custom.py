@@ -1,8 +1,9 @@
 import tensorflow as tf
 import keras.losses
 from hourglass_tensorflow.utils.tf import tf_batch_matrix_softargmax,tf_batch_multistage_matrix_softargmax_loss
+from keras.utils import register_keras_serializable
 
-
+@register_keras_serializable(package="mylosses")
 class MAE_custom(keras.losses.Loss):
     def __init__(
         self, reduction=tf.keras.losses.Reduction.AUTO, name="MAEcustom",WL2_j1: float = 1.0,WL2_j2: float = 0.3, WCoords: float = 0.001, *args, **kwargs

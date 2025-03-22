@@ -96,10 +96,10 @@ class HTFTrainHandler(_HTFTrainHandler):
         self._metrics = [obj.init() for obj in self.config.metrics]
         self._callbacks = [obj.init() for obj in self.config.callbacks]
 
-    def compile(self, model: Model,dummy: Model, *args, **kwargs) -> None:
+    def compile(self, model: Model, *args, **kwargs) -> None:
         print("Compiling the models ...")
         model.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss, jit_compile=False)
-        dummy.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss, jit_compile=False)
+        #dummy.compile(optimizer=self._optimizer, metrics=self._metrics, loss=self._loss, jit_compile=False)
 
     def _apply_batch(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         if isinstance(dataset, tf.data.Dataset):
@@ -107,7 +107,6 @@ class HTFTrainHandler(_HTFTrainHandler):
     def fit(
         self,
         model: Model,
-        dummy: Model,
         train_dataset: tf.data.Dataset = None,
         test_dataset: tf.data.Dataset = None,
         validation_dataset: tf.data.Dataset = None,
@@ -116,7 +115,7 @@ class HTFTrainHandler(_HTFTrainHandler):
     ) -> None:
         with tf.device('/GPU:0'):
             imgs_ds = test_dataset.map(lambda imgs,hms: imgs)
-            _ = self._apply_batch(test_dataset)
+            #_ = self._apply_batch(test_dataset)
 
             #tds_card = int(train_dataset.cardinality().numpy())
             #vds_card = int(validation_dataset.cardinality().numpy())
@@ -146,10 +145,11 @@ class HTFTrainHandler(_HTFTrainHandler):
             print("test images cpu:",batch_testds)
 
         with tf.device('/GPU:0'):
-            dummy_callback = DummyCallback(batch_testds,dummy)
+            dummy_callback = DummyCallback(batch_testds)
             self._callbacks.append(dummy_callback)
 
             print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
+            model(tf.random.normal((1, 256, 256, 1))) 
             model.summary()
             model.fit(
                 batch_train,

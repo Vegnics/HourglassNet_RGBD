@@ -32,7 +32,7 @@ class DummyCallback(Callback):
         self.input_data = x_val
     
     def on_epoch_end(self, epoch, logs=None):
-        if int(epoch) % 4 ==0 or True:
+        if int(epoch) % 4 ==0 and False:
             print(f"Executing dummy callback at epoch: {epoch}")
             data1 = self.input_data.map(lambda imgs:1.0*imgs)
             data2 = self.input_data.map(lambda imgs:1.0*imgs)

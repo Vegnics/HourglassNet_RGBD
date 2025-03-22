@@ -120,7 +120,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             #tds_card = int(train_dataset.cardinality().numpy())
             #vds_card = int(validation_dataset.cardinality().numpy())
             #print("CARDINALITY",tds_card,vds_card)
-            tds_card = 100 #2400
+            tds_card = 2400
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
@@ -131,9 +131,10 @@ class HTFTrainHandler(_HTFTrainHandler):
             #validation_dataset = validation_dataset.repeat(2)
             batch_train = self._apply_batch(train_dataset) 
             #print("   ??????    >>>BATCH TRAIN: ",batch_train)
-            batch_validation = validation_dataset.batch(80)#self._apply_batch(validation_dataset)
+            batch_validation = validation_dataset.batch(40)#self._apply_batch(validation_dataset)
             batch_num = batch_train.__len__()
 
+        """
         with tf.device('/CPU:0'):
             batch_testimgs_cpu = tf.identity(imgs_ds)
             imgs = []
@@ -143,10 +144,11 @@ class HTFTrainHandler(_HTFTrainHandler):
             _test_ds = tf.data.Dataset.from_tensor_slices(_testimgs)
             batch_testds = _test_ds.batch(40)
             print("test images cpu:",batch_testds)
+        """
 
         with tf.device('/GPU:0'):
-            dummy_callback = DummyCallback(batch_testds)
-            self._callbacks.append(dummy_callback)
+            #dummy_callback = DummyCallback(batch_testds)
+            #self._callbacks.append(dummy_callback)
 
             print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
             model(tf.random.normal((1, 256, 256, 1))) 

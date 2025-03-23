@@ -124,7 +124,7 @@ train:
   epochs: 200
   epoch_size: 92
   batch_size: 20
-  learning_rate: 0.0000015
+  learning_rate: 0.00025
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:

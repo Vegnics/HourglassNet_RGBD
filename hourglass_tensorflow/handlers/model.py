@@ -5,6 +5,7 @@ import keras.layers
 import keras.models
 from keras import Input as InputTensor
 import inspect
+from keras.layers import Layer
 
 
 from hourglass_tensorflow.utils import BadConfigurationError
@@ -21,6 +22,8 @@ from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
 import hourglass_tensorflow.layers
 from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
+from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
+from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
 
 # region Abstract Class
 
@@ -154,6 +157,32 @@ class HTFModelHandler(_HTFModelHandler):
                 #print(model.compile())
                 print(model.__dir__())
                 #print(model.stages,model.channels_1J,model.channels_2J)
+                #FREEZING SOME LAYERS
+                if self.config.loading_style == "Partial_Train_Joints":
+                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR JOINTS <<<<<<<<<<<<<<")
+                    for layer in model.layers:
+                        if isinstance(layer,DownSamplingLayer):
+                            print(f"Freezing {layer.name}")
+                            layer.trainable = False
+                        elif isinstance(layer,HourglassLayer):
+                            main_name = layer.name
+                            # Freeze the main hourglass
+                            for _,val in layer.layer_list.items():
+                                for _,v in val.items():
+                                    if isinstance(v,Layer):
+                                        print(f"Freezing {main_name}/{v.name}")
+                                        v.trainable = False
+                            print(f"Freezing {main_name}/{layer.residual_brc.name}")
+                            layer.residual_brc.trainable = False
+                            print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
+                            layer.merge_feats_main.trainable = False
+                            print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
+                            layer.merge_feats_1j.trainable = False
+                elif self.config.loading_style == "Full_Train":
+                    print(">>>>>>>>>> [LOADING] FULL TRAINING <<<<<<<<<<<<<<")               
+                        #for _l in HourglassLayer.layers:
+                        #    print(f"XX {layer.name}")
+                        #layer.trainable = False
                 model.summary()
                 self._model = model
             # Link Input Shape to Model

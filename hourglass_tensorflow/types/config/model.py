@@ -22,6 +22,12 @@ ATTENTION_MECHANISMS = Union[
     Literal["NoAM"],
 ]
 
+MODEL_LOADING_STYLES = Union[
+    Literal["Full_Train"],
+    Literal["Partial_Train_Joints"],
+    Literal["Partial_Train_Attention"],
+]
+
 class HTFModelHandlerReturnObject(TypedDict):
     inputs: keras.layers.Layer
     outputs: keras.layers.Layer
@@ -54,6 +60,7 @@ class HTFModelParams(HTFConfigField):
     freeze_attention_weights: bool = False
     residual_nblocks: int = None
 
+
 class HTFModelConfig(HTFConfigField):
     object: Optional[HTFObjectReference] = Field(
         default=HTFObjectReference(
@@ -62,6 +69,7 @@ class HTFModelConfig(HTFConfigField):
     )
     load_model: bool = False
     model_path: str = ""
+    loading_style: MODEL_LOADING_STYLES = "Full_Train"
     build_as_model: bool = False
     data_format: DATA_FORMAT = "NHWC"
     params: Optional[HTFModelParams] = Field(default=HTFModelParams)

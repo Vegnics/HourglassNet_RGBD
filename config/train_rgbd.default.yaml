@@ -123,8 +123,9 @@ model:
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 2 
-  #load_model: true
-  #model_path: "data/model_t/myModel_SLP_fAB4_2j"
+  load_model: true
+  model_path: "data/model_t/myModel_SLP_fAB4_2j"
+  loading_style: ""
 
 train:
   object:

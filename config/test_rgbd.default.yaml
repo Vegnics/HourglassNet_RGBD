@@ -124,7 +124,7 @@ model:
     freeze_attention_weights: false
   load_model: true
   model_path: data/model_t/myModel_SLP_fAB10_2j #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #"data/model_t/myModel_SLP_fAB6_2j"
-
+  
 
 test:
   object:

@@ -83,8 +83,8 @@ dataset:
     train: true
     validation: true
     ratio_test: 0.025
-    ratio_train: 0.4
-    ratio_validation: 0.08
+    ratio_train: 0.75
+    ratio_validation: 0.21
   bbox:
     activate: true
     factor: 1.15
@@ -113,7 +113,9 @@ model:
     use_2jointHM: true
     use_kernel_regularization: false
     freeze_attention_weights: false
-    residual_nblocks: 2
+    residual_nblocks: 1
+  load_model: true
+  model_path: "data/model_t/myModel_SLP_WS_BL_1B.keras"
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
@@ -122,12 +124,12 @@ train:
   epochs: 200
   epoch_size: 92
   batch_size: 20
-  learning_rate: 0.00025
+  learning_rate: 0.0000015
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
       WL2_j1: 1.0
-      WL2_j2: 0.02
+      WL2_j2: 0.2
       WCoords: 0.0
       nstages: 2
       n1joints: 14
@@ -161,24 +163,24 @@ train:
       patience: 4
       verbose: 1
       min_lr: 2.0e-09
-  - source: keras.callbacks.ModelCheckpoint
+  - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_nothing.keras
+      filepath: data/model_t/myModel_SLP_WS_BL_1B_w2joints.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
       save_best_only: true
       verbose: 1
       initial_value_threshold: 0.0
-  - source: keras.callbacks.TensorBoard
+  - source: tensorflow.keras.callbacks.TensorBoard
     params:
       log_dir: logs/myModelLogs
       histogram_freq: 1
       write_graph: true
       write_images: false
       update_freq: epoch
-  - source: keras.callbacks.CSVLogger
+  - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_fABC10_2j.keras_23:11:59.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_w2joints.keras_14:40:53.csv
 test: null

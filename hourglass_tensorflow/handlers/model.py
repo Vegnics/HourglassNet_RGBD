@@ -20,6 +20,7 @@ from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
 import hourglass_tensorflow.layers
+from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
 
 # region Abstract Class
 
@@ -136,7 +137,11 @@ class HTFModelHandler(_HTFModelHandler):
                 #                         self.config.params.input_size,
                 #                         self.config.params.channel_number))
                 #model.load_weights(filepath=self.config.model_path)
-                print(f"Loading model ... {self.config.model_path}")
+                model = self._build_model_as_model(*args, **kwargs)
+                model(tf.random.normal((1, 256, 256, self.params.channel_number))) 
+                print(f"Loading base model ... {self.config.model_path}")
+                load_basemodel_weights(model,self.config.model_path,compile=False)
+                """
                 model = tf.keras.models.load_model(self.config.model_path,
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
                                             "HourglassModel": HourglassModel,
@@ -144,11 +149,11 @@ class HTFModelHandler(_HTFModelHandler):
                                             "MAE_custom":MAE_custom,
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
-                
+                """
                 print(model.get_config())
                 #print(model.compile())
                 print(model.__dir__())
-                print(model.stages,model.channels_1J,model.channels_2J)
+                #print(model.stages,model.channels_1J,model.channels_2J)
                 model.summary()
                 self._model = model
             # Link Input Shape to Model

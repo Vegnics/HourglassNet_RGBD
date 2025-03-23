@@ -15,6 +15,7 @@ from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD,tf_test_map_squarify
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance,SoftargmaxMeanDist
 from hourglass_tensorflow.models import HourglassModel
+from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model
 
 def read_landmark_data(csv_path: str):
     with open(csv_path,"r") as csv_file:
@@ -154,7 +155,9 @@ def load_bboxes(fpath):
     with open(os.path.join(fpath, "bboxes_info.json"), "r") as file:
         jdata = json.load(file)
         return jdata["bboxes"]
-    
+
+"""
+data/model_t/myModel_SLP_WS_BL_1B.keras 
 Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints
                                             "HourglassModel": HourglassModel,
@@ -162,6 +165,8 @@ Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                                             "MAE_custom":MAE_custom,
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
+"""
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B.keras",compile=False) 
 Model.trainable = False
 print(Model)
 print(Model.get_config())
@@ -227,8 +232,10 @@ while cap.isOpened():
         # Draw the canvas and get the image as a NumPy array
         fig.canvas.draw()
         # Convert to NumPy array
-        depthplot = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        depthplot = depthplot.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        depthplot = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
+        print(depthplot.shape)
+        depthplot = depthplot.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+        depthplot = np.copy(depthplot[:,:,0:3])
         # Close the figure to free memory
         #plt.close(fig)
         #plt.imshow(img_bgr)#[:,:,::-1])

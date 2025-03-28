@@ -33,6 +33,7 @@ batch_size = 20
 stages = 2
 stage_filters = 256
 residual_nblocks = 1
+learning_rate = 2.5e-4
 
 # Related to loading pre-trained models
 load_model = True
@@ -84,6 +85,7 @@ conf["model"]["params"]["channel_number"] = 4
 
 conf["train"]["epochs"] = epochs
 conf["train"]["batch_size"] = batch_size
+conf["train"]["learning_rate"] = learning_rate
 
 conf["train"]["loss"]["params"]["WL2_j1"] =  W_1jnts
 conf["train"]["loss"]["params"]["WL2_j2"] =  W_2jnts * float(use2joints)

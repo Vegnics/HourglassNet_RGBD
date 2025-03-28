@@ -187,8 +187,8 @@ class HTFManager(ObjectLogger):
             depth = img[:,:,0]#*255.0/3.5
             print(hmp.shape)
             #print(data[2].numpy())
-            #draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
-            draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
+            draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
+            #draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
             x = input("Skip heatmaps?")
             if x=="y":
                 continue

@@ -122,11 +122,11 @@ model:
   params:
     input_size: 256 
     output_size: 64 
-    channel_number: 1 
-    stages: 3
+    channel_number: 4 
+    stages: 2
     downsamplings_per_stage: 4
     stage_filters: 256 #256 
-    channels_1joint: 14 
+    channels_1joint: 17 
     channels_2joint: 12 
     name: "HourglassSample"
     intermediate_supervision: true

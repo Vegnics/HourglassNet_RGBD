@@ -57,8 +57,8 @@ def read_mkv_folder_to_htf_data(
         landmarks_path = os.path.join(main_folder,cam_path,"Landmarks")
         for sample_num in range(frame_start,frame_end):
             annopoints = read_landmark_data(os.path.join(landmarks_path,"lm_{:06d}.csv".format(sample_num)))
-            if len(annopoints)<17:
-                if len(annopoints)<17:
+            if len(annopoints)<18:
+                if len(annopoints)<18:
                     print(p.id for p in annopoints)
                     raise Exception("CSV reader stopped at 0.0")
             record_to_return.append(

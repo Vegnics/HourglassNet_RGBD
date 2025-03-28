@@ -51,7 +51,7 @@ if __name__ == "__main__":
         jxs = [j.x for j in datap.joints]
         jys = [j.y for j in datap.joints]
         jvis = [j.visible for j in datap.joints]
-        if len(_jids)<17:
+        if len(_jids)<18:
             print(jids)
             raise Exception("CSV reader stopped at 0.0")
         d = {"set": "TRAIN" if datap.is_train else "VALIDATION",
@@ -67,18 +67,19 @@ if __name__ == "__main__":
         "center_x": -1,
         "center_y": -1,
         }
-        for jid in range(17):
+        for jid in range(18):
             if jid in jids :#and jid in forced_ids:
                 k = jids.index(jid)
-                d[f"joint_{jid}_X"] = jxs[k]
-                d[f"joint_{jid}_Y"] = jys[k]
-                if jvis[k]==0:
+                #d[f"joint_{jid}_X"] = jxs[k]
+                #d[f"joint_{jid}_Y"] = jys[k]
+                if jxs[k]==0 and jys[k]==0:
                     d[f"joint_{jid}_X"] = -100000
                     d[f"joint_{jid}_Y"] = -100000
+                    d[f"joint_{jid}_visible"] = False
                 else:
                     d[f"joint_{jid}_X"] = jxs[k]
                     d[f"joint_{jid}_Y"] = jys[k]
-                    d[f"joint_{jid}_visible"] = jvis[k] #True 
+                    d[f"joint_{jid}_visible"] = bool(jvis[k]) #True 
         DATA.append(d)
     # Write Transformed data
     with open(HTF_DATASET_JSON,"w") as file:

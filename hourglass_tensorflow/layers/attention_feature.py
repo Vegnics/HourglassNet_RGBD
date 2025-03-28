@@ -3,7 +3,7 @@ from keras import layers
 from keras.layers import Layer
 from keras.activations import swish
 from keras.regularizers import L2,L1
-
+from keras.saving import register_keras_serializable
 
 class _SpatialBasedPooling(Layer):
     def __init__(
@@ -42,7 +42,7 @@ class _SpatialBasedPooling(Layer):
             strides=(1,1),
             padding="same",
             name="AttConv2D1",
-            activation="relu",
+            activation="gelu",
             kernel_initializer=self.kernel_initializer,
         ),
 
@@ -71,6 +71,7 @@ class _SpatialBasedPooling(Layer):
         super().build(input_shape)
         self.built = True
 
+@register_keras_serializable(package="lattentionFeature") 
 class FeatureAttentionMechanism(Layer):
     """
     This layer performs 2D convolution, Batch Normalization, and ReLU.
@@ -107,10 +108,40 @@ class FeatureAttentionMechanism(Layer):
         self.kernel_reg = kernel_reg
         # Create layers
         #"""
-        self.heads = []
+        #self.heads = []
         # EXPERIMENTAL GAPP-FLATTEN
-        self.spatialgap = None
-        self.last_projection = None
+        self.heads = [
+                layers.Dense(self.filters//4,
+                activation=None,
+                use_bias=True,
+                kernel_initializer='glorot_uniform',
+                name = "Head_{}".format(i),
+                kernel_regularizer=L2(1e-5) if self.kernel_reg else None,
+                )
+            for i in range(self.head_num)
+        ]
+
+        for k,layer in enumerate(self.heads):
+            self.__setattr__(f"fam_{k}", layer)
+
+        # EXPERIMENTAL GAPP-FLATTEN
+        #self.spatialgap = _SpatialBasedPooling(self.filters)
+        """
+            self.pre_projection = layers.Dense(self.filters//16,
+                activation=None,
+                use_bias=True,
+                kernel_initializer='glorot_uniform',
+                name = "PreProjection",
+                kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+            )
+        """
+        self.last_projection = layers.Dense(self.filters,
+            activation="sigmoid",
+            use_bias=True,
+            kernel_initializer='glorot_uniform',
+            name = "LastProjection",
+            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+        )
         
     def get_config(self):
         return {
@@ -126,7 +157,6 @@ class FeatureAttentionMechanism(Layer):
                 "epsilon": self.epsilon,
                 "outmax":self.outmax,
                 "headnum":self.head_num,
-                "trainable":self.trainable,
                 "kernel_reg":self.kernel_reg,
             },
         }
@@ -135,10 +165,10 @@ class FeatureAttentionMechanism(Layer):
         #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-9)
         _shape = tf.shape(inputs)
         #tf.print("inputs shape:", _shape)
-        H = _shape[1]
-        W = _shape[2]
-        #gap = tf.reduce_mean(inputs,axis=[1,2])
-        learned_gap = self.spatialgap(inputs)
+        #H = _shape[1]
+        #W = _shape[2]
+        learned_gap = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])
+        #learned_gap = self.spatialgap(inputs)
         learned_gap = tf.reduce_mean(learned_gap,axis=[1,2]) #NC
         learned_gap = tf.reshape(learned_gap,shape=(-1,self.filters))
         """
@@ -164,34 +194,4 @@ class FeatureAttentionMechanism(Layer):
         scores = tf.expand_dims(scores,axis=1)
         return scores
     def build(self, input_shape):
-        self.heads = [
-            layers.Dense(self.filters//4,
-            activation=None,
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "Head_{}".format(i),
-            kernel_regularizer=L2(1e-5) if self.kernel_reg else None,
-        )
-        for i in range(self.head_num)
-        ]
-
-        # EXPERIMENTAL GAPP-FLATTEN
-        self.spatialgap = _SpatialBasedPooling(self.filters)
-
-        self.pre_projection = layers.Dense(self.filters//16,
-            activation=None,
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "PreProjection",
-            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
-        )
-
-        self.last_projection = layers.Dense(self.filters,
-            activation="sigmoid",
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            name = "LastProjection",
-            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
-        )
         super().build(input_shape)
-        self.built = True

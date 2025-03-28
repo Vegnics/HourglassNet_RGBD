@@ -6,7 +6,7 @@ data:
     params:
       foo: bar
   input:
-    mode: "RGBD"
+    mode: "Depth"
     #source: data/images.ignore.folder
     source: /home/quinoa/database_mkv
     extensions:
@@ -32,7 +32,7 @@ data:
     column_set: set
     column_source: image
     joints:
-      num: 17
+      num: 18
       dynamic_fields:
         - SUFFIX
       naming_convention: joint_{JOINT_ID}_{SUFFIX}
@@ -45,28 +45,29 @@ data:
       names:
         - "00_Nose"
         - "01_Neck"
-        - "02_HeadTop"
-        - "03_lEar"
-        - "04_rEar"
+        - "02_rShoulder"
+        - "03_rElbow"
+        - "04_rWrist"
         - "05_lShoulder"
-        - "06_rShoulder"
-        - "07_lElbow"
-        - "08_rElbow"
-        - "09_lWrist"
-        - "10_rWrist"
+        - "06_lElbow"
+        - "07_lWrist"
+        - "08_rHip"
+        - "09_rKnee"
+        - "10_rAnkle"
         - "11_lHip"
-        - "12_rHip"
-        - "13_lKnee"
-        - "14_rKnee"
-        - "15_lAnkle"
-        - "16_rAnkle"
+        - "12_lKnee"
+        - "13_lAnkle"
+        - "14_rEye"
+        - "15_lEye"
+        - "16_rEar"
+        - "17_lEar"
 dataset:
   object:
     source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
     params:
       foo: bar
   image_size: 256 #256
-  data_mode: "RGBD"
+  data_mode: "Depth"
   hip_idxs:
     Lhip: 11
     Rhip: 12
@@ -74,8 +75,28 @@ dataset:
   heatmap:
     size: 64 #64
     stacks: 2
-    channels: 17 
-    stddev: 1.3
+    channels_1JHMs: 18
+    channels_2JHMs: 18
+    limbs_2J_str:
+     - (0, 1)
+     - (1, 2)
+     - (1, 5)
+     - (2, 3)
+     - (3, 4)
+     - (5, 6)
+     - (6, 7)
+     - (1, 8)
+     - (1, 11)
+     - (8, 9)
+     - (9, 10)
+     - (11, 12)
+     - (12, 13)
+     - (8, 11)
+     - (0, 14)
+     - (0, 15)
+     - (14, 16)
+     - (15, 17)
+    stddev: 1.1
     stddev_factor: 1.3 #1.35
   #normalization: "Normal"
   normalization: "Idem"
@@ -110,12 +131,12 @@ model:
   params:
     input_size: 256 #256
     output_size: 64 #64
-    channel_number: 1 #4
+    channel_number: 4 #4
     stages: 2
     downsamplings_per_stage: 4
     stage_filters: 256 #64
-    channels_1joint: 17 #14 ->26
-    channels_2joint: 12 #14 ->26
+    channels_1joint: 18 #14 ->26
+    channels_2joint: 18 #14 ->26
     name: "HourglassSample"
     intermediate_supervision: true
     skip_AM: "NoAM"
@@ -149,8 +170,8 @@ train:
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
     params:
       nstages: 2
-      n1joints: 17  #16 ->26
-      n2joints: 12
+      n1joints: 18  #16 ->26
+      n2joints: 18
       use2joints: false
       foo: bar
   #loss: MeanSquaredError
@@ -178,7 +199,7 @@ train:
       source: "hourglass_tensorflow.metrics.OverallMeanDistance"
       params:
         name: "MEDist"
-        num_1joints: 17
+        num_1joints: 18
     #-
     #  source: "hourglass_tensorflow.metrics.RatioCorrectKeypoints"
     #  params:
@@ -192,7 +213,7 @@ train:
         reference:
           - 12
           - 13
-        num_1joints: 17
+        num_1joints: 18
   callbacks:
     -
       source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
@@ -208,7 +229,7 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_MKV_WS_BL.keras"
+        filepath: "data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
@@ -227,5 +248,5 @@ train:
     -
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
-        filename: logs/myModelLogs_myModel_MKV_WS_BL.keras_21_09_00.csv
+        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_Depth4C_16_55_00.csv
 test: null

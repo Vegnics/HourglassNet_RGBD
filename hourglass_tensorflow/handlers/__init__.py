@@ -152,6 +152,7 @@ class HTFManager(ObjectLogger):
         self.DATA = self._import_object(
             obj_data, config=self._config.data, metadata=self._metadata
         )
+        print("Config DATA::::",self._config.data.output.joints)
         data = self.DATA().get_data() # Call the HTFDataHandler and invoke get_data() method.
         # Launch Dataset Handler
         self.DATASET = self._import_object(
@@ -166,11 +167,11 @@ class HTFManager(ObjectLogger):
         test_dataset=self.DATASET._test_dataset
         validation_dataset = self.DATASET._validation_dataset
         for k,data in enumerate(train_dataset):
-            if k%9!=0 and False:
+            if ((k%36)+1)!=9: #and False:
                 continue
             img = data[0].numpy()
             #hmp = data[1]
-            img_rgb = np.uint8(np.copy(img[:,:,0]))
+            img_rgb = np.float32(np.copy(img[:,:,1:4]))
 
             #img = np.copy(img[:,:,3])
             #print(img.shape,img.dtype)
@@ -186,7 +187,16 @@ class HTFManager(ObjectLogger):
             depth = img[:,:,0]#*255.0/3.5
             print(hmp.shape)
             #print(data[2].numpy())
-            draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
+            #draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
+            draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
+            x = input("Skip heatmaps?")
+            if x=="y":
+                continue
+            plt.figure()
+            #scalimg = ax.imshow(depth)
+            #scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.5)
+            plt.imshow(img_rgb)
+            plt.show()
             #depth = np.clip(depth,0,255)
             #depth= np.uint8(depth)
             #depth = cv2.applyColorMap(depth,cv2.COLORMAP_JET)
@@ -199,7 +209,7 @@ class HTFManager(ObjectLogger):
                     print(f"Stage {stg}:::")
                     for i in range(26):
                         print(f"\t Landmark {i}")
-                        plt.imshow(hmp[0,stg,:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
+                        plt.imshow(hmp[0,stg,:,:,i],cmap="jet",vmin=0.25,vmax=1.0)
                         plt.colorbar(location="left",orientation="vertical",cmap="jet")
                         plt.show()
                         

@@ -6,7 +6,7 @@ data:
     params:
       foo: bar
   input:
-    mode: RGBD
+    mode: Depth
     source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
     extensions:
     - png
@@ -60,7 +60,7 @@ dataset:
     params:
       foo: bar
   image_size: 256
-  data_mode: RGBD
+  data_mode: Depth
   hip_idxs:
     Lhip: 3
     Rhip: 2
@@ -68,7 +68,21 @@ dataset:
   heatmap:
     size: 64
     stacks: 2
-    channels: 14
+    channels_1JHMs: 14
+    channels_2JHMs: 12
+    limbs_2J_str:
+    - (0, 1)
+    - (1, 2)
+    - (2, 3)
+    - (3, 4)
+    - (4, 5)
+    - (6, 7)
+    - (7, 8)
+    - (8, 12)
+    - (9, 12)
+    - (12, 13)
+    - (11, 10)
+    - (10, 9)
     stddev: 1.1
     stddev_factor: 1.3
   normalization: Idem
@@ -99,7 +113,7 @@ model:
   params:
     input_size: 256
     output_size: 64
-    channel_number: 1
+    channel_number: 4
     stages: 2
     downsamplings_per_stage: 4
     stage_filters: 256
@@ -115,13 +129,14 @@ model:
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: "data/model_t/myModel_SLP_WS_BL_1B.keras"
+  model_path: data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras
+  loading_style: Partial_Downsampling
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
     params:
       foo: bar
-  epochs: 200
+  epochs: 150
   epoch_size: 92
   batch_size: 20
   learning_rate: 0.00025
@@ -129,7 +144,7 @@ train:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
       WL2_j1: 1.0
-      WL2_j2: 0.2
+      WL2_j2: 0.4
       WCoords: 0.0
       nstages: 2
       n1joints: 14
@@ -166,7 +181,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_WS_BL_1B_w2joints.keras
+      filepath: data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT_Depth4C.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -182,5 +197,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_w2joints.keras_14:40:53.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_w2jointsFT_Depth4C.keras_22:16:18.csv
 test: null

@@ -128,8 +128,8 @@ class HTFDataHandler(_HTFDataHandler):
                 )
             }
         )
-        #Prefix the depth images in case of using RGBD images
-        if self.input_cfg.mode == ImageMode.RGBD:
+        #Prefix the depth images in case of using Depth or RGBD images
+        if self.input_cfg.mode == ImageMode.RGBD or ImageMode.Depth:
             df = df.assign(
                 **{
                     source_depth_column: df[source_depth_column].apply(

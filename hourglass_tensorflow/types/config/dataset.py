@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union,List
 from typing import Literal
 from typing import Optional
 
@@ -43,9 +43,26 @@ class HTFDatasetBBox(HTFConfigField):
 class HTFDatasetHeatmap(HTFConfigField):
     size: int = 64
     stacks: int = 3
-    channels: int = 16
+    channels_1JHMs: int = 16
     stddev: float = 16
     stddev_factor: float = 1.5
+    channels_2JHMs: int
+    limbs_2J_str: List[str] = Field(
+        default=[
+            "(0,1)", 
+            "(1,2)",
+            "(2,3)",
+            "(3,4)",
+            "(4,5)",
+            "(6,7)",
+            "(7,8)",
+            "(8,12)",
+            "(9,12)",
+            "(12,13)",
+            "(11,10)",
+            "(10,9)"
+        ]
+    )
 
 class HTFDatasetHipIndexes(HTFConfigField):
     Lhip: int = 3

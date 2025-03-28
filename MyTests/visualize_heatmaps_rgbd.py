@@ -13,6 +13,7 @@ from hourglass_tensorflow.losses.mae_custom import *
 from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
+from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model
 
 def read_landmark_data(csv_path: str):
     with open(csv_path,"r") as csv_file:
@@ -38,22 +39,6 @@ def preprocess_img(img,depth,landmarks):
     bbox = getbbox(landmarks)
     pass
 
-
-def get_secondmax(hm,x,y):
-    n = 1.0*hm[y-1:y+2,x-1:x+2]
-    m = tf.convert_to_tensor([[1,1,1],
-                              [1,0,1],
-                              [1,1,1]],dtype=tf.float32)
-    _n = n*m
-    pnt = np.argmax(_n)
-    dx = int(pnt%3)-1
-    dy = int(pnt//3)-1
-    if hm[y+dy,x+dx]>0.38:
-        return (dx,dy)
-    else:
-        return (0,0)
-    
-
 def draw_poseGT(img,landmarks):
     _img = np.copy(img)
     kpnts = []
@@ -67,19 +52,19 @@ def draw_poseGT(img,landmarks):
     _visible_kpts = np.array([i for i in range(14)])
     _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.45])
     KEYPOINT_EDGE_INDS_TO_COLOR = {
-    (0, 1): (150,80,50),
-    (1, 2): (150,80,50),
+    (0, 1): (235,0,255),
+    (1, 2): (235,0,255),
     (2, 3): (80,160,60),
-    (3, 4): (50,80,160),
-    (4, 5): (50,80,160),
-    (6, 7): (150,80,50),
-    (7, 8): (150,80,50),
-    (8,12): (150,80,50),
-    (9,12): (50,80,160),
-    (9, 10): (50,80,160),
-    (10, 11): (50,80,160),
-    (2, 12): (150,80,50),
-    (3, 12): (50,80,160),
+    (3, 4): (0,245,230),
+    (4, 5): (0,245,230),
+    (6, 7): (235,0,255),
+    (7, 8): (235,0,255),
+    (8,12): (235,0,255),
+    (9,12): (0,245,230),
+    (9, 10): (0,245,230),
+    (10, 11): (0,245,230),
+    (2, 12): (235,0,255),
+    (3, 12): (0,245,230),
     (12, 13): (230,10,20)
     }
     for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
@@ -94,7 +79,20 @@ def draw_poseGT(img,landmarks):
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
 
-    
+def get_secondmax(hm,x,y):
+    n = 1.0*hm[y-1:y+2,x-1:x+2]
+    m = tf.convert_to_tensor([[1,1,1],
+                              [1,0,1],
+                              [1,1,1]],dtype=tf.float32)
+    _n = n*m
+    pnt = np.argmax(_n)
+    dx = int(pnt%3)-1
+    dy = int(pnt//3)-1
+    if hm[y+dy,x+dx]>0.1:
+        return (dx,dy)
+    else:
+        return (0,0)
+
 def draw_pose(img,hm,obbox,pad):
     _img = np.copy(img)
     #bbox[0, 0] : bbox[1, 0]
@@ -109,31 +107,31 @@ def draw_pose(img,hm,obbox,pad):
         pnt = np.argmax(hm[:,:,i])
         x = int((pnt%64))
         y = int((pnt//64))
-        dx,dy = get_secondmax(hm[:,:,i],x,y)
+        dx,dy = (0,0)#get_secondmax(hm[:,:,i],x,y)
         #x = 4*int((pnt%64) + 0.5*dx)
         #y = 4*int((pnt//64) + 0.5*dy)
-        x = int((N/64.0)*((pnt%64) + 0.25*dx - padx)+ obbox[0,0])
-        y = int((N/64.0)*((pnt//64) + 0.25*dy - pady)+ obbox[0,1])
+        x = int((N/64.0)*((pnt%64) + 0.0*dx - padx)+ obbox[0,0])
+        y = int((N/64.0)*((pnt//64) + 0.0*dy - pady)+ obbox[0,1])
         val = hm[int(pnt//64),int(pnt%64),i]
-        print(f"Landmark {LM_NAMES[i]}:  ({x},{y},{val})")
+        #print(f"Landmark {keypoint_names[i]}:  ({x},{y},{val})")
         kpnts.append([x,y,val])
     kpnts = np.array(kpnts)
     _visible_kpts = np.array([i for i in range(14)])
-    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.45])
+    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.1])
     KEYPOINT_EDGE_INDS_TO_COLOR = {
-    (0, 1): (150,80,50),
-    (1, 2): (150,80,50),
+    (0, 1): (235,0,255),
+    (1, 2): (235,0,255),
     (2, 3): (80,160,60),
-    (3, 4): (50,80,160),
-    (4, 5): (50,80,160),
-    (6, 7): (150,80,50),
-    (7, 8): (150,80,50),
-    (8,12): (150,80,50),
-    (9,12): (50,80,160),
-    (9, 10): (50,80,160),
-    (10, 11): (50,80,160),
-    (2, 12): (150,80,50),
-    (3, 12): (50,80,160),
+    (3, 4): (0,245,230),
+    (4, 5): (0,245,230),
+    (6, 7): (235,0,255),
+    (7, 8): (235,0,255),
+    (8,12): (235,0,255),
+    (9,12): (0,245,230),
+    (9, 10): (0,245,230),
+    (10, 11): (0,245,230),
+    (2, 12): (235,0,255),
+    (3, 12): (0,245,230),
     (12, 13): (230,10,20)
     }
     for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
@@ -144,14 +142,12 @@ def draw_pose(img,hm,obbox,pad):
             y1=int(kpnts[edge_pair[1],1])
             cv2.line(_img,(x0,y0),(x1,y1),color,5)
     for pnt in kpnts:
-        if pnt[2]>0.45:
+        if pnt[2]>0.1:
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
     
-Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB2",
-                           custom_objects= {"OverallMeanDistance":OverallMeanDistance
-                                            ,"PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
-                                            "MAE_custom":MAE_custom})
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
+Model.trainable = False
 
 
 
@@ -175,17 +171,18 @@ LM_NAMES = ["00_rAnkle",
 hm_scale = tf.constant(2.1269474)
 
 subject_id = 5  
-cover = "uncover"
+cover = "cover1"
 img_num = 27
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))
 depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=2)
-meandepth = tf.reduce_mean(depthmap,axis=[0,1,2])
-stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(depthmap-meandepth),axis=[0,1,2]))
-depthmap = 1.5*((depthmap-meandepth)/stddevdepth+2.1)
+#meandepth = tf.reduce_mean(depthmap,axis=[0,1,2])
+#stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(depthmap-meandepth),axis=[0,1,2]))
+#depthmap = 1.5*((depthmap-meandepth)/stddevdepth+2.1)
 
-RGBD_image = depthmap #tf.concat([tf.cast(imgrgb,dtype=tf.float32),depthmap],axis=2)
+#RGBD_image = depthmap #tf.concat([tf.cast(imgrgb,dtype=tf.float32),depthmap],axis=2)
+RGBD_image = tf.concat([depthmap,tf.cast(imgrgb,dtype=tf.float32)],axis=2)
 landmarks = tf.convert_to_tensor(read_landmark_data("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/LMData/lm_{:06d}.csv".format(subject_id,img_num)))
 visibilities = tf.convert_to_tensor([1]*14)
 squared_rgbd = tf_test_map_affine_woaugment_RGBD(RGBD_image,RGBD_image.shape,landmarks,visibilities,njoints=14)
@@ -200,11 +197,12 @@ padding = obbox[2,0:2]
 print(obbox)
 
 tensor = squared_rgbd[0] #tf.cast(tf.expand_dims(squared_rgbd[0],axis=0),dtype=tf.dtypes.float32)
+squared_rgb = tensor[0,:,:,1:4]
 #print()
 #"""
 #img_bgr = np.uint8(tensor[0,:,:,0:3].numpy())
-hms = Model.predict(tensor)
-preds = hms[0,2,:,:,:]
+hms = Model.predict(tf.expand_dims(tensor[:,:,:,0],axis=-1))
+preds = hms[0,1,:,:,:]
 normpreds = tf.linalg.norm(preds,axis=[0,1])
 normpreds = tf.expand_dims(normpreds,axis=0)
 normpreds = tf.expand_dims(normpreds,axis=0)
@@ -222,14 +220,16 @@ for i in range(14):
     y = 4*int((pnt//64) + 0.5*dy)
     #cv2.circle(img_bgr,(x,y),5,(0,0,255),-1)
     print(f"Landmark {LM_NAMES[i]}:  ({x},{y})")
-    #plt.imshow(hm,cmap="jet")
-    #plt.savefig(f"/home/quinoa/{LM_NAMES[i]}_stage0.png", bbox_inches='tight')
+    plt.imshow(hm,cmap="jet")
+    plt.savefig(f"/home/quinoa/HEAT_SLP_LM_{subject_id}_{cover}_{LM_NAMES[i]}_.png", bbox_inches='tight')
     #plt.show()
 img_bgr = draw_pose(imgrgb,preds,_obbox,padding)
 img_gt = draw_poseGT(imgrgb,squared_rgbd[1][0])
 plt.imshow(img_bgr)#[:,:,::-1])
 plt.figure()
 plt.imshow(img_gt)
+plt.figure()
+plt.imshow(squared_rgb)
 #plt.savefig(f"/home/quinoa/sub_{subject_id}-num_{img_num}-{cover}.png", bbox_inches='tight')
 plt.show()
 #"""

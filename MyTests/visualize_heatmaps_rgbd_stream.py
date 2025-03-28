@@ -124,19 +124,19 @@ def draw_pose(img,hm,obbox,pad):
     _visible_kpts = np.array([i for i in range(14)])
     _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.1])
     KEYPOINT_EDGE_INDS_TO_COLOR = {
-    (0, 1): (150,80,50),
-    (1, 2): (150,80,50),
+   (0, 1): (235,0,255),
+    (1, 2): (235,0,255),
     (2, 3): (80,160,60),
-    (3, 4): (50,80,160),
-    (4, 5): (50,80,160),
-    (6, 7): (150,80,50),
-    (7, 8): (150,80,50),
-    (8,12): (150,80,50),
-    (9,12): (50,80,160),
-    (9, 10): (50,80,160),
-    (10, 11): (50,80,160),
-    (2, 12): (150,80,50),
-    (3, 12): (50,80,160),
+    (3, 4): (0,245,230),
+    (4, 5): (0,245,230),
+    (6, 7): (235,0,255),
+    (7, 8): (235,0,255),
+    (8,12): (235,0,255),
+    (9,12): (0,245,230),
+    (9, 10): (0,245,230),
+    (10, 11): (0,245,230),
+    (2, 12): (235,0,255),
+    (3, 12): (0,245,230),
     (12, 13): (230,10,20)
     }
     for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
@@ -166,7 +166,7 @@ Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
 """
-Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
 Model.trainable = False
 print(Model)
 print(Model.get_config())

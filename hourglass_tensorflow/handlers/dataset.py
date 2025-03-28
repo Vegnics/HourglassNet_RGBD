@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from ast import Constant
 from typing import Any
 from typing import Set
 from typing import Dict
@@ -28,7 +29,9 @@ from hourglass_tensorflow.handlers._transformation import tf_train_map_normalize
 from hourglass_tensorflow.handlers._transformation import tf_train_map_build_slice_RGB,tf_train_map_build_slice_RGBD
 from hourglass_tensorflow.handlers._transformation import tf_train_map_resize_data
 from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGB,tf_train_map_affine_woaugment_RGB
-from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGBD,tf_train_map_affine_woaugment_RGBD,tf_test_map_affine_woaugment_RGBD
+from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGBD,tf_test_map_affine_woaugment_RGBD
+from hourglass_tensorflow.handlers._transformation import tf_train_map_build_slice_Depth,tf_train_map_affine_augmentation
+from hourglass_tensorflow.handlers._transformation import tf_validation_map_affine
 #from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify_multiscale
 
 def _stack_tensors(x,y):
@@ -145,6 +148,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         self._test_dataset: Optional[tf.data.Dataset] = None
         self._train_dataset: Optional[tf.data.Dataset] = None
         self._validation_dataset: Optional[tf.data.Dataset] = None
+        self._limbs_2JHMs: Optional[tf.Tensor] = None
         self.kwargs = kwargs
 
     # region Prepare Dataset Hidden Methods
@@ -234,6 +238,19 @@ class HTFDatasetHandler(_HTFDatasetHandler):
 
     # endregion
 
+    def _read_2JHMs(self) -> tf.Tensor:
+        num2J = int(self.config.heatmap.channels_2JHMs)
+        if num2J != len(self.config.heatmap.limbs_2J_str):
+            raise Exception("Mismatch in the number of 2Joint heatmaps!")
+        try:
+            #print(self.config.heatmap.limbs_2J_str)
+            _limbs_2J_str = self.config.heatmap.limbs_2J_str
+            limbs_2J = [eval(limb) for limb in _limbs_2J_str]
+            return tf.convert_to_tensor(limbs_2J,dtype=tf.int32)
+        except:
+            raise Exception("Could not load the list of 2Joint Heatmaps")
+
+
     # region Generate Datasets Hidden Methods
     def _extract_columns_from_data(
         self, data: HTFDataTypes
@@ -260,8 +277,18 @@ class HTFDatasetHandler(_HTFDatasetHandler):
             rgb_filenames = list(rgb_filenames)
             depth_filenames = list(depth_filenames)
             coordinates = list(coordinates)
-            #return _extracted_data[0],_extracted_data[1],_extracted_data[2]
             return rgb_filenames,depth_filenames,coordinates
+        
+        elif self.data_mode == "Depth":
+            depth_filenames = self.engine.to_list(
+                self.engine.get_columns(data=data, columns=[self.config.column_depth_image])
+            )
+            _extracted_data = list(zip(depth_filenames,coordinates))
+            random.shuffle(_extracted_data)
+            depth_filenames,coordinates = zip(*_extracted_data)
+            depth_filenames = list(depth_filenames)
+            coordinates = list(coordinates)
+            return depth_filenames,coordinates
         else:
             raise Exception(f"The data_mode {self.data_mode } is not valid.")
 
@@ -276,29 +303,48 @@ class HTFDatasetHandler(_HTFDatasetHandler):
             raw = raw.map(tf_train_map_build_slice_RGB)  # Load Images
         elif self.config.data_mode == "RGBD":
             raw = raw.map(tf_train_map_build_slice_RGBD)  # Load Images RGBD version
+        elif self.config.data_mode == "Depth":
+            raw = raw.map(tf_train_map_build_slice_Depth)
+        else:
+            raise Exception("Invalid input data mode")
+        print("DATA MODE: >>>>",self.config.data_mode)
         print("-------->RAW 2 :",raw,raw.cardinality()) # img, coords, visible
 
         if self.config.data_mode == "RGB":
-            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation_RGB(
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation(
                         img,
                         ishape,
                         coord,
                         vis,
                         input_size=int(self.config.image_size),
-                        njoints = int(self.config.heatmap.channels),
-                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
+                        affine_axis_mask = tf.convert_to_tensor([0,1,1,1],dtype=tf.float32)
                     )
                 )
 
         elif self.config.data_mode == "RGBD":
-            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation_RGBD(
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation(
                         img,
                         ishape,
                         coord,
                         vis,
                         input_size=int(self.config.image_size),
-                        njoints = int(self.config.heatmap.channels),
-                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
+                        affine_axis_mask = tf.convert_to_tensor([1,1,1,1],dtype=tf.float32)
+                    )
+                )
+        elif self.config.data_mode == "Depth":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_augmentation(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
+                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
                     )
                 )
         print("AFTER MULTISCALE SQUARIFY", raw,raw.cardinality())
@@ -317,6 +363,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                     img,
                     coord,
                     vis,
+                    limbs_2j = self._limbs_2JHMs,
                     output_size=int(self.config.heatmap.size),
                     stddev=self.config.heatmap.stddev,
                     stacks=int(self.config.heatmap.stacks),
@@ -352,6 +399,10 @@ class HTFDatasetHandler(_HTFDatasetHandler):
             raw = raw.map(tf_train_map_build_slice_RGB)  # Load Images
         elif self.config.data_mode == "RGBD":
             raw = raw.map(tf_train_map_build_slice_RGBD)  # Load Images RGBD version
+        elif self.config.data_mode == "Depth":
+            raw = raw.map(tf_train_map_build_slice_Depth)
+        else:
+            raise Exception("Invalid input data mode")
         print("-------->RAW 1 :",raw,raw.cardinality())
         ### >>> HERE PERFORM DATA AUGMENTATION (Rotation)
 
@@ -366,20 +417,33 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         coord,
                         vis,
                         input_size=int(self.config.image_size),
-                        njoints = int(self.config.heatmap.channels),
+                        njoints = int(self.config.heatmap.channels_1JHMs),
                         hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
                 )
             )
         
         elif self.config.data_mode == "RGBD":
-            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_woaugment_RGBD(
+            raw = raw.map(lambda img, coord, vis,ishape: tf_validation_map_affine(
                         img,
                         ishape,
                         coord,
                         vis,
                         input_size=int(self.config.image_size),
-                        njoints = int(self.config.heatmap.channels),
-                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
+                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
+                    )
+                )
+        elif self.config.data_mode == "Depth":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_validation_map_affine(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
+                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
                     )
                 )
 
@@ -392,12 +456,12 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                     img, coord, vis,tf.constant([0.0]), input_size=int(self.config.image_size)
                 )
             )# Resize Image
-
         print("-------->RAW 4 :",raw) # img, coord, vis        
         raw = raw.map(lambda img, coord, vis: tf_train_map_heatmaps(
                         img,
                         coord,
                         vis,
+                        limbs_2j = self._limbs_2JHMs,
                         output_size=int(self.config.heatmap.size),
                         stddev=self.config.heatmap.stddev,
                         stacks=int(self.config.heatmap.stacks),
@@ -432,7 +496,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         coord,
                         vis,
                         input_size=int(self.config.image_size),
-                        njoints = int(self.config.heatmap.channels),
+                        njoints = int(self.config.heatmap.channels_1JHMs),
                         hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
                         task_mode = "test"
                     )
@@ -451,6 +515,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         Generate the dataset for [Train, Test, Validation]: Resized images, squared bboxes,
         heatmaps.
         """
+        self._limbs_2JHMs = self._read_2JHMs()
         if self.task_mode == "train":
             self._train_dataset = self._create_dataset_train(self._train_set)
             #self._train_dataset = self._train_dataset.shuffle(1800,reshuffle_each_iteration=True)

@@ -109,7 +109,7 @@ class HourglassModel(Model):
         return "Yes" if val else "No"
     
     def wrap_model(self):
-        inputs = InputTensor(shape=(256, 256, 1))
+        inputs = InputTensor(shape=(self.input_size, self.input_size, self.channelnum))
         outputs = self.call(inputs)
         wrapped = Model(inputs, outputs,name="FunctionalHourglassModel")
         wrapped.core = self

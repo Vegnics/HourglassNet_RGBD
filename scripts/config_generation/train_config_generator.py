@@ -12,7 +12,7 @@ with open(cfg_name, "r") as f:
 current_time = datetime.now().strftime("%H:%M:%S")
 
 # Related to the data and dataset
-modality = "RGBD"
+modality = "Depth"
 dataset_path = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3"
 annotations_path = "data/htf_slp_dataset.ignore.json"
 
@@ -22,16 +22,22 @@ n2joints = 12
 use2joints = True
 heatmap_stddev =  1.1
 stddev_factor = 1.3
+limbs_2J = [(0,1),(1,2),(2,3),(3,4),(4,5),(6,7),(7,8),(8,12),(9,12),(12,13),(11,10),(10,9)] 
 
 # Related to the model and training
-model_name = "myModel_SLP_WS_BL_1B_w2joints.keras"
+model_name = "myModel_SLP_WS_BL_1B_w2jointsFT_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
-epochs = 200
+epochs = 150
 batch_size = 20
 stages = 2
 stage_filters = 256
 residual_nblocks = 1
+
+# Related to loading pre-trained models
+load_model = True
+pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras"
+loading_mode = "Partial_Downsampling"
 
 #Related to the attention mechanisms
 skip_AM = "NoAM"
@@ -40,21 +46,26 @@ f2s_AM = "NoAM"
 
 #Related to the loss
 W_1jnts = 1.0
-W_2jnts = 0.2 
+W_2jnts = 0.4 
 W_coords = 0.0
 
 
 
-# Related 
+
+# Related
+limbs_2J_str = [f"{limb}" for limb in limbs_2J]
 conf["data"]["input"]["mode"] = modality
 conf["data"]["input"]["source"] = dataset_path
 conf["data"]["output"]["source"] = annotations_path
 conf["data"]["output"]["joints"]["num"] = n1joints
 
-conf["dataset"]["heatmap"]["channels"] = n1joints
+conf["dataset"]["heatmap"]["channels_1JHMs"] = n1joints
+conf["dataset"]["heatmap"]["channels_2JHMs"] = n2joints
 conf["dataset"]["heatmap"]["stddev"] = heatmap_stddev
 conf["dataset"]["heatmap"]["stddev_factor"] = stddev_factor
 conf["dataset"]["heatmap"]["stacks"] = stages
+conf["dataset"]["heatmap"]["limbs_2J_str"] = limbs_2J_str
+conf["dataset"]["data_mode"] = modality
 
 conf["model"]["params"]["channels_1joint"] = n1joints
 conf["model"]["params"]["channels_2joint"] = n2joints
@@ -65,6 +76,10 @@ conf["model"]["params"]["f2s_AM"] = f2s_AM
 conf["model"]["params"]["stages"] = stages
 conf["model"]["params"]["stage_filters"] = stage_filters
 conf["model"]["params"]["residual_nblocks"] = residual_nblocks
+conf["model"]["load_model"] = load_model
+conf["model"]["model_path"] = pt_model_name
+conf["model"]["loading_style"] = loading_mode
+conf["model"]["params"]["channel_number"] = 4
 
 
 conf["train"]["epochs"] = epochs

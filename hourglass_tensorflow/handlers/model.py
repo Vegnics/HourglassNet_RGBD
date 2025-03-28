@@ -183,6 +183,14 @@ class HTFModelHandler(_HTFModelHandler):
                         #for _l in HourglassLayer.layers:
                         #    print(f"XX {layer.name}")
                         #layer.trainable = False
+                elif self.config.loading_style == "Partial_Downsampling":
+                    print(">>>>>>> [LOADING] PARTIAL TRAINING DOWNSAMPLING <<<<<<<<<")
+                    for layer in model.layers:
+                        if isinstance(layer,DownSamplingLayer):
+                            layer.trainable = True
+                        else:
+                            print(f"Freezing {layer.name}")
+                            layer.trainable = False
                 model.summary()
                 self._model = model
             # Link Input Shape to Model

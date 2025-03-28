@@ -73,7 +73,7 @@ dataset:
   column_image: image
   heatmap:
     size: 64 #64
-    stacks: 3
+    stacks: 2
     channels: 17 
     stddev: 1.3
     stddev_factor: 1.3 #1.35
@@ -93,7 +93,7 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 0.000001
+    ratio_test: 0.02
     ratio_train: 0.75
     ratio_validation: 0.21
   bbox:
@@ -111,9 +111,9 @@ model:
     input_size: 256 #256
     output_size: 64 #64
     channel_number: 1 #4
-    stages: 3
+    stages: 2
     downsamplings_per_stage: 4
-    stage_filters: 64 #64
+    stage_filters: 256 #64
     channels_1joint: 17 #14 ->26
     channels_2joint: 12 #14 ->26
     name: "HourglassSample"
@@ -124,7 +124,8 @@ model:
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
-  #load_model: true
+    residual_nblocks: 1
+  load_model: false
   #model_path: "data/model_t/myModel_MKV_a1"
 
 train:
@@ -134,8 +135,8 @@ train:
       foo: bar
   epochs: 150
   epoch_size: 92
-  batch_size: 50 #128
-  learning_rate: 0.0000025
+  batch_size: 20 #128
+  learning_rate: 0.00025
   #learning_rate:
   #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     #source: "keras.optimizers.schedules.ExponentialDecay"
@@ -147,7 +148,7 @@ train:
     source: "hourglass_tensorflow.losses.MAE_custom"
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
     params:
-      nstages: 3
+      nstages: 2
       n1joints: 17  #16 ->26
       n2joints: 12
       use2joints: false
@@ -169,10 +170,10 @@ train:
     #  beta_2: 0.99
     #  epsilon: 1e-08
   metrics:
-    - source: "hourglass_tensorflow.metrics.SoftargmaxMeanDist"
-      params: 
-        name: "SoftMedDist"
-        num_1joints: 17
+    #- source: "hourglass_tensorflow.metrics.SoftargmaxMeanDist"
+    #  params: 
+    #    name: "SoftMedDist"
+    #    num_1joints: 17
     - 
       source: "hourglass_tensorflow.metrics.OverallMeanDistance"
       params:
@@ -207,7 +208,7 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_MKV_fA"
+        filepath: "data/model_t/myModel_MKV_WS_BL.keras"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
@@ -226,4 +227,5 @@ train:
     -
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
-        filename: logs/myModelLogs.csv
+        filename: logs/myModelLogs_myModel_MKV_WS_BL.keras_21_09_00.csv
+test: null

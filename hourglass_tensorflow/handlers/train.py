@@ -124,7 +124,8 @@ class HTFTrainHandler(_HTFTrainHandler):
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
-            train_dataset = train_dataset.repeat(2) #7
+            
+            #train_dataset = train_dataset.repeat(2) #7
             
             #batch_testimgs = imgs_ds.batch(80) 
             
@@ -149,9 +150,10 @@ class HTFTrainHandler(_HTFTrainHandler):
         with tf.device('/GPU:0'):
             #dummy_callback = DummyCallback(batch_testds)
             #self._callbacks.append(dummy_callback)
-
+            num_chann = model.get_config()["core_config"]["channel_number"]
+            input_size = model.get_config()["core_config"]["input_size"]
             print("BATCH INFO :", batch_num.numpy().tolist(),(batch_num//self._epochs).numpy().tolist())
-            model(tf.random.normal((1, 256, 256, 1))) 
+            model(tf.random.normal((1, 256, 256,num_chann))) 
             model.summary()
             model.fit(
                 batch_train,

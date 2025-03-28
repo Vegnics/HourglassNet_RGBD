@@ -1,7 +1,7 @@
 import re
 import enum
 from typing import Dict
-from typing import List
+from typing import List,Tuple
 from typing import Union
 from typing import Literal
 from typing import Optional
@@ -34,6 +34,7 @@ CHANNELS_PER_MODE = {
 ImageModesType = Union[
     Literal["RGB"],
     Literal["RGBD"],
+    Literal["Depth"],
     Literal["rgb"],
     Literal["RGBA"],
     Literal["rgba"],
@@ -55,6 +56,7 @@ class ImageMode(enum.Enum):
     GRAY = "GRAY"
     RGBA = "RGBA"
     BGRA = "BGRA"
+    Depth = "Depth"
 
 
 class HTFDataOutputJointsSuffix(HTFConfigField):
@@ -98,6 +100,7 @@ class HTFDataOutputJoints(HTFConfigField):
             "15_lWrist",
         ]
     )
+
     format: HTFDataOutputJointsFormat = Field(default=HTFDataOutputJointsFormat)
 
     def VALIDITY_CONDITIONS(self) -> List[bool]:
@@ -105,6 +108,7 @@ class HTFDataOutputJoints(HTFConfigField):
             self.num == len(self.names),
             len(self.dynamic_fields) == len(RE_FSTRING.findall(self.naming_convention)),
         ]
+
 
 
 class HTFDataOutput(HTFConfigField):

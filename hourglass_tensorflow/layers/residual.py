@@ -128,7 +128,8 @@ class ResidualLayer(Layer):
                                             use_last_relu = self.use_last_relu,
                                             trainable=trainable,
                                             attentionType=self.attention_type) for k in range(self.nblocks)]
-
+        for k,layer in enumerate(self.residual_blocks):
+            self.__setattr__(f"residual_{k}", layer)
     def get_config(self):
         return {
             **super().get_config(),
@@ -269,7 +270,8 @@ class ResidualLayerIn(Layer):
                     trainable=trainable,
                     attentionType="NoAM")
                 )
-
+        for k,layer in enumerate(self.residual_blocks):
+            self.__setattr__(f"residual_{k}", layer)
     def get_config(self):
         return {
             **super().get_config(),

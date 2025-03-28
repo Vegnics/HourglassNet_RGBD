@@ -90,6 +90,8 @@ class DownSamplingLayer(Layer):
                         pool_size=(2, 2), padding="valid", name=f"MaxPool{i}"
                     )
                 )
+        for k,layer in enumerate(self.layer_list):
+            self.__setattr__(f"downsamplingLayer_{k}", layer)
     def get_config(self):
         return {
             **super().get_config(),

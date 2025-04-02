@@ -46,7 +46,7 @@ class ResidualBlock(Layer):
                 trainable = True
             )
         elif self.attention_type == "FAM":
-            FeatureAttentionMechanism(
+            self.attention_block = FeatureAttentionMechanism(
                 name="AttentionBlock",
                 filters = self.output_filters,
                 kernel_size = 1,

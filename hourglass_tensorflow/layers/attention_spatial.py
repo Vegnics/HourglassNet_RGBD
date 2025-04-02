@@ -109,7 +109,8 @@ class SpatialAttentionMechanism(Layer):
             name="AttConv2D_scores",
             activation="sigmoid",
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= self.kernel_initializer,
+            kernel_initializer= "zeros",
+            use_bias=False,
         )
         
     def get_config(self):
@@ -150,7 +151,7 @@ class SpatialAttentionMechanism(Layer):
         # Merge the new spatial structure back into H and W
         S = tf.reshape(S, shape=(-1, H, W, 1))  # Final shape (B, H, W, C)
         scores = self.score_gen(S) 
-        return scores
+        return scores-0.5
     
     def build(self, input_shape):
         super().build(input_shape)

@@ -200,6 +200,8 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
+                            print(f"Freezing {main_name}/{layer.hm1_output.name}")
+                            layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
                             layer.hm2_output.trainable = False
                             print(f"Freezing {main_name}/{layer.features_hm2.name}")

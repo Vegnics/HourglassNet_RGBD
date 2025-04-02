@@ -41,6 +41,7 @@ class SpatialAttentionMechanism(Layer):
         self.trainable = trainable
         self.kernel_reg = kernel_reg
         # Create layers
+        """
         self.gap_proj = layers.Conv2D(
             filters=1,
             kernel_size=(1,1),
@@ -51,14 +52,15 @@ class SpatialAttentionMechanism(Layer):
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
         )
+        """
 
-        self.conv3x3x8 = layers.Conv2D(
+        self.conv1_3x3 = layers.Conv2D(
             filters=64,
-            kernel_size=(5,5),
+            kernel_size=(3,3),
             strides=self.strides,
             padding="same",
             name="AttConv2D_1",
-            activation="gelu",
+            activation= None, #"gelu",
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
         )
@@ -70,13 +72,13 @@ class SpatialAttentionMechanism(Layer):
             trainable=self.trainable,
         )
 
-        self.conv1x1x16 = layers.Conv2D(
+        self.conv2_3x3 = layers.Conv2D(
             filters=32,
             kernel_size=(3,3),
             strides=self.strides,
             padding="same",
             name="AttConv2D_2",
-            activation="gelu",
+            activation= None,#"gelu",
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
         )
@@ -131,13 +133,13 @@ class SpatialAttentionMechanism(Layer):
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         #_inputs = self.conv1x1x64(inputs)
         #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=-1)+1e-9) #HW
-        #gap = tf.reduce_mean(inputs,axis=-1)
-        #gap = tf.expand_dims(gap,axis=-1)
-        gap = self.gap_proj(inputs)
+        gap = tf.reduce_mean(inputs,axis=-1)
+        gap = tf.expand_dims(gap,axis=-1)
+        #gap = self.gap_proj(inputs)
         gshape = tf.shape(gap) #NHWC
-        S = self.conv3x3x8(gap)
+        S = self.conv1_3x3(gap)
         S = self.maxpool1(S)
-        S = self.conv1x1x16(S)
+        S = self.conv2_3x3(S)
         S = self.maxpool2(S)
         S = self.patches_proj(S)
         # Ensure H and W are divisible by 4 before reshaping

@@ -169,7 +169,7 @@ class FeatureAttentionMechanism(Layer):
         #W = _shape[2]
         learned_gap = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])
         #learned_gap = self.spatialgap(inputs)
-        learned_gap = tf.reduce_mean(learned_gap,axis=[1,2]) #NC
+        #learned_gap = tf.reduce_mean(learned_gap,axis=[1,2]) #NC
         learned_gap = tf.reshape(learned_gap,shape=(-1,self.filters))
         """
         learned_gap = tf.transpose(learned_gap,perm=[0,3,1,2])

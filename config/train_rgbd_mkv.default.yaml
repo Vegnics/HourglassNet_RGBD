@@ -147,8 +147,8 @@ model:
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
-  loading_style: Partial_Downsampling_frozen #Partial_Train_Joints #Partial_Downsampling # Full_Train #
+  model_path: data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
+  loading_style: Partial_Train_Joints #Partial_Downsampling_frozen #Partial_Train_Joints #Partial_Downsampling # Full_Train #
 
 train:
   object:
@@ -158,7 +158,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20 #128
-  learning_rate: 0.000001 #0.000001
+  learning_rate: 0.00025 #0.000001 #0.000001
   #learning_rate:
   #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     #source: "keras.optimizers.schedules.ExponentialDecay"

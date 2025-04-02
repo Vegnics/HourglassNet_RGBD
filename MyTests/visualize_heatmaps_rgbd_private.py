@@ -222,8 +222,8 @@ subject_num = 3
 sample_num = 5
 cover = 0 
 
-Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
-Model.trainable = False
+#Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
+#Model.trainable = False
 
 for sub in subjects:
     subject_num = sub["subject_id"]
@@ -247,19 +247,24 @@ for sub in subjects:
             depthmap = tf.expand_dims(tf_3Uint8_to_float32(depth_img),axis=2)
             landmarks = tf.convert_to_tensor(lm_data["keypoints"])
             visibilities = tf.convert_to_tensor([1]*14)
-            squared_rgbd = tf_test_map_affine_woaugment_RGBD(depthmap,depthmap.shape,landmarks,visibilities,njoints=14)
+            """
+            squared_rgbd = tf_test_map_affine_woaugment_RGBD(depthmap,depthmap.shape,landmarks,visibilities,njoints=14,affine_axis_mask=tf.convert_to_tensor([[1,0,0,0]]))
             obbox = tf.cast(squared_rgbd[2][0],tf.float32)
             print(landmarks.shape,squared_rgbd[1][0].shape)
             _obbox = obbox[0:2,0:2]
             padding = obbox[2,0:2]
             print(obbox)
             tensor = squared_rgbd[0] #tf.cast(tf.expand_dims(squared_rgbd[0],axis=0),dtype=tf.dtypes.float32)
-            hms = Model.predict(tensor)
-            preds = hms[0,1,:,:,:]
+            #hms = Model.predict(tensor)
+            #preds = hms[0,1,:,:,:]
             #cv2.imshow(f"results_{cover}",imgs[cover])
-            img_bgr = draw_pose(imgs[cover][:,:,::-1],preds,_obbox,padding)
-            img_gt = draw_poseGT(imgs[cover][:,:,::-1],squared_rgbd[1][0])
+            #img_bgr = draw_pose(imgs[cover][:,:,::-1],preds,_obbox,padding)
+            """
+            #img_gt = draw_poseGT(imgs[cover][:,:,::-1],squared_rgbd[1][0])
+            img_gt = draw_poseGT(imgs[cover][:,:,::-1],landmarks)
             plt.imshow(imgs[cover][:,:,::-1])#[:,:,::-1])
+            plt.figure()
+            plt.imshow(img_gt)
             plt.figure()
             plt.imshow(depthmap[:,:,0],cmap="jet",vmin=800,vmax=6500)
             #plt.figure()

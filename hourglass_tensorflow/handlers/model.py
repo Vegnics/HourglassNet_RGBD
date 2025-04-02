@@ -193,6 +193,14 @@ class HTFModelHandler(_HTFModelHandler):
                         else:
                             print(f"Freezing {layer.name}")
                             layer.trainable = False
+                elif self.config.loading_style == "Partial_Downsampling_frozen":
+                    print(">>>>>>> [LOADING] PARTIAL TRAINING DOWNSAMPLING FROZEN <<<<<<<<<")
+                    for layer in model.layers:
+                        if isinstance(layer,DownSamplingLayer):
+                            print(f"Freezing {layer.name}")
+                            layer.trainable = False
+                        else:
+                            layer.trainable = True
                 model.summary()
                 self._model = model
             # Link Input Shape to Model

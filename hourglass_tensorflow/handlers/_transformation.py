@@ -837,6 +837,7 @@ def tf_test_map_affine_woaugment_RGBD(
     visibility: tf.Tensor,
     input_size: int = 64,
     njoints: int = 16,
+    affine_axis_mask: tf.Tensor = None,
     hip: Tuple[int,int] = [3,2],
     task_mode: str = "train"
     )-> tf.Tensor:
@@ -870,11 +871,12 @@ def tf_test_map_affine_woaugment_RGBD(
     
     _images = tf.map_fn(
         fn=(
-            lambda affine: tf_rotate_tensor(_image,
+            lambda affine: tf_rotate_tensor_masked(_image,
                                             img_shape,
                                             affine[0],
                                             affine[1],
                                             center,
+                                            affine_axis_mask
                                             #input_size=input_size,
             )
         ),

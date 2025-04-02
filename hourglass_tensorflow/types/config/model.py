@@ -25,6 +25,7 @@ ATTENTION_MECHANISMS = Union[
 MODEL_LOADING_STYLES = Union[
     Literal["Full_Train"],
     Literal["Partial_Downsampling"],
+    Literal["Partial_Downsampling_frozen"],
     Literal["Partial_Train_Joints"],
     Literal["Partial_Train_Attention"],
 ]

@@ -41,26 +41,28 @@ def load_wrapped_model(fpath: str = None, compile:bool=False):
     return wmodel
 
 def load_basemodel_weights(ftmodel:keras.models.Model = None, basepath: str = None, compile:bool=False):
-    basemodel = keras.models.load_model(basepath,
-                                        custom_objects= {
-                                            "HourglassModel": HourglassModel,
-                                            "HourglassLayer": HourglassLayer,
-                                            "ConvBlockLayer": ConvBlockLayer,
-                                            "ResidualLayer": ResidualLayer,
-                                            "ResidualLayerIn": ResidualLayerIn,
-                                            "ResidualBlock": ResidualBlock,
-                                            "ResidualBlockIn": ResidualBlockIn,
-                                            "SkipLayer": SkipLayer,
-                                            "DownsamplingLayer": DownSamplingLayer,
-                                            "BatchNormReluConvLayer": BatchNormReluConvLayer,
-                                            "ConvBatchNormReluLayer": ConvBatchNormReluLayer,
-                                            "IdentityLayer": IdentityLayer,
-                                            "zeroLayer": zeroLayer,
-                                            "LinearProjection": LinearProjection,
-                                            "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
-                                            "MAE_custom":MAE_custom,
-                                            "OverallMeanDistance":OverallMeanDistance,
-                                            "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=compile)
+    basemodel = keras.models.load_model(basepath,compile=compile)#,
+    """
+    custom_objects= {
+        "HourglassModel": HourglassModel,
+        "HourglassLayer": HourglassLayer,
+        "ConvBlockLayer": ConvBlockLayer,
+        "ResidualLayer": ResidualLayer,
+        "ResidualLayerIn": ResidualLayerIn,
+        "ResidualBlock": ResidualBlock,
+        "ResidualBlockIn": ResidualBlockIn,
+        "SkipLayer": SkipLayer,
+        "DownsamplingLayer": DownSamplingLayer,
+        "BatchNormReluConvLayer": BatchNormReluConvLayer,
+        "ConvBatchNormReluLayer": ConvBatchNormReluLayer,
+        "IdentityLayer": IdentityLayer,
+        "zeroLayer": zeroLayer,
+        "LinearProjection": LinearProjection,
+        "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
+        "MAE_custom":MAE_custom,
+        "OverallMeanDistance":OverallMeanDistance,
+        "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=compile)"
+    """
     #lazyInput = tf.ones(shape=(160,256,256,1),dtype=tf.float32)
     #lazydataset  = tf.data.Dataset.from_tensor_slices(lazyInput).batch(40)
     #basemodel.predict(lazydataset)

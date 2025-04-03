@@ -23,9 +23,9 @@ use2joints = False
 heatmap_stddev =  1.1
 stddev_factor = 1.3
 limbs_2J = [(0,1),(1,2),(2,3),(3,4),(4,5),(6,7),(7,8),(8,12),(9,12),(12,13),(11,10),(10,9)] 
-
+#/home/quinoa/Desktop/some_shit/patient_project/HourglassNet_RGBD/data/model_t/
 # Related to the model and training
-model_name = "myModel_SLP_WS_BL_1B_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
+model_name = "myModel_SLP_WS_BL_1B_ATT_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
 epochs = 150
@@ -33,21 +33,21 @@ batch_size = 20
 stages = 2
 stage_filters = 256
 residual_nblocks = 1
-learning_rate = 2.5e-4
+learning_rate = 3.5e-6
 
 # Related to loading pre-trained models
-load_model = False
-pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras"
-loading_mode = "Partial_Downsampling"
+load_model = True
+pt_model_name = "data/model_t/myModel_SLP_Colab_BL_1B_Depth4C.keras"
+loading_mode = "Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
 skip_AM = "NoAM"
 s2f_AM =  "NoAM" 
-f2s_AM = "NoAM" 
+f2s_AM = "SAM" 
 
 #Related to the loss
 W_1jnts = 1.0
-W_2jnts = 0.4 
+W_2jnts = 0.3 
 W_coords = 0.0
 
 

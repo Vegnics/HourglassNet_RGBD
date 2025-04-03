@@ -140,7 +140,7 @@ model:
     name: "HourglassSample"
     intermediate_supervision: true
     skip_AM: "NoAM"
-    s2f_AM: "FAM" #"NoAM"
+    s2f_AM: "NoAM" #"NoAM"
     f2s_AM: "SAM" #"NoAM"
     use_2jointHM: false
     use_kernel_regularization: false
@@ -148,7 +148,7 @@ model:
     residual_nblocks: 1
   load_model: true
   model_path: "data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras" #data/model_t/myModel_MKV_WS_BL_1B_2JFT_Depth4C.keras #data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
-  loading_style: Partial_Train_Attention #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
+  loading_style: Partial_Downsampling_frozen #Partial_Train_Attention #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
 
 train:
   object:
@@ -158,7 +158,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20 #128
-  learning_rate: 1.5e-7 #0.000001 #0.000001
+  learning_rate: 4.5e-6 #0.000001 #0.000001
   #learning_rate:
   #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     #source: "keras.optimizers.schedules.ExponentialDecay"
@@ -172,7 +172,7 @@ train:
     params:
       WL2_j1: 1.0
       WL2_j2: 0.2
-      WCoords: 0.0001
+      WCoords: 0.0000
       nstages: 2
       n1joints: 18  #16 ->26
       n2joints: 18
@@ -233,7 +233,7 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_MKV_WS_BL_1B_ATT4_Depth4C.keras"
+        filepath: "data/model_t/myModel_MKV_WS_BL_1B_ATT3_Depth4C.keras"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
@@ -252,5 +252,5 @@ train:
     -
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
-        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_ATT4_Depth4C.csv
+        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_ATT3_Depth4C.csv
 test: null

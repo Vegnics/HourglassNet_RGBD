@@ -127,13 +127,13 @@ class SpatialAttentionMechanism(Layer):
             kernel_initializer= self.kernel_initializer,
         )
 
-        self.bn4 = layers.BatchNormalization(
-            axis=-1,
-            momentum=self.momentum,
-            epsilon=self.epsilon,
-            trainable=trainable,
-            name="BN_patch",
-        )
+        #self.bn4 = layers.BatchNormalization(
+        #    axis=-1,
+        #    momentum=self.momentum,
+        #    epsilon=self.epsilon,
+        #    trainable=trainable,
+        #    name="BN_patch",
+        #)
 
         self.score_gen = layers.Conv2D(
             filters=1,
@@ -169,7 +169,8 @@ class SpatialAttentionMechanism(Layer):
         gap = tf.reduce_mean(inputs,axis=-1)
         gap = tf.expand_dims(gap,axis=-1)
         learned_gap = self.gap_proj(inputs)
-        sgap = gap + self.bn1(learned_gap,training=training)
+        sgap = self.bn1(gap + learned_gap,training=training)
+        sgap = tf.nn.swish(sgap)
         gshape = tf.shape(sgap) #NHWC
         S = self.conv1_3x3(sgap)
         S = self.bn2(S,training=training)
@@ -182,8 +183,8 @@ class SpatialAttentionMechanism(Layer):
 
         S = self.maxpool2(S)
         S = self.patches_proj(S)
-        S = self.bn4(S,training=training)
-        S = tf.nn.swish(S)
+        #S = self.bn4(S,training=training)
+        #S = tf.nn.swish(S)
 
         # Ensure H and W are divisible by 4 before reshaping
         H, W = gshape[1], gshape[2]

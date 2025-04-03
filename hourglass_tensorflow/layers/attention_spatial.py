@@ -41,7 +41,7 @@ class SpatialAttentionMechanism(Layer):
         self.trainable = trainable
         self.kernel_reg = kernel_reg
         # Create layers
-        """
+        #"""
         self.gap_proj = layers.Conv2D(
             filters=1,
             kernel_size=(1,1),
@@ -51,8 +51,16 @@ class SpatialAttentionMechanism(Layer):
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
+            use_bias=False,
         )
-        """
+        self.bn1 = layers.BatchNormalization(
+            axis=-1,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            trainable=trainable,
+            name="BN_gap",
+        )
+        #"""
 
         self.conv1_3x3 = layers.Conv2D(
             filters=64,
@@ -63,6 +71,15 @@ class SpatialAttentionMechanism(Layer):
             activation= None, #"gelu",
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
+            use_bias=False,
+        )
+
+        self.bn2 = layers.BatchNormalization(
+            axis=-1,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            trainable=trainable,
+            name="BN_conv1",
         )
 
         self.maxpool1 = layers.MaxPooling2D(
@@ -81,6 +98,15 @@ class SpatialAttentionMechanism(Layer):
             activation= None,#"gelu",
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
+            use_bias=False,
+        )
+
+        self.bn3 = layers.BatchNormalization(
+            axis=-1,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            trainable=trainable,
+            name="BN_conv2",
         )
         
         self.maxpool2 = layers.MaxPooling2D(
@@ -99,6 +125,14 @@ class SpatialAttentionMechanism(Layer):
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= self.kernel_initializer,
+        )
+
+        self.bn4 = layers.BatchNormalization(
+            axis=-1,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            trainable=trainable,
+            name="BN_patch",
         )
 
         self.score_gen = layers.Conv2D(
@@ -132,17 +166,25 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        #_inputs = self.conv1x1x64(inputs)
-        #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=-1)+1e-9) #HW
         gap = tf.reduce_mean(inputs,axis=-1)
         gap = tf.expand_dims(gap,axis=-1)
-        #gap = self.gap_proj(inputs)
-        gshape = tf.shape(gap) #NHWC
-        S = self.conv1_3x3(gap)
+        learned_gap = self.gap_proj(inputs)
+        sgap = gap + self.bn1(learned_gap,training=training)
+        gshape = tf.shape(sgap) #NHWC
+        S = self.conv1_3x3(sgap)
+        S = self.bn2(S,training=training)
+        S = tf.nn.swish(S)
+
         S = self.maxpool1(S)
         S = self.conv2_3x3(S)
+        S = self.bn3(S,training=training)
+        S = tf.nn.swish(S)
+
         S = self.maxpool2(S)
         S = self.patches_proj(S)
+        S = self.bn4(S,training=training)
+        S = tf.nn.swish(S)
+
         # Ensure H and W are divisible by 4 before reshaping
         H, W = gshape[1], gshape[2]
         # Reshape channels into spatial patches (assuming 16 channels split into 4x4)

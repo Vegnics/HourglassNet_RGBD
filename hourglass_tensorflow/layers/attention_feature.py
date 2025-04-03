@@ -88,7 +88,7 @@ class FeatureAttentionMechanism(Layer):
         epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
-        headnum: int = 8,
+        headnum: int = 4,
         trainable: bool = True,
         kernel_reg: bool = False,
     ) -> None:
@@ -111,8 +111,8 @@ class FeatureAttentionMechanism(Layer):
         #self.heads = []
         # EXPERIMENTAL GAPP-FLATTEN
         self.heads = [
-                layers.Dense(self.filters//4,
-                activation=None,
+                layers.Dense(self.filters//16,
+                activation= "swish", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Head_{}".format(i),

@@ -140,15 +140,15 @@ model:
     name: "HourglassSample"
     intermediate_supervision: true
     skip_AM: "NoAM"
-    s2f_AM: "NoAM" #"NoAM"
-    f2s_AM: "NoAM" #"NoAM"
-    use_2jointHM: true
+    s2f_AM: "FAM" #"NoAM"
+    f2s_AM: "SAM" #"NoAM"
+    use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
-  loading_style: Partial_Downsampling_frozen #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
+  model_path: "data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras" #data/model_t/myModel_MKV_WS_BL_1B_2JFT_Depth4C.keras #data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
+  loading_style: Partial_Train_Attention #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
 
 train:
   object:
@@ -158,7 +158,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20 #128
-  learning_rate: 0.00000025 #0.000001 #0.000001
+  learning_rate: 1.5e-7 #0.000001 #0.000001
   #learning_rate:
   #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     #source: "keras.optimizers.schedules.ExponentialDecay"
@@ -176,7 +176,7 @@ train:
       nstages: 2
       n1joints: 18  #16 ->26
       n2joints: 18
-      use2joints: true
+      use2joints: false
       foo: bar
   #loss: MeanSquaredError
   optimizer:
@@ -233,13 +233,13 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_MKV_WS_BL_1B_2JFT_Depth4C.keras"
+        filepath: "data/model_t/myModel_MKV_WS_BL_1B_ATT4_Depth4C.keras"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
         save_best_only: true
         verbose: 1
-        initial_value_threshold: 0.94 #1000000.0
+        initial_value_threshold: 0.9 #1000000.0
     -
       source: "tensorflow.keras.callbacks.TensorBoard"
       params:
@@ -252,5 +252,5 @@ train:
     -
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
-        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_2J_FT_Depth4C_15_51_00.csv
+        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_ATT4_Depth4C.csv
 test: null

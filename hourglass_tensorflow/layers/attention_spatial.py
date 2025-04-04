@@ -127,13 +127,13 @@ class SpatialAttentionMechanism(Layer):
             kernel_initializer= self.kernel_initializer,
         )
 
-        #self.bn4 = layers.BatchNormalization(
-        #    axis=-1,
-        #    momentum=self.momentum,
-        #    epsilon=self.epsilon,
-        #    trainable=trainable,
-        #    name="BN_patch",
-        #)
+        self.bn4 = layers.BatchNormalization(
+            axis=-1,
+            momentum=self.momentum,
+            epsilon=self.epsilon,
+            trainable=trainable,
+            name="BN_patch",
+        )
 
         self.score_gen = layers.Conv2D(
             filters=1,
@@ -141,10 +141,11 @@ class SpatialAttentionMechanism(Layer):
             strides=self.strides,
             padding="same",
             name="AttConv2D_scores",
-            activation="sigmoid",
+            activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= "zeros",
-            use_bias=False,
+            bias_initializer=tf.constant_initializer(-8.0),
+            use_bias=True,
         )
         
     def get_config(self):
@@ -174,17 +175,17 @@ class SpatialAttentionMechanism(Layer):
         gshape = tf.shape(sgap) #NHWC
         S = self.conv1_3x3(sgap)
         S = self.bn2(S,training=training)
-        S = tf.nn.swish(S)
+        S = tf.nn.relu(S)
 
         #S = self.maxpool1(S)
         S = self.conv2_3x3(S)
         S = self.bn3(S,training=training)
-        S = tf.nn.swish(S)
+        S = tf.nn.relu(S)
 
         #S = self.maxpool2(S)
         S = self.patches_proj(S)
-        #S = self.bn4(S,training=training)
-        #S = tf.nn.swish(S)
+        S = self.bn4(S,training=training)
+        S = tf.nn.relu(S)
 
         # Ensure H and W are divisible by 4 before reshaping
         H, W = gshape[1], gshape[2]
@@ -193,8 +194,8 @@ class SpatialAttentionMechanism(Layer):
         S = tf.transpose(S, perm=[0, 1, 3, 2, 4])  # Swap inner spatial blocks
         # Merge the new spatial structure back into H and W
         S = tf.reshape(S, shape=(-1, H, W, 1))  # Final shape (B, H, W, C)
-        scores = self.score_gen(S) 
-        return scores-0.5
+        scores = tf.nn.sigmoid(self.score_gen(S)) 
+        return scores
     
     def build(self, input_shape):
         super().build(input_shape)

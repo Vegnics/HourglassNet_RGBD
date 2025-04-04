@@ -139,7 +139,7 @@ train:
   epochs: 100
   epoch_size: 92
   batch_size: 20
-  learning_rate: 1.5e-05
+  learning_rate: 0.00025
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -197,5 +197,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_FT_Depth4C.keras_19:50:11.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_FT_Depth4C.keras_20:09:28.csv
 test: null

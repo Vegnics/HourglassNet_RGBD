@@ -33,7 +33,7 @@ batch_size = 20
 stages = 2
 stage_filters = 256
 residual_nblocks = 1
-learning_rate = 1.5e-5
+learning_rate = 2.5e-4
 
 # Related to loading pre-trained models
 load_model = True

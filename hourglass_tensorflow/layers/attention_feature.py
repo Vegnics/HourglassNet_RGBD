@@ -137,7 +137,8 @@ class FeatureAttentionMechanism(Layer):
         """
         self.last_projection = layers.Dense(self.filters,
             activation="sigmoid",
-            use_bias=False,
+            use_bias=True,
+            bias_initializer=tf.constant_initializer(-8.0),
             kernel_initializer='zeros',
             name = "LastProjection",
             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
@@ -192,6 +193,6 @@ class FeatureAttentionMechanism(Layer):
         #_out = self.last_projection1(_out)
         scores = tf.expand_dims(scores,axis=1)
         scores = tf.expand_dims(scores,axis=1)
-        return scores-0.5
+        return scores
     def build(self, input_shape):
         super().build(input_shape)

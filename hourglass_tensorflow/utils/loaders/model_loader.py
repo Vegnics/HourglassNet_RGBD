@@ -11,7 +11,6 @@ from hourglass_tensorflow.layers.skip import SkipLayer
 #from hourglass_tensorflow.layers.residual_with_attention import ResidualLayerAttention
 #from hourglass_tensorflow.layers.residual_with_attention_spatial import ResidualLayerAttentionSpatial
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
-from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
 from hourglass_tensorflow.layers.batch_norm_relu_conv import BatchNormReluConvLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer

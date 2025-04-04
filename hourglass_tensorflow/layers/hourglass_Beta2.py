@@ -241,13 +241,6 @@ class HourglassLayer(Layer):
                                             trainable=trainable,
         )
 
-        self.bn_feats_1j = layers.BatchNormalization(
-            axis=-1,
-            momentum=0.989,
-            epsilon=0.0001,
-            trainable=trainable,
-            name="BN_Feats_1J",
-        )
 
         self.residual_brc = ResidualWithBNRC(
                     output_filters=self.feature_filters,
@@ -394,7 +387,6 @@ class HourglassLayer(Layer):
         #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
         #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training)
         feats1j = self.merge_feats_1j(intermediate_1jhms)
-        feats1j = self.bn_feats_1j(feats1j,training=training)
         #_out = self._last_residual(_x,training=training)
         out_tensor = tf.add_n(
             [inputs, main_feats, feats1j], #_out

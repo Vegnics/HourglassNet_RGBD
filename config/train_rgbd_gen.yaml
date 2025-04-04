@@ -123,23 +123,23 @@ model:
     intermediate_supervision: true
     skip_AM: NoAM
     s2f_AM: NoAM
-    f2s_AM: SAM
+    f2s_AM: NoAM
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
   model_path: data/model_t/myModel_SLP_Colab_BL_1B_Depth4C.keras
-  loading_style: Partial_Downsampling_frozen
+  loading_style: Full_Train
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
     params:
       foo: bar
-  epochs: 150
+  epochs: 100
   epoch_size: 92
   batch_size: 20
-  learning_rate: 3.5e-06
+  learning_rate: 1.5e-05
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -181,7 +181,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_WS_BL_1B_ATT_Depth4C.keras
+      filepath: data/model_t/myModel_SLP_WS_BL_1B_FT_Depth4C.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -197,5 +197,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_ATT_Depth4C.keras_20:56:53.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_FT_Depth4C.keras_19:50:11.csv
 test: null

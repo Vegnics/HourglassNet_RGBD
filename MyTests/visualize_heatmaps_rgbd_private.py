@@ -157,14 +157,14 @@ def draw_pose(img,hm,obbox,pad):
         dx,dy = get_secondmax(hm[:,:,i],x,y)
         #x = 4*int((pnt%64) + 0.5*dx)
         #y = 4*int((pnt//64) + 0.5*dy)
-        x = int((N/64.0)*((pnt%64) + 0.1*dx - padx)+ obbox[0,0])
-        y = int((N/64.0)*((pnt//64) + 0.1*dy - pady)+ obbox[0,1])
+        x = int((N/64.0)*((pnt%64) + 0.0*dx - padx)+ obbox[0,0])
+        y = int((N/64.0)*((pnt//64) + 0.0*dy - pady)+ obbox[0,1])
         val = hm[int(pnt//64),int(pnt%64),i]
         print(f"Landmark {keypoint_names[i]}:  ({x},{y},{val})")
         kpnts.append([x,y,val])
     kpnts = np.array(kpnts)
     _visible_kpts = np.array([i for i in range(14)])
-    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.1])
+    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.13])
     KEYPOINT_EDGE_INDS_TO_COLOR = {
     (0, 1): (235,0,255),
     (1, 2): (235,0,255),
@@ -189,7 +189,7 @@ def draw_pose(img,hm,obbox,pad):
             y1=int(kpnts[edge_pair[1],1])
             cv2.line(_img,(x0,y0),(x1,y1),color,5)
     for pnt in kpnts:
-        if pnt[2]>0.1:
+        if pnt[2]>0.13:
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
     
@@ -222,8 +222,8 @@ subject_num = 3
 sample_num = 5
 cover = 0 
 
-#Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
-#Model.trainable = False
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT_Depth4C.keras",compile=False) 
+Model.trainable = False
 
 for sub in subjects:
     subject_num = sub["subject_id"]
@@ -245,24 +245,28 @@ for sub in subjects:
             imagedepthRot = cv2.rotate(depth_img,cv2.ROTATE_90_COUNTERCLOCKWISE)
             depth_img = tf.convert_to_tensor(imagedepthRot[:,:,::-1])
             depthmap = tf.expand_dims(tf_3Uint8_to_float32(depth_img),axis=2)
+            shape_d = tf.shape(depthmap)
+            rgb_zeros = tf.zeros(shape=(shape_d[0],shape_d[1],3),dtype=tf.float32)
+            rgbd_image_in = tf.concat([depthmap,rgb_zeros],axis=-1)
             landmarks = tf.convert_to_tensor(lm_data["keypoints"])
             visibilities = tf.convert_to_tensor([1]*14)
-            """
-            squared_rgbd = tf_test_map_affine_woaugment_RGBD(depthmap,depthmap.shape,landmarks,visibilities,njoints=14,affine_axis_mask=tf.convert_to_tensor([[1,0,0,0]]))
+            #"""
+            axis_rot_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
+            squared_rgbd = tf_test_map_affine_woaugment_RGBD(rgbd_image_in,rgbd_image_in.shape,landmarks,visibilities,njoints=14,affine_axis_mask=axis_rot_mask)
             obbox = tf.cast(squared_rgbd[2][0],tf.float32)
             print(landmarks.shape,squared_rgbd[1][0].shape)
             _obbox = obbox[0:2,0:2]
             padding = obbox[2,0:2]
             print(obbox)
             tensor = squared_rgbd[0] #tf.cast(tf.expand_dims(squared_rgbd[0],axis=0),dtype=tf.dtypes.float32)
-            #hms = Model.predict(tensor)
-            #preds = hms[0,1,:,:,:]
+            hms = Model.predict(tensor)
+            preds = hms[0,1,:,:,:]
             #cv2.imshow(f"results_{cover}",imgs[cover])
-            #img_bgr = draw_pose(imgs[cover][:,:,::-1],preds,_obbox,padding)
-            """
+            img_bgr = draw_pose(imgs[cover][:,:,::-1],preds,_obbox,padding)
+            #"""
             #img_gt = draw_poseGT(imgs[cover][:,:,::-1],squared_rgbd[1][0])
             img_gt = draw_poseGT(imgs[cover][:,:,::-1],landmarks)
-            plt.imshow(imgs[cover][:,:,::-1])#[:,:,::-1])
+            plt.imshow(img_bgr) #imgs[cover][:,:,::-1])#[:,:,::-1])
             plt.figure()
             plt.imshow(img_gt)
             plt.figure()

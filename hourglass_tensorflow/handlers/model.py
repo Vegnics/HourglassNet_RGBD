@@ -131,7 +131,8 @@ class HTFModelHandler(_HTFModelHandler):
                 print(f"Generating new model from scratch")
                 #model = self._build_model_as_model()
                 model = self._build_model_as_model(*args, **kwargs)
-                print_layers_recursive(model,path="")
+                #print_layers_recursive(model,path="")
+                
                 #print(model.get_config())
                 #print(model.stages,model.channels_1J,model.channels_2J)
                 #custom_objects = {name: obj for name, obj in inspect.getmembers(hourglass_tensorflow.layers, inspect.isclass) if issubclass(obj, tf.keras.layers.Layer)}

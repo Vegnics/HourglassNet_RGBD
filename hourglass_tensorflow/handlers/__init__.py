@@ -185,13 +185,25 @@ class HTFManager(ObjectLogger):
             print(np.max(img),np.min(img),cntld)
             
             depth = img[:,:,0]#*255.0/3.5
+            #H, W = 256, 256
+            #x = np.linspace(0, 1, W)
+            #y = np.linspace(0, 1, H)
+            #X, Y = np.meshgrid(x, y)
+            # Plotting in 3D
+            #fig = plt.figure(figsize=(10, 8))
+            #ax = fig.add_subplot(111, projection='3d')
+            #ax.plot_surface(X, Y, depth, cmap='jet', linewidth=0, antialiased=True)
+            #plt.show()
             print(hmp.shape)
             #print(data[2].numpy())
             draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
+            
             #draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
-            x = input("Skip heatmaps?")
-            if x=="y":
-                continue
+            
+            #x = input("Skip heatmaps?")
+            continue
+            #if x=="y":
+            #    continue
             plt.figure()
             #scalimg = ax.imshow(depth)
             #scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.5)

@@ -166,7 +166,7 @@ Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
 """
-Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT_Depth4C.keras",compile=False) 
 Model.trainable = False
 print(Model)
 print(Model.get_config())
@@ -214,9 +214,12 @@ while cap.isOpened():
         imagedepthRot = cv2.rotate(imagedepth,cv2.ROTATE_90_COUNTERCLOCKWISE)
         imagedepth = tf.convert_to_tensor(imagedepthRot[:,:,::-1])
         depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=2)
+        shape_d = tf.shape(depthmap)
+        rgb_zeros = tf.zeros(shape=(shape_d[0],shape_d[1],3),dtype=tf.float32)
+        rgbd_image_in = tf.concat([depthmap,rgb_zeros],axis=-1)
         #print(depthmap)
-        _depthimg,tbbox = tf_test_map_squarify(depthmap,tf.convert_to_tensor(cbbox))
-        #print(_depthimg)
+        _depthimg,tbbox = tf_test_map_squarify(rgbd_image_in,tf.convert_to_tensor(cbbox))
+        print(_depthimg.shape)
         _obbox = tbbox[0:2,0:2]
         padding = tbbox[2,0:2]
         hms = Model.predict(tf.expand_dims(_depthimg,axis=0))
@@ -228,7 +231,7 @@ while cap.isOpened():
         ax.margins(0)
         ax.set_xticks([])
         ax.set_yticks([])
-        im = ax.imshow(tf.reshape(_depthimg,(256,256)),cmap="jet")
+        im = ax.imshow(tf.reshape(_depthimg[:,:,0],(256,256)),cmap="jet")
         # Draw the canvas and get the image as a NumPy array
         fig.canvas.draw()
         # Convert to NumPy array

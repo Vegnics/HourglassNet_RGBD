@@ -301,7 +301,7 @@ def tf_expand_bbox(
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
 
     N = tf.maximum(height,width)
-    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.12,maxval=0.1) #[-0.1,0.06]
+    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.18,maxval=0.15) #[-0.1,0.06]
 
     bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
     bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
@@ -327,16 +327,6 @@ def tf_expand_bbox(
         c_br_y
     )
 
-    ptlx = new_tl_x - c_tl_x
-    ptly = new_tl_y - c_tl_y 
-    pbrx = c_br_x - new_br_x 
-    pbry = c_br_y -new_br_y    
-    padding_tensor = tf.convert_to_tensor([
-        [ptly, pbry],
-        [ptlx, pbrx],
-        [0, 0],
-    ],dtype=tf.int32)
-
     new_tl_x = tf.math.floor(new_tl_x)
     new_tl_y = tf.math.floor(new_tl_y)
     new_br_x = tf.math.floor(new_br_x)
@@ -345,7 +335,7 @@ def tf_expand_bbox(
     return tf.cast(
         tf_reshape_slice([new_tl_x, new_tl_y, new_br_x, new_br_y], shape=2, **kwargs),
         dtype=tf.int32,
-    ), padding_tensor
+    )
 
 
 @tf.function
@@ -653,9 +643,9 @@ def tf_depth_parameterized_noise(tensor:tf.Tensor,shape: tf.Tensor,thresh_val: f
                 start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
             ),
         )
-    G = tf.random.uniform(shape=[],minval=0,maxval=300,dtype=precision)
+    G = tf.reduce_mean(tf.random.uniform(shape=[10],minval=0,maxval=500,dtype=precision))
     k = 1/(tf.cast(shape[1], precision))
-    angle = tf.random.uniform(shape=[],minval=-15.0,maxval=15.0,dtype=precision)
+    angle = tf.random.uniform(shape=[],minval=-90.0,maxval=90.0,dtype=precision)
     kx = tf.math.sin(angle/180*3.141592)*k
     ky = tf.math.cos(angle/180*3.141592)*k
     Z = G*(kx*X+ky*Y)

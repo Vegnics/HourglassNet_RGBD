@@ -159,13 +159,13 @@ class HTFTestHandler(_HTFTestHandler):
         # rjoints: NxCx2
         # bboxes: Nx3x2
 
-        joints = tf_batch_matrix_softargmax(heatmaps[:,:,:,0:14])
+        #joints = tf_batch_matrix_softargmax(heatmaps[:,:,:,0:14])
 
-        #joints = tf_dynamic_matrix_argmax(
-        #    heatmaps[:,:,:,0:14],
-        #    intermediate_supervision=False,
-        #    keepdims=True,
-        #)
+        joints = tf_dynamic_matrix_argmax(
+            heatmaps[:,:,:,0:14],
+            intermediate_supervision=False,
+            keepdims=True,
+        )
 
         return joints
 
@@ -292,6 +292,7 @@ class HTFTestHandler(_HTFTestHandler):
             #    nsamples = batches+1.0 
             #print(correct_keypoints,"out of :",14*distance.shape()[0].numpy())
             print(correct_keypoints,"out of :",Njoints)
+            print("PCKh@0.5 Acc: ",100.0*tf.math.divide_no_nan(tf.cast(correct_keypoints,tf.float32),tf.cast(Njoints,tf.float32)))
             
             #print(100.0*cum_accuracy/(nsamples))
 

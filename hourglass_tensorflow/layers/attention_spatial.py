@@ -65,7 +65,7 @@ class SpatialAttentionMechanism(Layer):
         self.conv1_3x3 = layers.Conv2D(
             filters=64,
             kernel_size=(3,3),
-            strides=self.strides,
+            strides= (2,2),#self.strides,
             padding="same",
             name="AttConv2D_1",
             activation= None, #"gelu",
@@ -92,7 +92,7 @@ class SpatialAttentionMechanism(Layer):
         self.conv2_3x3 = layers.Conv2D(
             filters=32,
             kernel_size=(3,3),
-            strides=self.strides,
+            strides= (2,2),#self.strides,
             padding="same",
             name="AttConv2D_2",
             activation= None,#"gelu",
@@ -119,7 +119,7 @@ class SpatialAttentionMechanism(Layer):
         self.patches_proj = layers.Conv2D(
             filters=16,
             kernel_size=(1,1),
-            strides=self.strides,
+            strides= self.strides,
             padding="same",
             name="AttConv2D_patch",
             activation=None,
@@ -170,18 +170,18 @@ class SpatialAttentionMechanism(Layer):
         gap = tf.expand_dims(gap,axis=-1)
         learned_gap = self.gap_proj(inputs)
         sgap = self.bn1(gap + learned_gap,training=training)
-        sgap = tf.nn.swish(sgap)
+        #sgap = tf.nn.swish(sgap)
         gshape = tf.shape(sgap) #NHWC
         S = self.conv1_3x3(sgap)
         S = self.bn2(S,training=training)
         S = tf.nn.swish(S)
 
-        S = self.maxpool1(S)
+        #S = self.maxpool1(S)
         S = self.conv2_3x3(S)
         S = self.bn3(S,training=training)
         S = tf.nn.swish(S)
 
-        S = self.maxpool2(S)
+        #S = self.maxpool2(S)
         S = self.patches_proj(S)
         #S = self.bn4(S,training=training)
         #S = tf.nn.swish(S)

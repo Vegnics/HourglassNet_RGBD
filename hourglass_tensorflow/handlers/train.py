@@ -123,7 +123,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             tds_card = 2400
             vds_card = 300
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
-            #validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=False)
+            #validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=True)
             
             #train_dataset = train_dataset.repeat(2) #7
             
@@ -132,7 +132,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             #validation_dataset = validation_dataset.repeat(2)
             batch_train = self._apply_batch(train_dataset) 
             #print("   ??????    >>>BATCH TRAIN: ",batch_train)
-            batch_validation = validation_dataset.batch(40)#self._apply_batch(validation_dataset)
+            batch_validation = validation_dataset.batch(80)#self._apply_batch(validation_dataset)
             batch_num = batch_train.__len__()
 
         """
@@ -162,6 +162,7 @@ class HTFTrainHandler(_HTFTrainHandler):
                 steps_per_epoch=int(batch_num//self._epochs),
                 shuffle=True,
                 validation_data=batch_validation,
+                #validation_steps=100,
                 callbacks=self._callbacks,
             )
 

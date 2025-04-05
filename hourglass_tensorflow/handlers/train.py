@@ -125,7 +125,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
             #validation_dataset = validation_dataset.shuffle(vds_card,reshuffle_each_iteration=True)
             
-            #train_dataset = train_dataset.repeat(2) #7
+            train_dataset = train_dataset.repeat(15) #7
             
             #batch_testimgs = imgs_ds.batch(80) 
             

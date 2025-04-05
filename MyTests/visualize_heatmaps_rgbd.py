@@ -117,7 +117,7 @@ def draw_pose(img,hm,obbox,pad):
         kpnts.append([x,y,val])
     kpnts = np.array(kpnts)
     _visible_kpts = np.array([i for i in range(14)])
-    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.1])
+    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.14])
     KEYPOINT_EDGE_INDS_TO_COLOR = {
     (0, 1): (235,0,255),
     (1, 2): (235,0,255),
@@ -142,11 +142,11 @@ def draw_pose(img,hm,obbox,pad):
             y1=int(kpnts[edge_pair[1],1])
             cv2.line(_img,(x0,y0),(x1,y1),color,5)
     for pnt in kpnts:
-        if pnt[2]>0.1:
+        if pnt[2]>0.14:
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
     
-Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_w2jointsFT.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
 Model.trainable = False
 
 
@@ -170,9 +170,9 @@ LM_NAMES = ["00_rAnkle",
 
 hm_scale = tf.constant(2.1269474)
 
-subject_id = 5  
+subject_id = 15  
 cover = "cover1"
-img_num = 27
+img_num = 25
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))
@@ -182,10 +182,11 @@ depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=2)
 #depthmap = 1.5*((depthmap-meandepth)/stddevdepth+2.1)
 
 #RGBD_image = depthmap #tf.concat([tf.cast(imgrgb,dtype=tf.float32),depthmap],axis=2)
-RGBD_image = tf.concat([depthmap,tf.cast(imgrgb,dtype=tf.float32)],axis=2)
+RGBD_image = tf.concat([depthmap,0.0*tf.cast(imgrgb,dtype=tf.float32)],axis=2)
 landmarks = tf.convert_to_tensor(read_landmark_data("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/LMData/lm_{:06d}.csv".format(subject_id,img_num)))
 visibilities = tf.convert_to_tensor([1]*14)
-squared_rgbd = tf_test_map_affine_woaugment_RGBD(RGBD_image,RGBD_image.shape,landmarks,visibilities,njoints=14)
+axis_rot_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
+squared_rgbd = tf_test_map_affine_woaugment_RGBD(RGBD_image,RGBD_image.shape,landmarks,visibilities,njoints=14,affine_axis_mask=axis_rot_mask)
 #squared_rgbd = tf_train_map_squarify(RGBD_image,tf.cast(landmarks,tf.float32),visibilities,True,1.18)
 #obbox = tf.cast(squared_rgbd[3],tf.float32)
 obbox = tf.cast(squared_rgbd[2][0],tf.float32)
@@ -201,7 +202,7 @@ squared_rgb = tensor[0,:,:,1:4]
 #print()
 #"""
 #img_bgr = np.uint8(tensor[0,:,:,0:3].numpy())
-hms = Model.predict(tf.expand_dims(tensor[:,:,:,0],axis=-1))
+hms = Model.predict(tf.expand_dims(tensor[:,:,:,:],axis=-1))
 preds = hms[0,1,:,:,:]
 normpreds = tf.linalg.norm(preds,axis=[0,1])
 normpreds = tf.expand_dims(normpreds,axis=0)
@@ -220,8 +221,8 @@ for i in range(14):
     y = 4*int((pnt//64) + 0.5*dy)
     #cv2.circle(img_bgr,(x,y),5,(0,0,255),-1)
     print(f"Landmark {LM_NAMES[i]}:  ({x},{y})")
-    plt.imshow(hm,cmap="jet")
-    plt.savefig(f"/home/quinoa/HEAT_SLP_LM_{subject_id}_{cover}_{LM_NAMES[i]}_.png", bbox_inches='tight')
+    #plt.imshow(hm,cmap="jet")
+    #plt.savefig(f"/home/quinoa/HEAT_SLP_LM_{subject_id}_{cover}_{LM_NAMES[i]}_.png", bbox_inches='tight')
     #plt.show()
 img_bgr = draw_pose(imgrgb,preds,_obbox,padding)
 img_gt = draw_poseGT(imgrgb,squared_rgbd[1][0])

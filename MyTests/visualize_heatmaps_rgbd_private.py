@@ -154,7 +154,7 @@ def draw_pose(img,hm,obbox,pad):
         pnt = np.argmax(hm[:,:,i])
         x = int((pnt%64))
         y = int((pnt//64))
-        dx,dy = get_secondmax(hm[:,:,i],x,y)
+        dx,dy = (0,0) #get_secondmax(hm[:,:,i],x,y)
         #x = 4*int((pnt%64) + 0.5*dx)
         #y = 4*int((pnt//64) + 0.5*dy)
         x = int((N/64.0)*((pnt%64) + 0.0*dx - padx)+ obbox[0,0])
@@ -164,7 +164,7 @@ def draw_pose(img,hm,obbox,pad):
         kpnts.append([x,y,val])
     kpnts = np.array(kpnts)
     _visible_kpts = np.array([i for i in range(14)])
-    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.13])
+    _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.1])
     KEYPOINT_EDGE_INDS_TO_COLOR = {
     (0, 1): (235,0,255),
     (1, 2): (235,0,255),
@@ -189,7 +189,7 @@ def draw_pose(img,hm,obbox,pad):
             y1=int(kpnts[edge_pair[1],1])
             cv2.line(_img,(x0,y0),(x1,y1),color,5)
     for pnt in kpnts:
-        if pnt[2]>0.13:
+        if pnt[2]>0.1:
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
     
@@ -221,8 +221,8 @@ subjects = dbmeta["Subjects"]
 subject_num = 3
 sample_num = 5
 cover = 0 
-
-Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT_Depth4C.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/myModel_DCCV_WS_BL_1B_ATT8_Depth4C.keras",compile=False) 
+#Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT_Depth4C.keras",compile=False) 
 Model.trainable = False
 
 for sub in subjects:

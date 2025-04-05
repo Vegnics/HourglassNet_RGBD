@@ -112,7 +112,7 @@ def draw_pose(img,hm,obbox,pad):
         pnt = np.argmax(hm[:,:,i])
         x = int((pnt%64))
         y = int((pnt//64))
-        dx,dy = get_secondmax(hm[:,:,i],x,y)
+        dx,dy = (0,0) #get_secondmax(hm[:,:,i],x,y)
         #x = 4*int((pnt%64) + 0.5*dx)
         #y = 4*int((pnt//64) + 0.5*dy)
         x = int((N/64.0)*((pnt%64) + 0.0*dx - padx)+ obbox[0,0])
@@ -166,7 +166,7 @@ Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
 """
-Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT_Depth4C.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/myModel_DCCV_WS_BL_1B_ATT8_Depth4C.keras",compile=False) 
 Model.trainable = False
 print(Model)
 print(Model.get_config())

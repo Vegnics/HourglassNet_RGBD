@@ -13,8 +13,12 @@ current_time = datetime.now().strftime("%H:%M:%S")
 
 # Related to the data and dataset
 modality = "Depth"
-dataset_path = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3"
-annotations_path = "data/htf_slp_dataset.ignore.json"
+#dataset_path = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3"
+#annotations_path = "data/htf_slp_dataset.ignore.json"
+
+dataset_path = "/home/quinoa/Desktop/DCCV_bedpose"
+annotations_path = "data/htf_dccv_dataset.ignore.json"
+
 
 # Related to the ground truth data
 n1joints = 14
@@ -25,10 +29,10 @@ stddev_factor = 1.3
 limbs_2J = [(0,1),(1,2),(2,3),(3,4),(4,5),(6,7),(7,8),(8,12),(9,12),(12,13),(11,10),(10,9)] 
 #/home/quinoa/Desktop/some_shit/patient_project/HourglassNet_RGBD/data/model_t/
 # Related to the model and training
-model_name = "myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
+model_name = "myModel_DCCV_WS_BL_1B_ATT8_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
-epochs = 100
+epochs = 70
 batch_size = 20
 stages = 2
 stage_filters = 256
@@ -37,13 +41,13 @@ learning_rate = 1.6e-5
 
 # Related to loading pre-trained models
 load_model = True
-pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_FT_Depth4C.keras"
-loading_mode =  "Full_Train" #"Partial_Downsampling_frozen"
+pt_model_name = "data/model_t/myModel_DCCV_WS_BL_1B_ATT7_Depth4C.keras"
+loading_mode =  "Partial_Downsampling_frozen" #"Partial_Train_Attention" #"Full_Train" #"Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
 skip_AM = "NoAM"
-s2f_AM =  "NoAM" 
-f2s_AM = "NoAM" 
+s2f_AM =  "FAM" 
+f2s_AM = "SAM" 
 
 #Related to the loss
 W_1jnts = 1.0

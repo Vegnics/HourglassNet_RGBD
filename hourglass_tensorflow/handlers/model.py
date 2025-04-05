@@ -132,7 +132,6 @@ class HTFModelHandler(_HTFModelHandler):
                 #model = self._build_model_as_model()
                 model = self._build_model_as_model(*args, **kwargs)
                 #print_layers_recursive(model,path="")
-                
                 #print(model.get_config())
                 #print(model.stages,model.channels_1J,model.channels_2J)
                 #custom_objects = {name: obj for name, obj in inspect.getmembers(hourglass_tensorflow.layers, inspect.isclass) if issubclass(obj, tf.keras.layers.Layer)}
@@ -201,6 +200,8 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
+                            print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
+                            layer.bn_feats_1j.trainable = False
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")

@@ -1203,7 +1203,7 @@ def tf_evaluate_map_squarify(
     """
     if bbox_enabled:
         # Compute Bounding Box
-        bbox,add_padding = tf_expand_bbox(
+        bbox = tf_expand_bbox(
             tf_compute_bbox(coordinates,annotated),
             tf.shape(image),
             bbox_factor=bbox_factor,
@@ -1283,12 +1283,13 @@ def tf_test_map_squarify(
     # how much V/H padding should be applied
     # Padding is necessary to conserve proportions
     # when resizing
-    bbox,add_padding = tf_expand_bbox(
-            _bbox,
-            tf.shape(image),
-            bbox_factor=1.025,
-            randomw=0.0
-        )
+    bbox = _bbox
+    #bbox = tf_expand_bbox(
+    #        _bbox,
+    #        tf.shape(image),
+    #        bbox_factor=1.0,
+    #        randomw=0.0
+    #    )
     padding = tf_compute_padding_from_bbox(bbox)
     cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
     mask = tf.where(cropped<=15,0.0,1.0)

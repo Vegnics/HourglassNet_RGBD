@@ -104,9 +104,9 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 0.025
-    ratio_train: 0.75
-    ratio_validation: 0.21
+    ratio_test: 0.06
+    ratio_train: 0.84
+    ratio_validation: 0.1
   bbox:
     activate: true
     factor: 1.15 #1.155

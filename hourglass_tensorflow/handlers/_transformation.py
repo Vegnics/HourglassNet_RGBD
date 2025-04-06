@@ -392,7 +392,7 @@ def tf_train_map_affine_augmentation(
     mask0 = tf.expand_dims(mask0,axis=0)
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2]*0.0+1.0 #mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]#*0.0+1.0 #mask0+mask1
     #_visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
 
@@ -837,7 +837,7 @@ def tf_validation_map_affine(
     mask0 = tf.expand_dims(mask0,axis=0)
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2]*0.0+1.0 #*mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2] #*0.0+1.0 #*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     #if task_mode=="train":
@@ -874,6 +874,99 @@ def tf_validation_map_affine(
     #    return (_images,_coords,_visibilities)
     #elif task_mode=="test":
     #    return (_images,coordinates,_bboxes,_visibilities)
+
+@tf.function
+def tf_test_map_affine(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2],
+    affine_axis_mask: tf.Tensor = None
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
+
+    _image = tf.cast(image,dtype=tf.float32)
+   # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #_image_batch = tf.repeat(tf.expand_dims(_image,axis=0),repeats=6,axis=0)
+    #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=6, axis=0)
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor_masked(_image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            affine_axis_mask
+            )
+        ),
+        elems=affines,
+        parallel_iterations=10,
+    )
+    _coordinates_map = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    #"""
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2] #*0.0+1.0 #*mask0+mask1
+    _coordinates = _coordinates_map[:,:,0:2]
+
+    bboxf = tf.constant([1.18],dtype=tf.float32)
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_test_map_standard_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     annotated,
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,input_size,input_size,4])
+    _coords = tf.reshape(_zipped[1],[1,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
+    return (_images,_coords,_visibilities)
 
 @tf.function
 def tf_test_map_affine_woaugment_RGBD(
@@ -1095,7 +1188,7 @@ def tf_train_map_squarify(
     image_depth0 = tf.expand_dims(image_resized[:,:,0],axis=-1)
     image_depth = tf_depth_parameterized_noise(image_depth0,tf.shape(image_depth0),15)
     noise = tf.random.uniform(shape=(256,256,1),minval=0.0,maxval=1.0)
-    condition_noise = 1.0-tf.cast(tf.math.less_equal(noise,0.21),dtype=tf.float32)
+    condition_noise = 1.0-tf.cast(tf.math.less_equal(noise,0.19),dtype=tf.float32)
     image_depth = image_depth*condition_noise
     _img_depth = tf_normalize_tensor(image_depth,15)
     #tf.print("NSHAPE",tf.shape(_img_depth),tf.shape(image_color))
@@ -1314,6 +1407,84 @@ def tf_test_map_squarify(
     )
 
 @tf.function
+def tf_test_map_standard_squarify(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    annotated: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    _image_shape = tf.shape(image)[0:2]#image_shape
+    if bbox_enabled:
+        # Compute Bounding Box
+        bbox = tf_expand_bbox(
+            tf_compute_bbox(coordinates,annotated),
+            _image_shape,#image_shape,
+            bbox_factor=bbox_factor,
+            randomw = 0.0,
+        )
+    else:
+        # Simulate a Bbox being the whole image
+        shape = _image_shape#image_shape
+        bbox = tf.cast([[0, 0], [shape[1] - 1, shape[0] - 1]],tf.int32)
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    padding = tf_compute_padding_from_bbox(bbox)
+    #bbox = tf.cast(bbox,dtype=tf.float32)
+    cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
+    # Generate Squared Image with Padding
+    padimage = tf.pad(cropped,
+        paddings=tf_generate_padding_tensor(padding),constant_values=0.0
+    )
+    nshape = tf.shape(padimage)[0:2]
+    scale = 256.0/(tf.cast(tf.reduce_max(nshape),dtype=tf.dtypes.float64))
+    # Recompute coordinates (shifting and scaling)
+    _coordinates = tf.cast(coordinates,dtype=tf.dtypes.float64) - tf.cast(bbox[0] - padding,dtype=tf.dtypes.float64)
+    _coordinates = scale*(_coordinates)#((coordinates-_center)*bboxf64)+_center)
+    image_resized = tf_resize_tensor(padimage,256)
+    image_color = image_resized[:,:,1:4]/255.0
+    image_depth = tf.expand_dims(image_resized[:,:,0],axis=-1)
+    _img_depth = tf_normalize_tensor(image_depth,15)
+    img_drgb = tf.concat([_img_depth,image_color],axis=-1)
+    return (
+        img_drgb, #_img_depth, #image_depth,
+        tf.cast(_coordinates,dtype=tf.dtypes.float32),
+        visibility,
+        tf.cast(tf.concat([bbox,tf.reshape(padding,(1,-1))],axis=0),tf.float32)
+    )
+
+@tf.function
 def tf_train_map_resize_data(
     image: tf.Tensor,
     coordinates: tf.Tensor,
@@ -1458,6 +1629,7 @@ def tf_train_map_heatmaps(
     stddev: float = 10.0,
     stacks: int = 3,
     scale_factor: float = 2.0,
+    enable_vis: float = None
 ) -> tf.Tensor:
     """Fourth step tf.data.Dataset mapper to generate heatmaps.
 
@@ -1490,7 +1662,7 @@ def tf_train_map_heatmaps(
     # multiplying the current coordinates [0-1] by the output_size
     new_coordinates = tf.cast(coordinates * tf.cast(output_size, dtype=tf.float64),precision)
     new_coordinates = tf.cast(new_coordinates,dtype=precision)
-    visibility = tf.cast(tf.reshape(visibility, (-1, 1)), dtype=precision)
+    visibility = tf.cast(tf.reshape(visibility, (-1, 1)), dtype=precision)*tf.cast(enable_vis,tf.float32)+(1.0-tf.cast(enable_vis,tf.float32))
 
     # First we concat joint coordinate and visibility
     # to have a [NUN_JOINTS, 3] tensor

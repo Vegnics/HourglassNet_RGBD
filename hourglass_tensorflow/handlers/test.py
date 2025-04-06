@@ -253,7 +253,7 @@ class HTFTestHandler(_HTFTestHandler):
             #print(predcoords,"\n",gtcoords)
 
 
-            error = tf.cast(tf.cast(gtcoords,tf.float32)/(64*0.1) - tf.cast(predcoords,tf.float32)/(64*0.1), dtype=tf.dtypes.float32)
+            error = tf.cast(tf.cast(gtcoords,tf.float32)/(64*0.16) - tf.cast(predcoords,tf.float32)/(64*0.16), dtype=tf.dtypes.float32)
             distance = tf.norm(error, ord=2, axis=-1) #NxC
             #distance = _distance+(1-visibility)*64.0
             # We compute the norm of the reference limb from the ground truth

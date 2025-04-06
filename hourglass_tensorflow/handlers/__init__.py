@@ -166,8 +166,8 @@ class HTFManager(ObjectLogger):
         train_dataset=self.DATASET._train_dataset
         test_dataset=self.DATASET._test_dataset
         validation_dataset = self.DATASET._validation_dataset
-        for k,data in enumerate(train_dataset):
-            if ((k%36)+1)!=9: #and False:
+        for k,data in enumerate(test_dataset):
+            if ((k%36)+1)!=9 and False:
                 continue
             img = data[0].numpy()
             #hmp = data[1]
@@ -178,11 +178,11 @@ class HTFManager(ObjectLogger):
             
             hmp = tf.expand_dims(data[1],axis=0)#.numpy()
             cntld = 0
-            for i in range(14): #16
-                val = np.max(hmp[0,-1,:,:,i])
-                if val>0.3:
-                    cntld += 1
-            print(np.max(img),np.min(img),cntld)
+            #for i in range(14): #16
+            #    val = np.max(hmp[0,-1,:,:,i])
+            #    if val>0.3:
+            #        cntld += 1
+            #print(np.max(img),np.min(img),cntld)
             
             depth = img[:,:,0]#*255.0/3.5
             #H, W = 256, 256
@@ -195,8 +195,10 @@ class HTFManager(ObjectLogger):
             #ax.plot_surface(X, Y, depth, cmap='jet', linewidth=0, antialiased=True)
             #plt.show()
             print(hmp.shape)
+            plt.imshow(depth,cmap="jet")
+            plt.show()
             #print(data[2].numpy())
-            draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
+            #draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
             
             #draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
             

@@ -31,7 +31,7 @@ from hourglass_tensorflow.handlers._transformation import tf_train_map_resize_da
 from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGB,tf_train_map_affine_woaugment_RGB
 from hourglass_tensorflow.handlers._transformation import tf_train_map_affine_augmentation_RGBD,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.handlers._transformation import tf_train_map_build_slice_Depth,tf_train_map_affine_augmentation
-from hourglass_tensorflow.handlers._transformation import tf_validation_map_affine
+from hourglass_tensorflow.handlers._transformation import tf_validation_map_affine,tf_test_map_affine
 #from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify_multiscale
 
 def _stack_tensors(x,y):
@@ -466,6 +466,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         stddev=self.config.heatmap.stddev,
                         stacks=int(self.config.heatmap.stacks),
                         scale_factor = float(self.config.heatmap.stddev_factor),
+                        enable_vis = float(self.config.heatmap.enable_visibility),
                     )
                 )# Get Heatmaps
         print("-------->RAW 5 :",raw) # rimg, hms
@@ -482,15 +483,39 @@ class HTFDatasetHandler(_HTFDatasetHandler):
         return raw
 
     def _create_dataset_test(self,data: HTFDataTypes) -> tf.data.Dataset:
+        """
+        Load images, and apply transformations to the data and annotations.
+        """
         raw = tf.data.Dataset.from_tensor_slices(self._extract_columns_from_data(data=data)) #fname, coordinates
         if self.config.data_mode == "RGB":
             raw = raw.map(tf_train_map_build_slice_RGB)  # Load Images
         elif self.config.data_mode == "RGBD":
             raw = raw.map(tf_train_map_build_slice_RGBD)  # Load Images RGBD version
+        elif self.config.data_mode == "Depth":
+            raw = raw.map(tf_train_map_build_slice_Depth)
+        else:
+            raise Exception("Invalid input data mode")
         print("-------->RAW 1 :",raw,raw.cardinality())
+        ### >>> HERE PERFORM DATA AUGMENTATION (Rotation)
 
-        if self.config.data_mode == "RGBD":
-            raw = raw.map(lambda img, coord, vis,ishape: tf_test_map_affine_woaugment_RGBD(
+        print("-------->RAW 2 :",raw,raw.cardinality()) # img, coords, visible
+
+        # Modify tf_train_map_squarify to compute the BBox at several scales
+          
+        if self.config.data_mode == "RGB":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_train_map_affine_woaugment_RGB(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)]
+                )
+            )
+        
+        elif self.config.data_mode == "RGBD":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_test_map_affine(
                         img,
                         ishape,
                         coord,
@@ -498,13 +523,25 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         input_size=int(self.config.image_size),
                         njoints = int(self.config.heatmap.channels_1JHMs),
                         hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
-                        task_mode = "test"
+                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
                     )
                 )
-        print("-------->RAW 2 :",raw,raw.cardinality())
+        elif self.config.data_mode == "Depth":
+            raw = raw.map(lambda img, coord, vis,ishape: tf_test_map_affine(
+                        img,
+                        ishape,
+                        coord,
+                        vis,
+                        input_size=int(self.config.image_size),
+                        njoints = int(self.config.heatmap.channels_1JHMs),
+                        hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
+                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
+                    )
+                )
+
         raw = raw.unbatch()
-        raw = raw.map(lambda img, coord, bbox, vis: tf_train_map_resize_data(
-                    img, coord, vis, bbox, input_size=int(self.config.image_size),task_mode="test")
+        raw = raw.map(lambda img, coord, vis: tf_train_map_resize_data(
+                    img, coord, vis, [], input_size=int(self.config.image_size),task_mode="test")
             )
         print("-------->RAW 3 :",raw,raw.cardinality())
 

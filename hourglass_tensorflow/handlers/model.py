@@ -142,10 +142,13 @@ class HTFModelHandler(_HTFModelHandler):
                 #                         self.config.params.input_size,
                 #                         self.config.params.channel_number))
                 #model.load_weights(filepath=self.config.model_path)
-                model = self._build_model_as_model(*args, **kwargs)
-                model(tf.random.normal((1, 256, 256, self.params.channel_number))) 
-                print(f"Loading base model ... {self.config.model_path}")
-                load_basemodel_weights(model,self.config.model_path,compile=False)
+                if not (self.config.loading_style == "Frozen"):
+                    model = self._build_model_as_model(*args, **kwargs)
+                    model(tf.random.normal((1, 256, 256, self.params.channel_number)))
+                    print(f"Loading base model ... {self.config.model_path}")
+                    load_basemodel_weights(model,self.config.model_path,compile=False)
+                else:
+                    model = load_wrapped_model(self.config.model_path,compile=False)
                 """
                 model = tf.keras.models.load_model(self.config.model_path,
                            custom_objects= {#"RatioCorrectKeypoints":RatioCorrectKeypoints

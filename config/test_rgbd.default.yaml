@@ -56,30 +56,40 @@ data:
         - "11_lWrist"
         - "12_thorax"
         - "13_topHead"
+  
 dataset:
   object:
-    source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
+    source: hourglass_tensorflow.handlers.dataset.HTFDatasetHandler
     params:
       foo: bar
-  image_size: 256 #256
-  data_mode: "RGBD"
+  image_size: 256
+  data_mode: Depth
   hip_idxs:
     Lhip: 3
     Rhip: 2
   column_image: image
   heatmap:
-    size: 64 #64
+    size: 64
     stacks: 2
-    channels: 14 
+    channels_1JHMs: 14
+    channels_2JHMs: 12
+    limbs_2J_str:
+    - (0, 1)
+    - (1, 2)
+    - (2, 3)
+    - (3, 4)
+    - (4, 5)
+    - (6, 7)
+    - (7, 8)
+    - (8, 12)
+    - (9, 12)
+    - (12, 13)
+    - (11, 10)
+    - (10, 9)
     stddev: 1.1
     stddev_factor: 1.3
-  #normalization: "Normal"
-  normalization: "Idem"
-  augmentation:
-    - 
-      source: ""
-      params:
-        foo: bar
+  normalization: Idem
+  augmentation: null
   sets:
     split_by_column: false
     column_split: set
@@ -89,12 +99,12 @@ dataset:
     test: true
     train: false
     validation: false
-    ratio_test: 1.0
-    ratio_train: 0.0
-    ratio_validation: 0.00
+    ratio_test: 0.06
+    ratio_train: 0.84
+    ratio_validation: 0.1
   bbox:
     activate: true
-    factor: 1.15 #1.155
+    factor: 1.15
   task_mode: "test"
 
 model:
@@ -108,7 +118,7 @@ model:
   params:
     input_size: 256
     output_size: 64
-    channel_number: 1
+    channel_number: 4
     stages: 2
     downsamplings_per_stage: 4
     stage_filters: 256
@@ -122,9 +132,10 @@ model:
     use_2jointHM: true
     use_kernel_regularization: false
     freeze_attention_weights: false
+    residual_nblocks: 1
   load_model: true
-  model_path: data/model_t/myModel_SLP_fAB10_2j #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #"data/model_t/myModel_SLP_fAB6_2j"
-  
+  model_path: data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #"data/model_t/myModel_SLP_fAB6_2j"
+  loading_style: Frozen
 
 test:
   object:

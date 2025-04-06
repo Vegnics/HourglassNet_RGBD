@@ -63,6 +63,7 @@ class HTFDatasetHeatmap(HTFConfigField):
             "(10,9)"
         ]
     )
+    enable_visibility: bool
 
 class HTFDatasetHipIndexes(HTFConfigField):
     Lhip: int = 3

@@ -166,7 +166,7 @@ Model = tf.keras.models.load_model("data/model_t/myModel_SLP_fAB10_2j",
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
 """
-Model = load_wrapped_model("data/model_t/myModel_DCCV_WS_BL_1B_ATT8_Depth4C.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
 Model.trainable = False
 print(Model)
 print(Model.get_config())

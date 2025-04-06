@@ -368,6 +368,7 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                     stddev=self.config.heatmap.stddev,
                     stacks=int(self.config.heatmap.stacks),
                     scale_factor = float(self.config.heatmap.stddev_factor),
+                    enable_vis = float(self.config.heatmap.enable_visibility)
                 )
             )# Get Heatmaps
         print("-------->RAW 5 :",raw) # rimg, hms

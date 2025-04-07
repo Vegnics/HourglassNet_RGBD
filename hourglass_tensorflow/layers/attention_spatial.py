@@ -144,7 +144,7 @@ class SpatialAttentionMechanism(Layer):
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= "zeros",
-            bias_initializer=tf.constant_initializer(-8.0),
+            bias_initializer=tf.constant_initializer(-4.0),
             use_bias=True,
         )
         

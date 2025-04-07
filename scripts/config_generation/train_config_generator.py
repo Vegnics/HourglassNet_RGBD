@@ -27,7 +27,7 @@ use2joints = False
 heatmap_stddev =  1.1
 stddev_factor = 1.3
 limbs_2J = [(0,1),(1,2),(2,3),(3,4),(4,5),(6,7),(7,8),(8,12),(9,12),(12,13),(11,10),(10,9)] 
-enable_visibility = True
+enable_visibility = False
 
 # Related to the model and training
 model_name = "myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
@@ -38,12 +38,12 @@ batch_size = 20
 stages = 2
 stage_filters = 256
 residual_nblocks = 1
-learning_rate = 1.6e-6
+learning_rate = 2.5e-5
 
 # Related to loading pre-trained models
 load_model = True
-pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_ATT9_Depth4C.keras"
-loading_mode =  "Partial_Downsampling_frozen" #"Partial_Train_Attention" #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
+pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #
+loading_mode =  "Partial_Train_Attention" #"Partial_Downsampling_frozen" # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
 skip_AM = "NoAM"

@@ -35,7 +35,6 @@ class ResidualBlock(Layer):
         self.attention_block = None
         if self.attention_type == "NoAM":
             self.attention_block = zeroLayer(self.output_filters,name="AttentionBlock")
-            self.alpha = tf.constant(4.0,dtype=tf.float32)
         
         elif self.attention_type == "SAM":
             self.attention_block = SpatialAttentionMechanism(
@@ -45,12 +44,6 @@ class ResidualBlock(Layer):
                 kernel_reg = False,
                 trainable = True
             )
-            self.alpha = self.add_weight(
-                shape=[],
-                name="att_alpha",
-                initializer=tf.constant_initializer(4.0),
-                trainable=True,
-            )
         elif self.attention_type == "FAM":
             self.attention_block = FeatureAttentionMechanism(
                 name="AttentionBlock",
@@ -58,12 +51,6 @@ class ResidualBlock(Layer):
                 kernel_size = 1,
                 kernel_reg = False,
                 trainable = True
-            )
-            self.alpha = self.add_weight(
-                shape=[],
-                name="att_alpha",
-                initializer=tf.constant_initializer(4.0),
-                trainable=True,
             )
         else:
             raise Exception(f"[{self.name}]:INVALID ATTENTION MECHANISM")
@@ -91,11 +78,10 @@ class ResidualBlock(Layer):
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         scores = self.attention_block(inputs)
-        alpha = tf.nn.sigmoid(self.alpha)
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
-                inputs*((1.0-alpha)*scores+alpha),
+                inputs*(1+scores),
             ])
         return self.relu(_sum)
     

@@ -88,7 +88,7 @@ class FeatureAttentionMechanism(Layer):
         epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
-        headnum: int = 4,
+        headnum: int = 5,
         trainable: bool = True,
         kernel_reg: bool = False,
     ) -> None:
@@ -110,13 +110,17 @@ class FeatureAttentionMechanism(Layer):
         #"""
         #self.heads = []
         # EXPERIMENTAL GAPP-FLATTEN
+        self.alpha = self.add_weight(shape=(1,),name="att_alpha", initializer="ones", trainable=self.trainable)
+        self.norm_layer = layers.LayerNormalization(axis=-1,
+                                               epsilon=0.0001
+                                               )
         self.heads = [
                 layers.Dense(self.filters//16,
-                activation= "swish", #None,
+                activation= None, #None,
                 use_bias=True,
-                kernel_initializer='glorot_uniform',
+                kernel_initializer='glorot_normal',
                 name = "Head_{}".format(i),
-                kernel_regularizer=L2(1e-5) if self.kernel_reg else None,
+                kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
                 )
             for i in range(self.head_num)
         ]
@@ -126,19 +130,11 @@ class FeatureAttentionMechanism(Layer):
 
         # EXPERIMENTAL GAPP-FLATTEN
         #self.spatialgap = _SpatialBasedPooling(self.filters)
-        """
-            self.pre_projection = layers.Dense(self.filters//16,
-                activation=None,
-                use_bias=True,
-                kernel_initializer='glorot_uniform',
-                name = "PreProjection",
-                kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
-            )
-        """
+        self.dropout_last = layers.Dropout(0.05)
         self.last_projection = layers.Dense(self.filters,
-            activation="sigmoid",
+            activation=None,
             use_bias=True,
-            bias_initializer=tf.constant_initializer(-8.0),
+            bias_initializer=tf.constant_initializer(-4.0),
             kernel_initializer='zeros',
             name = "LastProjection",
             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
@@ -166,33 +162,24 @@ class FeatureAttentionMechanism(Layer):
         #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-9)
         _shape = tf.shape(inputs)
         #tf.print("inputs shape:", _shape)
-        #H = _shape[1]
-        #W = _shape[2]
         learned_gap = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])
         #learned_gap = self.spatialgap(inputs)
-        #learned_gap = tf.reduce_mean(learned_gap,axis=[1,2]) #NC
+        #learned_gap = tf.reduce_mean(inputs,axis=[1,2]) #NC
         learned_gap = tf.reshape(learned_gap,shape=(-1,self.filters))
-        """
-        learned_gap = tf.transpose(learned_gap,perm=[0,3,1,2])
-        #tf.print("learned_gap shape:", tf.shape(learned_gap))
-        flatten_gap = tf.reshape(learned_gap,shape=(-1,256,(H//4)*(W//4)))
-        _flatten_gap = self.pre_projection(flatten_gap) # (-1)
-        """
         head_outs = []
         for i in range (self.head_num):
             head_outs.append(self.heads[i](learned_gap))
         head_out = tf.concat(head_outs,axis=-1)
-        
-        """
-        #mha_out = self.score_mha(_flatten_gap,_flatten_gap) #NCDim
-        #print("SSShape:", tf.shape(mha_out)[1],tf.shape(mha_out)[2])
-        #tf.print("SSShape:", tf.shape(mha_out))
-        mha_out = tf.reshape(mha_out,shape=(-1,256*(self.filters//16)))
-        """
-        scores = self.last_projection(head_out)
-        #_out = self.last_projection1(_out)
+        _head_out = tf.nn.relu(head_out)
+        _head_out = self.norm_layer(_head_out)
+        _head_out = self.dropout_last(_head_out,training=training)
+        scores = self.last_projection(_head_out)
+        scores = tf.nn.sigmoid(scores)
+        #scores_shape = tf.shape(scores)
+        #alpha_batch = 4.0*self.alpha*tf.ones(shape=(scores_shape[0],1))
+        #scoreswalpha = tf.concat([scores,alpha_batch],axis=-1)
         scores = tf.expand_dims(scores,axis=1)
         scores = tf.expand_dims(scores,axis=1)
-        return scores
+        return scores #,
     def build(self, input_shape):
         super().build(input_shape)

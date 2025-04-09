@@ -161,9 +161,11 @@ class FeatureAttentionMechanism(Layer):
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-9)
         _shape = tf.shape(inputs)
-        _clip_inputs = tf.clip_by_value(inputs,-1e6,1e6)
+        #_clip_inputs = tf.clip_by_value(inputs,-1e6,1e6)
         #tf.print("inputs shape:", _shape)
-        learned_gap = tf.clip_by_value(tf.reduce_mean(tf.math.square(_clip_inputs),axis=[1,2]),0,1e8)
+        #learned_gap = tf.clip_by_value(tf.reduce_mean(tf.math.square(_clip_inputs),axis=[1,2]),0,1e8)
+        learned_gap = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])
+
         #learned_gap = self.spatialgap(inputs)
         #learned_gap = tf.reduce_mean(inputs,axis=[1,2]) #NC
         learned_gap = tf.reshape(learned_gap,shape=(-1,self.filters))

@@ -186,7 +186,7 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
-      clipnorm: 2.5
+      #clipnorm: 2.5
     #  rho: 0.9
     #  momentum: 0.00000001
     #  centered: true

@@ -122,7 +122,6 @@ def tf_train_map_build_slice_Depth(filename_depth: tf.Tensor, coordinates: tf.Te
     # Extract coordinates and visibility from joints
     coordinates = joints[:, :2]
     visibility = joints[:, 2]
-    tf.print(_fnamergbD)
     #tf.print(img_shape)
     return (concat_image, coordinates, visibility,img_shape)
 
@@ -330,9 +329,9 @@ def tf_train_map_affine_augmentation(
     #Bbox center
     bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
     center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
-    tf.print("ANNOT JOINTS",tf.reduce_sum(annotated))
-    tf.print("Coords")
-    tf.print(tf.reduce_min(coordinates[:,0]),tf.reduce_max(coordinates[:,0]),tf.reduce_min(coordinates[:,1]),tf.reduce_max(coordinates[:,1]))
+    #tf.print("ANNOT JOINTS",tf.reduce_sum(annotated))
+    #tf.print("Coords")
+    #tf.print(tf.reduce_min(coordinates[:,0]),tf.reduce_max(coordinates[:,0]),tf.reduce_min(coordinates[:,1]),tf.reduce_max(coordinates[:,1]))
     _image = tf.cast(image,dtype=tf.float32)
     #_image_batch = tf.repeat(tf.expand_dims(_image, axis=0), repeats=36, axis=0)
     #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=36, axis=0)

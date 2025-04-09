@@ -44,8 +44,8 @@ class MAE_custom(keras.losses.Loss):
         #loss_coords = tf.reduce_mean(loss_coords,axis=-1) #NS
         #loss_coords = tf.math.sqrt(tf.reduce_mean(loss_coords,axis=1))
         #loss_coords = tf.reduce_mean(loss_coords)
-        tf.debugging.check_numerics(y_pred,"y_pred has invalid numeric values")
-        tf.debugging.check_numerics(y_true,"y_true has invalid numeric values")
+        #tf.debugging.check_numerics(y_pred,"y_pred has invalid numeric values")
+        #tf.debugging.check_numerics(y_true,"y_true has invalid numeric values")
         mask_joints_1 = tf.where(tf.reduce_max(y_true[:,-1,:,:,0:self.n1joints],axis=[1,2])>0.0001,1.0,0.0) #NC
         joint_count_1 = tf.reduce_sum(mask_joints_1,axis=1)#N
         mask_joints_2 = tf.where(tf.reduce_max(y_true[:,-1,:,:,self.n1joints:self.n1joints+self.n2joints],axis=[1,2])>0.0001,1.0,0.0) #NC
@@ -54,10 +54,10 @@ class MAE_custom(keras.losses.Loss):
         ndiff = tf.math.square(y_true-y_pred) #NSHWC
         ndiff = tf.reduce_mean(ndiff,axis=[1,2,3]) #NC  0.00000001
         loss_1jnt = (tf.reduce_sum(ndiff[:,0:self.n1joints]*mask_joints_1,axis=1))/(tf.cast(joint_count_1,dtype=tf.float32)+0.001) #NS
-        tf.debugging.check_numerics(loss_1jnt,"loss_1jnt has invalid numeric values")
+        #tf.debugging.check_numerics(loss_1jnt,"loss_1jnt has invalid numeric values")
         #loss_1jnt = tf.reduce_mean(loss_1jnt,axis=1)
         loss_2jnt = (tf.reduce_sum(ndiff[:,self.n1joints:self.n1joints+self.n2joints]*mask_joints_2,axis=1))/(tf.cast(joint_count_2,dtype=tf.float32)+0.001)#NS
-        tf.debugging.check_numerics(loss_2jnt,"loss_2jnt has invalid numeric values")
+        #tf.debugging.check_numerics(loss_2jnt,"loss_2jnt has invalid numeric values")
         #loss_2jnt = tf.reduce_mean(loss_2jnt,axis=1)
         Loss_final = self.wl2_j1*tf.reduce_mean(loss_1jnt)+self.wcoords*0.0+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
         return Loss_final

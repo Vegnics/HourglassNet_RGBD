@@ -162,7 +162,7 @@ class HTFManager(ObjectLogger):
             data=data,
         )
         self.DATASET()
-        #"""
+        """
         train_dataset=self.DATASET._train_dataset
         test_dataset=self.DATASET._test_dataset
         validation_dataset = self.DATASET._validation_dataset
@@ -243,9 +243,9 @@ class HTFManager(ObjectLogger):
                                 #cv2.putText(img,"{:2d}".format(i),center,cv2.FONT_HERSHEY_PLAIN,1.2,(0,0,255))
                 #plt.imshow(img_rgb)
                 #plt.show() 
-        #"""
-        self._config.model.batch_size = self._config.train.batch_size
         """
+        self._config.model.batch_size = self._config.train.batch_size
+        #"""
         # Launch Model Handler
         self.MODEL = self._import_object(
             obj_model,
@@ -266,4 +266,4 @@ class HTFManager(ObjectLogger):
             test_dataset=self.DATASET._test_dataset,
             validation_dataset=self.DATASET._validation_dataset,
         )
-        """
+        #"""

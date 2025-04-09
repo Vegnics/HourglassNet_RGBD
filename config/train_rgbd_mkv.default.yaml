@@ -147,7 +147,7 @@ model:
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
-  load_model: false
+  load_model: true
   model_path: "data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras" #data/model_t/myModel_MKV_WS_BL_1B_2JFT_Depth4C.keras #data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
   loading_style:  Partial_Downsampling_frozen #Full_Train #Partial_Train_Attention # # #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
 

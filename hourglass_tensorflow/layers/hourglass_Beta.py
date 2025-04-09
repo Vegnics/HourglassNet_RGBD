@@ -244,6 +244,7 @@ class HourglassLayer(Layer):
         self.bn_feats_1j = layers.BatchNormalization(
             axis=-1,
             momentum=0.989,
+            #epsilon=0.001,
             epsilon=0.0001,
             trainable=trainable,
             name="BN_Feats_1J",
@@ -402,7 +403,7 @@ class HourglassLayer(Layer):
         )
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
         
-        return out_tensor, tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
+        return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         #print("CONFIG: ", self.get_config())

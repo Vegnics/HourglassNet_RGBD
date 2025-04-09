@@ -122,6 +122,7 @@ def tf_train_map_build_slice_Depth(filename_depth: tf.Tensor, coordinates: tf.Te
     # Extract coordinates and visibility from joints
     coordinates = joints[:, :2]
     visibility = joints[:, 2]
+    tf.print(_fnamergbD)
     #tf.print(img_shape)
     return (concat_image, coordinates, visibility,img_shape)
 
@@ -316,11 +317,22 @@ def tf_train_map_affine_augmentation(
 
     # Hip center
     #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
-    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
-    annotated = tf.where(annotated<0.0,0.0,1.0)
+    annotated = tf.cast(tf.reduce_min(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<=-700,0.0,1.0)
+    """
+    tf.print(annotated[0],annotated[1],annotated[2],
+             annotated[3],annotated[4],annotated[5],
+             annotated[6],annotated[7],annotated[8],
+             annotated[9],annotated[10],annotated[11],
+             annotated[12],annotated[13],annotated[14],
+             annotated[15],annotated[16],annotated[17])
+    """
     #Bbox center
     bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
     center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    tf.print("ANNOT JOINTS",tf.reduce_sum(annotated))
+    tf.print("Coords")
+    tf.print(tf.reduce_min(coordinates[:,0]),tf.reduce_max(coordinates[:,0]),tf.reduce_min(coordinates[:,1]),tf.reduce_max(coordinates[:,1]))
     _image = tf.cast(image,dtype=tf.float32)
     #_image_batch = tf.repeat(tf.expand_dims(_image, axis=0), repeats=36, axis=0)
     #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=36, axis=0)
@@ -1157,21 +1169,24 @@ def tf_train_map_squarify(
     # Padding is necessary to conserve proportions
     # when resizing
     bbox = tf.cast(bbox,dtype=tf.float32)
-    bbox_dev = tf.random.uniform(shape=[2,2],minval=-0.07*tf.cast(tf.reduce_min(_image_shape),dtype=tf.float32),maxval=0.07*tf.cast(tf.reduce_min(_image_shape),dtype=tf.float32))
-    bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev[:,0],0,tf.cast(_image_shape[1]-1,dtype=tf.float32)),shape=(2,1))
-    bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev[:,1],0,tf.cast(_image_shape[0]-1,dtype=tf.float32)),shape=(2,1))
+    ww = bbox[1,0]-bbox[0,0]
+    hh = bbox[1,1]-bbox[0,1]
+    bbox_dev_x = tf.random.uniform(shape=[2],minval=-0.08*tf.cast(ww,dtype=tf.float32),maxval=0.08*tf.cast(ww,dtype=tf.float32)) 
+    bbox_dev_y = tf.random.uniform(shape=[2],minval=-0.08*tf.cast(hh,dtype=tf.float32),maxval=0.08*tf.cast(hh,dtype=tf.float32))
+    bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev_x,0,tf.cast(_image_shape[1]-1,dtype=tf.float32)),shape=(2,1))
+    bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev_y,0,tf.cast(_image_shape[0]-1,dtype=tf.float32)),shape=(2,1))
     bbox_mod = tf.concat((bbox_mod_x,bbox_mod_y),axis=1)
     bboxD = tf.cast(1.0*bbox_mod,dtype=tf.int32)
-    y0 = tf.minimum(bboxD[0, 1], bboxD[1, 1])
-    y1 = tf.maximum(bboxD[0, 1], bboxD[1, 1])
-    x0 = tf.minimum(bboxD[0, 0], bboxD[1, 0])
-    x1 = tf.maximum(bboxD[0, 0], bboxD[1, 0])
-    y1 = tf.maximum(y1, y0 + 1)
-    x1 = tf.maximum(x1, x0 + 1)
-    cropped = image[y0:y1, x0:x1, :]
+    #y0 = tf.minimum(bboxD[0, 1], bboxD[1, 1])
+    #y1 = tf.maximum(bboxD[0, 1], bboxD[1, 1])
+    #x0 = tf.minimum(bboxD[0, 0], bboxD[1, 0])
+    #x1 = tf.maximum(bboxD[0, 0], bboxD[1, 0])
+    #y1 = tf.maximum(y1, y0 + 1)
+    #x1 = tf.maximum(x1, x0 + 1)
+    #cropped = image[y0:y1, x0:x1, :]
     #tf.print("NbbbbSHAPE",tf.shape(cropped),bboxD[0,1],bboxD[1,1],bboxD[0,0],bboxD[1,0])
     padding = tf_compute_padding_from_bbox(bboxD)
-    #cropped = image[bboxD[0, 1] : bboxD[1, 1], bboxD[0, 0] : bboxD[1, 0], :]
+    cropped = image[bboxD[0, 1] : bboxD[1, 1], bboxD[0, 0] : bboxD[1, 0], :]
     # Generate Squared Image with Padding
     padimage = tf.pad(cropped,
         paddings=tf_generate_padding_tensor(padding),constant_values=0.0

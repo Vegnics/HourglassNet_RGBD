@@ -40,7 +40,7 @@ def read_landmark_data(csv_path: str):
             )
             for idrow,drow in enumerate(reader)
         ]
-        if len(annopoints)<17:
+        if len(annopoints)<18:
             print(p.id for p in annopoints)
             raise Exception("CSV reader stopped at 0.0")
     return annopoints

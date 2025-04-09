@@ -98,6 +98,7 @@ dataset:
      - (15, 17)
     stddev: 1.1
     stddev_factor: 1.3 #1.35
+    enable_visibility: true
   #normalization: "Normal"
   normalization: "Idem"
   augmentation:
@@ -141,14 +142,14 @@ model:
     intermediate_supervision: true
     skip_AM: "NoAM"
     s2f_AM: "NoAM" #"NoAM"
-    f2s_AM: "SAM" #"NoAM"
+    f2s_AM: "NoAM" #"NoAM"
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
-  load_model: true
+  load_model: false
   model_path: "data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras" #data/model_t/myModel_MKV_WS_BL_1B_2JFT_Depth4C.keras #data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
-  loading_style: Partial_Downsampling_frozen #Partial_Train_Attention #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
+  loading_style:  Partial_Downsampling_frozen #Full_Train #Partial_Train_Attention # # #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
 
 train:
   object:
@@ -158,7 +159,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20 #128
-  learning_rate: 4.5e-6 #0.000001 #0.000001
+  learning_rate: 2.5e-4 #0.000001 #0.000001
   #learning_rate:
   #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
     #source: "keras.optimizers.schedules.ExponentialDecay"
@@ -171,7 +172,7 @@ train:
   #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
     params:
       WL2_j1: 1.0
-      WL2_j2: 0.2
+      WL2_j2: 0.0
       WCoords: 0.0000
       nstages: 2
       n1joints: 18  #16 ->26
@@ -185,7 +186,7 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
-    #  clipnorm: 4.5
+      clipnorm: 2.5
     #  rho: 0.9
     #  momentum: 0.00000001
     #  centered: true
@@ -233,13 +234,13 @@ train:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
         mode: max
-        filepath: "data/model_t/myModel_MKV_WS_BL_1B_ATT3_Depth4C.keras"
+        filepath: "data/model_t/myModel_MKV_WS_BL_1B_Att1_Depth4C.keras"
         save_weights_only: false
         save_freq: epoch
         monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
         save_best_only: true
         verbose: 1
-        initial_value_threshold: 0.9 #1000000.0
+        initial_value_threshold: 0.85 #1000000.0
     -
       source: "tensorflow.keras.callbacks.TensorBoard"
       params:
@@ -252,5 +253,5 @@ train:
     -
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
-        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_ATT3_Depth4C.csv
+        filename: logs/myModelLogs_myModel_MKV_WS_BL_1B_ATT1_Depth4C.csv
 test: null

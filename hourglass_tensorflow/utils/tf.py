@@ -148,8 +148,8 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
 
     precision = tf.dtypes.float64
     coords = tf.cast(coordinates,dtype=precision)
-    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=precision)
-    annotated = tf.cast(tf.where(annotated<0.0,0.0,1.0),dtype=precision)
+    annotated = tf.cast(tf.reduce_min(coordinates,axis=-1),dtype=precision)
+    annotated = tf.cast(tf.where(annotated<=-700,0.0,1.0),dtype=precision)
     
     # Compute the rotation matrix and translation vector
     angle = tf.cast(angle,dtype=precision)*np.pi/180.0
@@ -173,11 +173,16 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
     vis_y = tf.where(tf.logical_and(rcoords_y<0,rcoords_y>ymax),False,True)
     #vis = tf.reshape(tf.cast(tf.logical_and(tf.logical_and(vis_x,vis_y),tf.cast(visibility,tf.bool)),dtype=precision),(-1,1))
     vis = tf.reshape(tf.cast(visibility,dtype=precision),(-1,1))*annotated
-    rcoords = tf.stack([rcoords_x,rcoords_y],axis=0)
+    rrcoords_x = tf.where(annotated<tf.cast(0.5,tf.float64),-100000000.0*tf.ones_like(rcoords_x),rcoords_x)
+    rrcoords_x = tf.where(rrcoords_x>xmax-1,-100000000.0*tf.ones_like(rrcoords_x),rrcoords_x)
+    rrcoords_y = tf.where(annotated<tf.cast(0.5,tf.float64),-100000000.0*tf.ones_like(rcoords_y),rcoords_y)
+    rrcoords_y = tf.where(rrcoords_y>ymax-1,-100000000.0*tf.ones_like(rrcoords_y),rrcoords_y)
+    rcoords = tf.stack([rrcoords_x,rrcoords_y],axis=0)
     rcoords = tf.cast(tf.transpose(rcoords,perm=[1,0]),dtype=precision)
-    rcoords = tf.where(coords<0,coords,rcoords)
+    #rcoords = tf.where(coords<0,coords,rcoords)
     rcoords = tf.concat([rcoords,vis],axis=1) #vis
-    
+    #tf.print(tf.reduce_min(coordinates[:,0]),tf.reduce_max(coordinates[:,0]),tf.reduce_min(coordinates[:,1]),tf.reduce_max(coordinates[:,1]))
+    #tf.print(tf.reduce_min(rcoords[:,0]),tf.reduce_max(rcoords[:,0]),tf.reduce_min(rcoords[:,1]),tf.reduce_max(rcoords[:,1]))
     return tf.cast(rcoords,tf.dtypes.float32)
 
 def tf_rotate_norm_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
@@ -259,17 +264,23 @@ def tf_compute_bbox(coordinates: tf.Tensor,annotated: tf.Tensor, **kwargs) -> tf
 
     Xs = tf.reshape(tf.cast(coordinates[:, 0],dtype=tf.float32),oshape)#(1,njoints))
     Ys = tf.reshape(tf.cast(coordinates[:, 1],dtype=tf.float32),oshape)#(1,njoints))
-    maxx = tf.reduce_max(Xs)
-    maxy = tf.reduce_max(Ys)
+    maxx = tf.reduce_max(tf.nn.relu(Xs))
+    maxy = tf.reduce_max(tf.nn.relu(Ys))
     #viszeros= tf.zeros(oshape,dtype=tf.float32)#,(1,njoints))
     #visinf = 100000*tf.ones(oshape,dtype=tf.float32)#tf.reshape(tf.constant([100000]*njoints,dtype=tf.float32),(1,njoints))
     #vis = tf.reshape(tf.where(tf.math.logical_and(Xs<0,Ys<0),visinf,viszeros),oshape)#,(1,njoints))
     #viszero = 100000*(1-vis)
     #CHANGE VIS
-    vis = 10000000000.0*(1.0-annotated)
+    factorvisx = tf.where(annotated<0.8,maxx*1000.0,0.0)
+    factorvisy = tf.where(annotated<0.8,maxy*1000.0,0.0)
     #tf.print(tf.reduce_min(annotated))
-    minx = tf.reduce_min(Xs+vis)
-    miny = tf.reduce_min(Ys+vis)
+    #tf.print(Xs)
+    #tf.print(Ys)
+    #tf.print(tf.reduce_sum(annotated))
+    minx = tf.reduce_min(tf.nn.relu(Xs)+factorvisx)
+    miny = tf.reduce_min(tf.nn.relu(Ys)+factorvisy)
+    #tf.print("bbox annot",tf.reduce_sum(annotated))
+    #tf.print(minx, miny, maxx, maxy)
     return tf_reshape_slice([minx, miny, maxx, maxy], shape=2, **kwargs)
 
 @tf.function
@@ -301,7 +312,7 @@ def tf_expand_bbox(
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
 
     N = tf.maximum(height,width)
-    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.18,maxval=0.15) #[-0.1,0.06]
+    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06) #[-0.1,0.06]
 
     bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
     bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor

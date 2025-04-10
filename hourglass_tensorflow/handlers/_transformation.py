@@ -895,7 +895,8 @@ def tf_test_map_affine(
     input_size: int = 64,
     njoints: int = 16,
     hip: Tuple[int,int] = [3,2],
-    affine_axis_mask: tf.Tensor = None
+    affine_axis_mask: tf.Tensor = None,
+    enable_vis: float = None
     )-> tf.Tensor:
     """
     Args:
@@ -944,12 +945,13 @@ def tf_test_map_affine(
         dtype=tf.dtypes.float32,
         parallel_iterations=10,
     )
+    
     #"""
     mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
     mask0 = tf.expand_dims(mask0,axis=0)
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2] #*0.0+1.0 #*mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     bboxf = tf.constant([1.18],dtype=tf.float32)
@@ -1548,7 +1550,7 @@ def tf_train_map_resize_data(
     if task_mode=="train":
         return (image, _coordinates, visibility)
     elif task_mode=="test":
-        return (image,64.0*tf.cast(_coordinates, dtype=tf.dtypes.float32),visibility)   #,bboxes)
+        return (image,64.0*tf.cast(_coordinates, dtype=tf.dtypes.float32),visibility)  #,bboxes)
 
 @tf.function
 def tf_single_stage_heatmaps(

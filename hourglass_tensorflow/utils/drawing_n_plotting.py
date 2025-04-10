@@ -211,10 +211,10 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
     for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
         _color = (color[2]/255.0,color[1]/255.0,color[0]/255.0)
         if edge_pair[0] in _visible_kpts and edge_pair[1] in _visible_kpts:
-            x0=int(kpnts[edge_pair[0],0])
-            y0=int(kpnts[edge_pair[0],1])
-            x1=int(kpnts[edge_pair[1],0])
-            y1=int(kpnts[edge_pair[1],1])
+            x0=kpnts[edge_pair[0],0]
+            y0=kpnts[edge_pair[0],1]
+            x1=kpnts[edge_pair[1],0]
+            y1=kpnts[edge_pair[1],1]
             pline = mppatches.Polygon(4.0*np.array([[x0,y0],[x1,y1]]),closed=False,color=_color,lw=2.5)
             ax.add_patch(pline)
     for pnt in kpnts:

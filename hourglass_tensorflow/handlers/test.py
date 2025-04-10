@@ -253,7 +253,7 @@ class HTFTestHandler(_HTFTestHandler):
             #print(predcoords,"\n",gtcoords)
 
 
-            error = tf.cast(tf.cast(gtcoords,tf.float32)/(64*0.16) - tf.cast(predcoords,tf.float32)/(64*0.16), dtype=tf.dtypes.float32)
+            error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32))/(64*0.18), dtype=tf.dtypes.float32)
             distance = tf.norm(error, ord=2, axis=-1) #NxC
             #distance = _distance+(1-visibility)*64.0
             # We compute the norm of the reference limb from the ground truth
@@ -270,29 +270,39 @@ class HTFTestHandler(_HTFTestHandler):
 
             reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
             #max_ref = tf.reduce_max(reference_distance)
-            
+            mod_vis = vis_preds*visibility
             reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
             # We apply the thresholding condition
-            condition = tf.cast(tf.math.less(distance,0.5),dtype=tf.float32) #NC
+            correctkpnts_15 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.15),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_20 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.2),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_25 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.25),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_30 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.3),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_35 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.35),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_40 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.4),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_45 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.45),dtype=tf.float32)*mod_vis) #NC
+            correctkpnts_50 = tf.reduce_sum(tf.cast(tf.math.less(distance,0.5),dtype=tf.float32)*mod_vis) #NC
             #condition = tf.cast(tf.math.less(distance,reference_distance * 0.5),
             #                        dtype=tf.float32) #NC
+            correctkpnts = tf.convert_to_tensor([correctkpnts_15,correctkpnts_20,
+                                   correctkpnts_25,correctkpnts_30,
+                                   correctkpnts_35,correctkpnts_40,
+                                   correctkpnts_45,correctkpnts_50])
             
-            mod_vis = vis_preds*visibility
             Njoints = tf.reduce_sum(mod_vis)#,axis=1)
-            correct_keypoints = tf.reduce_sum(condition*mod_vis)#,axis=1)
+
             bsize = 150
-            batches = condition.shape[0]//bsize
-            remaining = condition.shape[0]%bsize
-            cum_accuracy = 0.0
-            nsamples = batches
+            #batches = condition.shape[0]//bsize
+            #remaining = condition.shape[0]%bsize
+            #cum_accuracy = 0.0
+            #nsamples = batches
             #for k in range(batches):
             #    cum_accuracy += tf.reduce_mean(correct_keypoints[k*bsize:(k+1)*bsize]/Njoints[k*bsize:(k+1)*bsize])
             #if remaining>0:
             #    cum_accuracy += tf.reduce_mean(correct_keypoints[batches*bsize:-1]/Njoints[batches*bsize:-1])
             #    nsamples = batches+1.0 
             #print(correct_keypoints,"out of :",14*distance.shape()[0].numpy())
-            print(correct_keypoints,"out of :",Njoints)
-            print("PCKh@0.5 Acc: ",100.0*tf.math.divide_no_nan(tf.cast(correct_keypoints,tf.float32),tf.cast(Njoints,tf.float32)))
+            print(correctkpnts.numpy(),"out of :",Njoints)
+            print("PCKh@0.5 Acc: ",100.0*tf.math.divide_no_nan(tf.cast(correctkpnts,tf.float32),tf.cast(Njoints,tf.float32)))
             
             #print(100.0*cum_accuracy/(nsamples))
 

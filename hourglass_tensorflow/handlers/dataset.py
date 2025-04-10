@@ -524,7 +524,8 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         input_size=int(self.config.image_size),
                         njoints = int(self.config.heatmap.channels_1JHMs),
                         hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
-                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
+                        affine_axis_mask = tf.convert_to_tensor([1,1,1,1],dtype=tf.float32),
+                        enable_vis = float(self.config.heatmap.enable_visibility)
                     )
                 )
         elif self.config.data_mode == "Depth":
@@ -536,7 +537,8 @@ class HTFDatasetHandler(_HTFDatasetHandler):
                         input_size=int(self.config.image_size),
                         njoints = int(self.config.heatmap.channels_1JHMs),
                         hip = [int(self.config.hip_idxs.Lhip),int(self.config.hip_idxs.Rhip)],
-                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32)
+                        affine_axis_mask = tf.convert_to_tensor([1,0,0,0],dtype=tf.float32),
+                        enable_vis = float(self.config.heatmap.enable_visibility)
                     )
                 )
 

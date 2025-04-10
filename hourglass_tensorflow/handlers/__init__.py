@@ -120,7 +120,7 @@ class HTFManager(ObjectLogger):
             depth = img[:,:,0]#*255.0/3.5
             draw_pose_mplib(depth,None,use_hms=False,kpnts_loc=xcoords)
         """
-
+        #"""
         self.MODEL = self._import_object(
             obj_model,
             config=self._config.model,
@@ -137,6 +137,7 @@ class HTFManager(ObjectLogger):
             model=self.MODEL._model,
             test_dataset=self.DATASET._test_dataset
         )
+        #"""
         #raise NotImplementedError
 
     def inference(self, *args, **kwargs) -> None:

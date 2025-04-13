@@ -241,6 +241,14 @@ class HourglassLayer(Layer):
                                             trainable=trainable,
         )
 
+        self.bn_feats_1j = layers.BatchNormalization(
+            axis=-1,
+            momentum=0.989,
+            #epsilon=0.001,
+            epsilon=0.0001,
+            trainable=trainable,
+            name="BN_Feats_1J",
+        )
 
         self.residual_brc = ResidualWithBNRC(
                     output_filters=self.feature_filters,

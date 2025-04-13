@@ -50,6 +50,7 @@ def read_slp_folder_to_htf_data(
             sample_id = "{0:06d}".format(sample_num)
             annopoints = read_landmark_data(os.path.join(main_folder,sub_id,"LMData",f"lm_{sample_id}.csv")) 
             for cover_opt in ["uncover","cover1","cover2"]:
+            #for cover_opt in ["cover2"]:
                 record_to_return.append(
                 HTFPersonDatapointRGBD(
                     is_train=1,

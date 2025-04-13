@@ -22,8 +22,8 @@ from hourglass_tensorflow.types import HTFPersonDatapointRGBD
 #HTF_JSON = "data/htf_dccv.ignore.json"
 #HTF_DATASET_JSON = "data/htf_dccv_dataset.ignore.json"
 
-HTF_JSON = "data/htf_mkv.ignore.json"
-HTF_DATASET_JSON = "data/htf_mkv_dataset.ignore.json"
+HTF_JSON = "data/htf_slp_test_c0.ignore.json"
+HTF_DATASET_JSON = "data/htf_slp_dataset_test_c0.ignore.json"
 
 if __name__ == "__main__":
     # Parse file as list of records
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         jxs = [j.x for j in datap.joints]
         jys = [j.y for j in datap.joints]
         jvis = [j.visible for j in datap.joints]
-        if len(_jids)<18:
+        if len(_jids)<14:
             print(jids)
             raise Exception("CSV reader stopped at 0.0")
         d = {"set": "TRAIN" if datap.is_train else "VALIDATION",
@@ -70,18 +70,18 @@ if __name__ == "__main__":
         "center_x": -1,
         "center_y": -1,
         }
-        for jid in range(18):
+        for jid in range(14):
             if jid in jids :#and jid in forced_ids:
                 k = jids.index(jid)
                 #d[f"joint_{jid}_X"] = jxs[k]
                 #d[f"joint_{jid}_Y"] = jys[k]
-                if (jxs[k]<=0 and jys[k]<=0) or jxs[k]>=511 or jys[k]>=423 or bool(jvis[k])==False:
+                if (jxs[k]<=0 and jys[k]<=0): #or jxs[k]>=511 or jys[k]>=423 or bool(jvis[k])==False:
                     d[f"joint_{jid}_X"] = -1000
                     d[f"joint_{jid}_Y"] = -1000 #00q
                     d[f"joint_{jid}_visible"] = False
                 else:
-                    d[f"joint_{jid}_X"] = int(np.clip(jxs[k],0,511)) #jxs[k]
-                    d[f"joint_{jid}_Y"] = int(np.clip(jys[k],0,423)) #jys[k]
+                    d[f"joint_{jid}_X"] = jxs[k] #int(np.clip(jxs[k],0,511)) #
+                    d[f"joint_{jid}_Y"] = jys[k] #int(np.clip(jys[k],0,423)) #
                     d[f"joint_{jid}_visible"] = bool(jvis[k]) #True 
         DATA.append(d)
     # Write Transformed data

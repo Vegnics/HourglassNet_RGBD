@@ -954,7 +954,7 @@ def tf_test_map_affine(
     _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
-    bboxf = tf.constant([1.18],dtype=tf.float32)
+    bboxf = tf.constant([1.18],dtype=tf.float32) #1.24
     _zipped = tf.map_fn(
         fn=(
             lambda imgncoords: tf_test_map_standard_squarify(imgncoords[0],

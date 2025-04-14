@@ -160,10 +160,10 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        gap = tf.reduce_mean(inputs,axis=-1)
-        gap = tf.expand_dims(gap,axis=-1)
-        learned_gap = self.gap_proj(inputs)
-        sgap = gap + learned_gap
+        #gap = tf.reduce_mean(inputs,axis=-1)
+        #gap = tf.expand_dims(gap,axis=-1)
+        sgap = self.gap_proj(tf.math.square(inputs))
+        #sgap = gap + learned_gap
         #sgap = tf.nn.swish(sgap)
         gshape = tf.shape(sgap) #NHWC
         S = self.conv1_3x3(sgap)

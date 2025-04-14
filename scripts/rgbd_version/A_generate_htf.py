@@ -13,6 +13,7 @@ from hourglass_tensorflow.utils.writers import common_write
 from hourglass_tensorflow.utils.parsers.slp import read_slp_folder_to_htf_data
 from hourglass_tensorflow.utils.parsers.mkv import read_mkv_folder_to_htf_data
 from hourglass_tensorflow.utils.parsers.dccvbed import read_dccv_folder_to_htf_data
+from hourglass_tensorflow.utils.parsers.mhad import read_mhad_folder_to_htf_data
 
 #MAT_FILE = "data/mpii.ignore.mat"
 #MAT_FILE = "data/mpii_human_pose.mat"\
@@ -22,19 +23,22 @@ HTF_JSON = "/content/HourglassNet_RGBD/data/htf_mkv.ignore.json"
 SLP_FOLDER = "/content/SLP_RGBD_v2"
 
 
-HTF_JSON = "data/htf_slp_test_c2.ignore.json"
+#HTF_JSON = "data/htf_slp_test_c2.ignore.json"
 #HTF_JSON = "data/htf_dccv.ignore.json"
 #HTF_JSON = "data/htf_mkv.ignore.json"
+HTF_JSON = "data/htf_mhad.ignore.json"
 
 #HTF_JSON = "data/htf_slp.ignore.json"
 DCCV_FOLDER = "/home/quinoa/Desktop/DCCV_bedpose"
 SLP_FOLDER = "/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3"
 MKV_FOLDER = "/home/quinoa/database_mkv"
+MHAD_FOLDER = "/home/quinoa/Downloads/HumanPose/HumanPose/utd_mhad_pose_depth"
 
 if __name__ == "__main__":
     # Parse file as list of records
     logger.info("Convert from MKV-RGBD to HTF")
-    htf_data = read_slp_folder_to_htf_data(SLP_FOLDER)
+    htf_data = read_mhad_folder_to_htf_data(MHAD_FOLDER)
+    #htf_data = read_slp_folder_to_htf_data(SLP_FOLDER)
     #htf_data = read_mkv_folder_to_htf_data(MKV_FOLDER,0,4714)
     #htf_data = read_dccv_folder_to_htf_data(DCCV_FOLDER)
     # Write Transform data

@@ -8,14 +8,14 @@ data:
   input:
     mode: "RGBD"
     #source: data/images.ignore.folder
-    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
+    source: /home/quinoa/Desktop/DCCV_bedpose #/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
     extensions:
       - png
       - jpeg
       - jpg
   output:
     #source: data/labels.ignore.csv
-    source: data/htf_slp_dataset_test.ignore.json
+    source: data/htf_dccv_dataset.ignore.json
     source_prefixed: false
     prefix_columns:
       - set
@@ -142,9 +142,9 @@ model:
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att2Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att3Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att4Depth4C.keras
-  #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att5Depth4C.keras
+  model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att5Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att6Depth4C.keras
-  model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att7Depth4C.keras
+  #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att7Depth4C.keras
   loading_style: Frozen
 
 test:

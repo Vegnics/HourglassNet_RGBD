@@ -236,6 +236,28 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.trainable = False
                         else:
                             layer.trainable = True
+                elif self.config.loading_style == "Partial_Joint_Scheme":
+                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR CHANGING JOINT SCHEME <<<<<<<<<<<<<<")
+                    for layer in model.layers:
+                        if isinstance(layer,DownSamplingLayer):
+                            print(f"Freezing {layer.name}")
+                            layer.trainable = False
+                        elif isinstance(layer,HourglassLayer):
+                            main_name = layer.name
+                            # Train only the main hourglass
+                            for _,val in layer.layer_list.items():
+                                for _,v in val.items():
+                                    if isinstance(v,Layer):
+                                        #print(f"Freezing {main_name}/{v.name}")
+                                        v.trainable = False
+                            print(f"Freezing {main_name}/{layer.residual_brc.name}")
+                            layer.residual_brc.trainable = False
+                            print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
+                            layer.merge_feats_main.trainable = False
+                            print(f"Freezing {main_name}/{layer.features_hm2.name}")
+                            layer.features_hm2.trainable = False
+                            print(f"Freezing {main_name}/{layer.residual_2j.name}")
+                            layer.residual_2j.trainable = False
                 model.summary()
                 self._model = model
             # Link Input Shape to Model

@@ -1,0 +1,259 @@
+mode: train
+version: "1.0.0"
+data:
+  object:
+    source: "hourglass_tensorflow.handlers.data.HTFDataHandler"
+    params:
+      foo: bar
+  input:
+    mode: "Depth"
+    #source: data/images.ignore.folder
+    source: /home/quinoa/Downloads/HumanPose/HumanPose/utd_mhad_pose_depth
+    extensions:
+      - png
+      - jpeg
+      - jpg
+  output:
+    #source: data/labels.ignore.csv
+    source: data/htf_mhad_dataset.ignore.json
+    source_prefixed: false
+    prefix_columns:
+      - set
+      - image
+      - depth
+      - scale
+      - multisubject
+      - bbox_tl_x
+      - bbox_tl_y
+      - bbox_br_x
+      - bbox_br_y
+      - center_x
+      - center_y
+    column_set: set
+    column_source: image
+    joints:
+      num: 20
+      dynamic_fields:
+        - SUFFIX
+      naming_convention: joint_{JOINT_ID}_{SUFFIX}
+      format:
+        id_field: JOINT_ID
+        SUFFIX:
+          x: "X"
+          y: "Y"
+          visible: visible
+      names:
+        - "00_Nose"
+        - "01_Neck"
+        - "02_rShoulder"
+        - "03_rElbow"
+        - "04_rWrist"
+        - "05_lShoulder"
+        - "06_lElbow"
+        - "07_lWrist"
+        - "08_rHip"
+        - "09_rKnee"
+        - "10_rAnkle"
+        - "11_lHip"
+        - "12_lKnee"
+        - "13_lAnkle"
+        - "14_rEye"
+        - "15_lEye"
+        - "16_rEar"
+        - "17_lEar"
+        - "18_rEaar"
+        - "19_lEasr"
+dataset:
+  object:
+    source: "hourglass_tensorflow.handlers.dataset.HTFDatasetHandler"
+    params:
+      foo: bar
+  image_size: 256 #256
+  data_mode: "Depth"
+  hip_idxs:
+    Lhip: 11
+    Rhip: 12
+  column_image: image
+  heatmap:
+    size: 64 #64
+    stacks: 2
+    channels_1JHMs: 20
+    channels_2JHMs: 18
+    limbs_2J_str:
+     - (0, 1)
+     - (1, 2)
+     - (1, 5)
+     - (2, 3)
+     - (3, 4)
+     - (5, 6)
+     - (6, 7)
+     - (1, 8)
+     - (1, 11)
+     - (8, 9)
+     - (9, 10)
+     - (11, 12)
+     - (12, 13)
+     - (8, 11)
+     - (0, 14)
+     - (0, 15)
+     - (14, 16)
+     - (15, 17)
+    stddev: 1.1
+    stddev_factor: 1.3 #1.35
+    enable_visibility: true
+  #normalization: "Normal"
+  normalization: "Idem"
+  augmentation:
+    - 
+      source: ""
+      params:
+        foo: bar
+  sets:
+    split_by_column: false
+    column_split: set
+    value_train: TRAIN
+    value_test: TEST
+    value_validation: VALIDATION
+    test: true
+    train: true
+    validation: true
+    ratio_test: 0.05
+    ratio_train: 0.74
+    ratio_validation: 0.2
+  bbox:
+    activate: true
+    factor: 1.15 #1.155
+
+model:
+  object:
+    source: "hourglass_tensorflow.handlers.model.HTFModelHandler"
+    params:
+      foo: bar
+  build_as_model : true
+  data_format: NHWC
+  params:
+    input_size: 256 #256
+    output_size: 64 #64
+    channel_number: 4 #4
+    stages: 2
+    downsamplings_per_stage: 4
+    stage_filters: 256 #64
+    channels_1joint: 20 #14 ->26
+    channels_2joint: 18 #14 ->26
+    name: "HourglassSample"
+    intermediate_supervision: true
+    skip_AM: "NoAM"
+    s2f_AM: "NoAM" #"NoAM"
+    f2s_AM: "NoAM" #"NoAM"
+    use_2jointHM: false
+    use_kernel_regularization: false
+    freeze_attention_weights: false
+    residual_nblocks: 1
+  load_model: true
+  model_path: "data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras" #data/model_t/myModel_MKV_WS_BL_1B_2JFT_Depth4C.keras #data/model_t/myModel_MKV_WS_BL_1B_2J_Depth4C.keras #"data/model_t/myModel_MKV_WS_BL_1B_Depth4C.keras"
+  loading_style:  Partial_Joint_Scheme #Full_Train #Partial_Train_Attention # # #Partial_Train_Joints # #Partial_Train_Joints #Partial_Downsampling # Full_Train #
+
+train:
+  object:
+    source: "hourglass_tensorflow.handlers.train.HTFTrainHandler"
+    params:
+      foo: bar
+  epochs: 50
+  epoch_size: 92
+  batch_size: 20 #128
+  learning_rate: 2.5e-4 #0.000001 #0.000001
+  #learning_rate:
+  #  source: "keras.optimizers.schedules.learning_rate_schedule.ExponentialDecay"
+    #source: "keras.optimizers.schedules.ExponentialDecay"
+  #  params:
+  #    initial_learning_rate: 0.00035 #0.00025
+  #    decay_steps: 3000 #100000 #3000
+  #    decay_rate: 0.989
+  loss:
+    source: "hourglass_tensorflow.losses.MAE_custom"
+  #  source: "hourglass_tensorflow.losses.SigmoidCrossEntropyLoss"
+    params:
+      WL2_j1: 1.0
+      WL2_j2: 0.0
+      WCoords: 0.0000
+      nstages: 2
+      n1joints: 20  #16 ->26
+      n2joints: 18
+      use2joints: false
+      foo: bar
+  #loss: MeanSquaredError
+  optimizer:
+    source: "keras.optimizers.Adam" #"keras.optimizers.RMSprop" # "keras.optimizers.RMSprop"
+    params:
+      beta_1: 0.9
+      beta_2: 0.989
+      epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
+      #clipnorm: 2.5
+    #  rho: 0.9
+    #  momentum: 0.00000001
+    #  centered: true
+    #source: "keras.optimizers.Adam"
+    #params:
+    #  beta_1: 0.8
+    #  beta_2: 0.99
+    #  epsilon: 1e-08
+  metrics:
+    #- source: "hourglass_tensorflow.metrics.SoftargmaxMeanDist"
+    #  params: 
+    #    name: "SoftMedDist"
+    #    num_1joints: 17
+    - 
+      source: "hourglass_tensorflow.metrics.OverallMeanDistance"
+      params:
+        name: "MEDist"
+        num_1joints: 20
+    #-
+    #  source: "hourglass_tensorflow.metrics.RatioCorrectKeypoints"
+    #  params:
+    #    name: "CorrectKpts@6px"
+    #    threshold: 6
+    - 
+      source: "hourglass_tensorflow.metrics.PercentageOfCorrectKeypoints"
+      params:
+        name: "PCKh@0.5"
+        ratio: 0.5
+        reference:
+          - 12
+          - 13
+        num_1joints: 20
+  callbacks:
+    -
+      source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
+      params:
+        monitor: val_PCKh@0.5 #val_MEDist #val_PCKh@0.5        # Metric to monitor (could also be 'loss' or 'accuracy')
+        factor: 0.4                # Factor to reduce the learning rate, e.g., new_lr = lr * 0.5
+        patience: 4                # Number of epochs with no improvement before reducing
+        verbose: 1                 # Print updates
+        min_lr: 0.000000002     
+    -
+      source: "tensorflow.keras.callbacks.ModelCheckpoint"
+      params:
+        #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
+        #filepath: "data/model_t/myModel.{epoch:02d}"
+        mode: max
+        filepath: "data/model_t/myModel_MHAD_WS_BL_1B_Depth4C.keras"
+        save_weights_only: false
+        save_freq: epoch
+        monitor: val_PCKh@0.5 #val_CorrectKpts@6px #
+        save_best_only: true
+        verbose: 1
+        initial_value_threshold: 0.55 #1000000.0
+    -
+      source: "tensorflow.keras.callbacks.TensorBoard"
+      params:
+        log_dir: logs/myModelLogs
+        histogram_freq: 1
+        write_graph: true
+        #write_grads: true
+        write_images: false #true
+        update_freq: epoch
+    -
+      source: "tensorflow.keras.callbacks.CSVLogger"
+      params:
+        filename: logs/myModelLogs_myModel_MHAD_WS_BL_1B_Depth4C.csv
+test: null

@@ -163,20 +163,23 @@ class SpatialAttentionMechanism(Layer):
         gap = tf.reduce_mean(inputs,axis=-1)
         gap = tf.expand_dims(gap,axis=-1)
         learned_gap = self.gap_proj(inputs)
-        sgap = self.bn1(gap) + self.bn2(learned_gap)
+        sgap = gap + learned_gap
         #sgap = tf.nn.swish(sgap)
         gshape = tf.shape(sgap) #NHWC
         S = self.conv1_3x3(sgap)
+        S = self.bn1(S)
         S = tf.nn.relu(S)
-
+        
         S = self.maxpool1(S)
         S = self.conv2_3x3(S)
+        S = self.bn2(S)
         S = tf.nn.relu(S)
-
+        
         S = self.maxpool2(S)
         S = self.patches_proj(S)
-        S = tf.nn.relu(S)
         S = self.bn3(S)
+        S = tf.nn.relu(S)
+        
 
         # Ensure H and W are divisible by 4 before reshaping
         H, W = gshape[1], gshape[2]

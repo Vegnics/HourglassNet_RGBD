@@ -28,7 +28,8 @@ MODEL_LOADING_STYLES = Union[
     Literal["Partial_Downsampling_frozen"],
     Literal["Partial_Train_Joints"],
     Literal["Partial_Train_Attention"],
-    Literal["Frozen"]
+    Literal["Frozen"],
+    Literal["Partial_Joint_Scheme"],
 ]
 
 class HTFModelHandlerReturnObject(TypedDict):

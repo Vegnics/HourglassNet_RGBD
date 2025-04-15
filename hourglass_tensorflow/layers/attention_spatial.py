@@ -39,7 +39,7 @@ class SpatialHead(Layer):
         # Create layers
         #"""
         self.conv1_3x3 = layers.Conv2D(
-            filters=32,
+            filters=8,
             kernel_size=(3,3),
             strides= (1,1),#self.strides,
             padding="same",
@@ -62,33 +62,6 @@ class SpatialHead(Layer):
             pool_size=(2, 2),
             padding="valid",
             name=f"AttSpatialMaxPool1",
-            trainable=self.trainable,
-        )
-
-        self.conv2_3x3 = layers.Conv2D(
-            filters=16,
-            kernel_size=(3,3),
-            strides= (1,1),#self.strides,
-            padding="same",
-            name="AttConv2D_2",
-            activation= None,#"gelu",
-            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= self.kernel_initializer,
-            use_bias=False,
-        )
-
-        self.ln_2 = layers.LayerNormalization(
-            axis=-1,
-            #momentum=self.momentum,
-            epsilon=self.epsilon,
-            trainable=trainable,
-            name="LN_conv2",
-        )
-        
-        self.maxpool2 = layers.MaxPooling2D(
-            pool_size=(2, 2),
-            padding="valid",
-            name=f"AttSpatialMaxPool2",
             trainable=self.trainable,
         )
         
@@ -114,11 +87,6 @@ class SpatialHead(Layer):
         S = self.ln_1(S)
         S = tf.nn.relu(S)
         S = self.maxpool1(S)
-
-        S = self.conv2_3x3(S)
-        S = self.ln_2(S)
-        S = tf.nn.relu(S)
-        S = self.maxpool2(S)
         return S
     def build(self, input_shape):
         super().build(input_shape)
@@ -161,7 +129,7 @@ class SpatialAttentionMechanism(Layer):
         # Create layers
         #"""
         self.gap_proj = layers.Conv2D(
-            filters=1,
+            filters=16,
             kernel_size=(1,1),
             strides=self.strides,
             padding="same",
@@ -176,7 +144,7 @@ class SpatialAttentionMechanism(Layer):
         self.score_gen = layers.Conv2D(
             filters=1,
             kernel_size=(3,3),
-            strides=self.strides,
+            strides=(2,2),
             padding="same",
             name="AttConv2D_scores",
             activation=None,

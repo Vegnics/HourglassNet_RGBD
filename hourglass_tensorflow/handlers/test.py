@@ -253,8 +253,9 @@ class HTFTestHandler(_HTFTestHandler):
             mask_shoulders = tf.reshape(tf.convert_to_tensor([0,0,0,0,0,0,0,0,1,1,0,0,0,0],dtype=tf.float32),shape=(1,14))
             mask_wrists = tf.reshape(tf.convert_to_tensor([0,0,0,0,0,0,1,0,0,0,0,1,0,0],dtype=tf.float32),shape=(1,14))
             mask_head = tf.reshape(tf.convert_to_tensor([0,0,0,0,0,0,0,0,0,0,0,0,1,1],dtype=tf.float32),shape=(1,14))
-            joint_masks = [mask_ankles,mask_knees,mask_hips,mask_elbows,mask_shoulders,mask_wrists,mask_head]
-            joint_mask_names = ["Ankles","Knees","Hips","Elbows","Shoulders","Wrists","Head"] 
+            mask_total = tf.reshape(tf.convert_to_tensor([1,1,1,1,1,1,1,1,1,1,1,1,1,1],dtype=tf.float32),shape=(1,14))
+            joint_masks = [mask_ankles,mask_knees,mask_hips,mask_elbows,mask_shoulders,mask_wrists,mask_head,mask_total]
+            joint_mask_names = ["Ankles","Knees","Hips","Elbows","Shoulders","Wrists","Head","Overall"] 
             #vis_preds_ankles = vis_preds*mask_vis
             print("VIS PRED SHAPE:", vis_preds.shape)
 
@@ -306,10 +307,9 @@ class HTFTestHandler(_HTFTestHandler):
                 mpjpe = tf.math.divide_no_nan(tf.reduce_sum(distance*mod_vis*joint_mask),tf.cast(Njoints,tf.float32))
            
                 #print(correct_keypoints,"out of :",14*distance.shape()[0].numpy())
-                print(correctkpnts.numpy(),"out of :",Njoints)
+                #print(correctkpnts.numpy(),"out of :",Njoints)
                 print("PCKh@0.5 Acc: ")
                 tf.print(100.0*tf.math.divide_no_nan(tf.cast(correctkpnts,tf.float32),tf.cast(Njoints,tf.float32)), summarize=-1, output_stream=sys.stdout, sep="\t")
                 print("MPJPE: ", mpjpe)
-                #print(100.0*cum_accuracy/(nsamples))
 
 # endregion

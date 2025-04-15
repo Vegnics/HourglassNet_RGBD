@@ -49,7 +49,8 @@ def read_dccv_folder_to_htf_data(
         for sample_num in range(20):
             sample_id = "{0:04d}".format(sample_num)
             annopoints = read_landmark_data(os.path.join(main_folder,sub_id,"LMData",f"lm_{sample_id}.csv")) 
-            for cover_opt in ["uncover","cover1","cover2"]:
+            #for cover_opt in ["uncover","cover1","cover2"]:
+            for cover_opt in ["cover2"]:
                 record_to_return.append(
                 HTFPersonDatapointRGBD(
                     is_train=1,

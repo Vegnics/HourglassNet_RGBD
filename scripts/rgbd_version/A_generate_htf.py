@@ -24,9 +24,9 @@ SLP_FOLDER = "/content/SLP_RGBD_v2"
 
 
 #HTF_JSON = "data/htf_slp_test_c2.ignore.json"
-#HTF_JSON = "data/htf_dccv.ignore.json"
+HTF_JSON = "data/htf_dccv_c2.ignore.json"
 #HTF_JSON = "data/htf_mkv.ignore.json"
-HTF_JSON = "data/htf_mhad.ignore.json"
+#HTF_JSON = "data/htf_mhad.ignore.json"
 
 #HTF_JSON = "data/htf_slp.ignore.json"
 DCCV_FOLDER = "/home/quinoa/Desktop/DCCV_bedpose"
@@ -37,10 +37,10 @@ MHAD_FOLDER = "/home/quinoa/Downloads/HumanPose/HumanPose/utd_mhad_pose_depth"
 if __name__ == "__main__":
     # Parse file as list of records
     logger.info("Convert from MKV-RGBD to HTF")
-    htf_data = read_mhad_folder_to_htf_data(MHAD_FOLDER)
+    #htf_data = read_mhad_folder_to_htf_data(MHAD_FOLDER)
     #htf_data = read_slp_folder_to_htf_data(SLP_FOLDER)
     #htf_data = read_mkv_folder_to_htf_data(MKV_FOLDER,0,4714)
-    #htf_data = read_dccv_folder_to_htf_data(DCCV_FOLDER)
+    htf_data = read_dccv_folder_to_htf_data(DCCV_FOLDER)
     # Write Transform data
     logger.info(f"Write HTF data to {HTF_JSON}")
     common_write(htf_data, HTF_JSON)

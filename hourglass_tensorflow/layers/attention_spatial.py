@@ -110,18 +110,21 @@ class SpatialEnergyHead(Layer):
         # Create layers
         #"""
 
-        self.Vgen = layers.Dense(self.K_size,
+        self.Vgen = layers.Dense(
+                units=self.K_size,
                 activation= "softmax", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
-                name = "Vgen_FC"
+                name = "Vgen_FC",
+                input_shape=(16,)
                 )
         
         self.Hgen = layers.Dense(self.K_size,
                 activation= "softmax", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
-                name = "Hgen_FC"
+                name = "Hgen_FC",
+                input_shape=(16,)
                 )
         
         self.dropout_v = layers.Dropout(0.05)
@@ -142,6 +145,11 @@ class SpatialEnergyHead(Layer):
         H = tf.reshape(self.dropout_h(self.Hgen(inputs),training=training),shape=(-1,1,self.K_size))
         return tf.linalg.matmul(V,H)
     def build(self, input_shape):
+        self.Vgen.build(input_shape)
+        self.Hgen.build(input_shape)
+        self.dropout_v.build((None, self.K_size))
+        self.dropout_h.build((None, self.K_size))
+        super().build(input_shape)
         super().build(input_shape)
 
 @register_keras_serializable(package="lattentionSpatial") 

@@ -8,7 +8,7 @@ from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
 from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
-from hourglass_tensorflow.layers.attention_spatial2 import SpatialAttentionMechanism
+from hourglass_tensorflow.layers.attention_spatial import SpatialAttentionMechanism
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer
 
 @register_keras_serializable(package="lResiduals")

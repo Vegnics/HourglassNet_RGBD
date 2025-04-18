@@ -269,7 +269,7 @@ class HourglassLayer(Layer):
                                                            name=f"Step{i}_ResidualUp1",
                                                            trainable=trainable,
                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention
+                                                           freeze_attention=self.freeze_attention,
                                                            feat_size = 2**(i+2))
             self.__setattr__(f"dstep_{i}_up_1", _downsampl["up_1"])
             

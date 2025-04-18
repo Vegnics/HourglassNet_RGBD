@@ -8,16 +8,16 @@ data:
   input:
     mode: "RGBD"
     #source: data/images.ignore.folder
-    source: /home/quinoa/Desktop/DCCV_bedpose #
-    #source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
+    #source: /home/quinoa/Desktop/DCCV_bedpose #
+    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
     extensions:
       - png
       - jpeg
       - jpg
   output:
     #source: data/labels.ignore.csv
-    source: data/htf_dccv_dataset_c0.ignore.json
-    #source: data/htf_slp_dataset_test_c1.ignore.json
+    #source: data/htf_dccv_dataset_c0.ignore.json
+    source: data/htf_slp_dataset_test_c2.ignore.json
     source_prefixed: false
     prefix_columns:
       - set

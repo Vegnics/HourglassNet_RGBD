@@ -92,6 +92,59 @@ class SpatialHead(Layer):
         super().build(input_shape)
 
 @register_keras_serializable(package="lattentionSpatial") 
+class SpatialEnergyHead(Layer):
+    """
+    This layer performs 2D convolution, Batch Normalization, and ReLU.
+    """
+    def __init__(
+        self,
+        K_size: int = 32,
+        kernel_initializer: str = "glorot_uniform",
+        name: str = None,
+        trainable: bool = True,
+    ) -> None:
+        super().__init__(name=name, trainable=trainable)
+        # Store config
+        self.K_size = K_size
+        self.kernel_initializer = kernel_initializer
+        # Create layers
+        #"""
+
+        self.Vgen = layers.Dense(self.K_size,
+                activation= "softmax", #None,
+                use_bias=True,
+                kernel_initializer='glorot_uniform',
+                name = "Vgen_FC"
+                )
+        
+        self.Hgen = layers.Dense(self.K_size,
+                activation= "softmax", #None,
+                use_bias=True,
+                kernel_initializer='glorot_uniform',
+                name = "Hgen_FC"
+                )
+        
+        self.dropout_v = layers.Dropout(0.05)
+        self.dropout_h = layers.Dropout(0.05)
+        
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "kernel_initializer": self.kernel_initializer,
+                "K_size": self.K_size,
+            },
+        }
+
+    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
+        #gshape = tf.shape(sgap) #NHWC
+        V = tf.reshape(self.dropout_v(self.Vgen(inputs),training=training),shape=(-1,self.K_size,1))
+        H = tf.reshape(self.dropout_h(self.Hgen(inputs),training=training),shape=(-1,1,self.K_size))
+        return tf.linalg.matmul(V,H)
+    def build(self, input_shape):
+        super().build(input_shape)
+
+@register_keras_serializable(package="lattentionSpatial") 
 class SpatialAttentionMechanism(Layer):
     """
     This layer performs 2D convolution, Batch Normalization, and ReLU.
@@ -108,7 +161,7 @@ class SpatialAttentionMechanism(Layer):
         epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
-        headnum: int = 8,
+        headnum: int = 16,
         trainable: bool = True,
         kernel_reg: bool = False,
     ) -> None:
@@ -129,22 +182,22 @@ class SpatialAttentionMechanism(Layer):
         # Create layers
         #"""
         self.gap_proj = layers.Conv2D(
-            filters=16,
+            filters=1,
             kernel_size=(1,1),
             strides=self.strides,
             padding="same",
             name="proj_gap",
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= self.kernel_initializer,
-            use_bias=True,
+            kernel_initializer= tf.constant_initializer(1/256.0),
+            use_bias=False,
         )
-        self.spatial_heads = [[SpatialHead(name="SpatialHead_{u}_{v}") for v in range(4)] for u in range(4)] 
+        self.spatial_heads = [SpatialEnergyHead(name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         
         self.score_gen = layers.Conv2D(
             filters=1,
             kernel_size=(3,3),
-            strides=(2,2),
+            strides=(1,1),
             padding="same",
             name="AttConv2D_scores",
             activation=None,
@@ -173,16 +226,14 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        learned_gap = self.gap_proj(inputs)
-        row_outputs = []
-        for u in range(4):
-            col_outputs = []
-            for v in range(4):
-                head_out = self.spatial_heads[u][v](learned_gap, training=training)  # (B, H', W', C)
-                col_outputs.append(head_out)
-            row_outputs.append(tf.concat(col_outputs, axis=2))  # concat along width
-        stacked_heads = tf.concat(row_outputs, axis=1)  # concat along height → (B, H_total, W_total, C)
-        scores = tf.nn.sigmoid(self.score_gen(stacked_heads)) 
+        projection = self.gap_proj(inputs)
+        K = tf.shape(inputs)[1]
+        #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
+        tiled = tf.reshape(projection, (-1, 4, K // 4, 4, K // 4))
+        tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4])
+        energy_descriptor = tf.reshape(tf.reduce_mean(tf.math.square(tiled),axis=[2,3]),(-1,16))
+        stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor) for u in range(self.head_num)],axis=-1)
+        scores = tf.nn.sigmoid(self.score_gen(stacked_outs)) 
         return scores
     
     def build(self, input_shape):

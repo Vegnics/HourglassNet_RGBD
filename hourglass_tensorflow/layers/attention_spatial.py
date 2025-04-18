@@ -164,6 +164,7 @@ class SpatialAttentionMechanism(Layer):
         headnum: int = 16,
         trainable: bool = True,
         kernel_reg: bool = False,
+        feat_size: int = None
     ) -> None:
         super().__init__(name=name, trainable=trainable)
         # Store config
@@ -179,6 +180,7 @@ class SpatialAttentionMechanism(Layer):
         self.head_num = headnum
         self.trainable = trainable
         self.kernel_reg = kernel_reg
+        self.feat_size = feat_size
         # Create layers
         #"""
         self.gap_proj = layers.Conv2D(
@@ -192,7 +194,7 @@ class SpatialAttentionMechanism(Layer):
             kernel_initializer= tf.constant_initializer(1/256.0),
             use_bias=False,
         )
-        self.spatial_heads = [SpatialEnergyHead(name=f"SpatialHead_{u}") for u in range(self.head_num)] 
+        self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         
         self.score_gen = layers.Conv2D(
             filters=1,
@@ -221,7 +223,8 @@ class SpatialAttentionMechanism(Layer):
                 "epsilon": self.epsilon,
                 "outmax": self.outmax,
                 "headnum": self.head_num,
-                "kernel_reg": self.kernel_reg
+                "kernel_reg": self.kernel_reg,
+                "feat_size": self.feat_size
             },
         }
 

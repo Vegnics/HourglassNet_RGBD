@@ -234,7 +234,7 @@ class SpatialAttentionMechanism(Layer):
         #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
         tiled = tf.reshape(projection, (-1, 4, K // 4, 4, K // 4))
         tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4])
-        energy_descriptor = tf.reshape(tf.reduce_mean(tf.math.square(tiled),axis=[2,3]),(-1,16))
+        energy_descriptor = tf.reshape(tf.reduce_mean(tf.math.square(tiled),axis=[3,4]),(-1,16))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor) for u in range(self.head_num)],axis=-1)
         scores = tf.nn.sigmoid(self.score_gen(stacked_outs)) 
         return scores

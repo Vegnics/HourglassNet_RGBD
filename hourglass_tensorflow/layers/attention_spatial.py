@@ -204,6 +204,9 @@ class SpatialAttentionMechanism(Layer):
         )
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         
+        for k,layer in enumerate(self.spatial_heads):
+            self.__setattr__(f"sam_{k}", layer)
+
         self.score_gen = layers.Conv2D(
             filters=1,
             kernel_size=(3,3),

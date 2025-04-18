@@ -21,7 +21,8 @@ class ResidualBlock(Layer):
         name: str = None,
         trainable: bool = True,
         use_last_relu: bool = False,
-        attentionType: str = None, 
+        attentionType: str = None,
+        feat_size: int = None, 
         **kwargs
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -31,6 +32,7 @@ class ResidualBlock(Layer):
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
         self.attention_type = attentionType
+        self.feat_size = feat_size
         # Convolutional block
         self.attention_block = None
         if self.attention_type == "NoAM":
@@ -43,12 +45,13 @@ class ResidualBlock(Layer):
                 filters = self.output_filters,
                 kernel_size = 1,
                 kernel_reg = False,
-                trainable = True
+                trainable = True,
+                feat_size = self.feat_size
             )
             self.alpha = self.add_weight(
                 shape=[],
                 name="att_alpha",
-                initializer=tf.constant_initializer(4.0),
+                initializer=tf.constant_initializer(-3.0),
                 trainable=True,
             )
         elif self.attention_type == "FAM":
@@ -62,7 +65,7 @@ class ResidualBlock(Layer):
             self.alpha = self.add_weight(
                 shape=[],
                 name="att_alpha",
-                initializer=tf.constant_initializer(4.0),
+                initializer=tf.constant_initializer(-3.0),
                 trainable=True,
             )
         else:
@@ -86,7 +89,8 @@ class ResidualBlock(Layer):
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
                 "use_last_relu": self.use_last_relu,
-                "attentionType": self.attention_type
+                "attentionType": self.attention_type,
+                "feat_size": self.feat_size
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
@@ -95,7 +99,7 @@ class ResidualBlock(Layer):
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
-                inputs*((1.0-alpha)*scores+alpha),
+                inputs*(alpha*scores+(1.0-alpha)),
             ])
         return self.relu(_sum)
     
@@ -123,6 +127,7 @@ class ResidualLayer(Layer):
         trainable: bool = True,
         use_last_relu: bool = False,
         attentionType: str = None,
+        feat_size: int = None,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -133,13 +138,15 @@ class ResidualLayer(Layer):
         self.use_last_relu = use_last_relu
         self.nblocks = nblocks
         self.attention_type = attentionType
+        self.feat_size = feat_size
         #self.residual_blocks = []
 
         self.residual_blocks = [ResidualBlock(output_filters= self.output_filters,
                                             name=f"{name}_block{k}",
                                             use_last_relu = self.use_last_relu,
                                             trainable=trainable,
-                                            attentionType=self.attention_type) for k in range(self.nblocks)]
+                                            attentionType=self.attention_type,
+                                            feat_size=self.feat_size) for k in range(self.nblocks)]
         for k,layer in enumerate(self.residual_blocks):
             self.__setattr__(f"residual_{k}", layer)
     def get_config(self):
@@ -151,7 +158,8 @@ class ResidualLayer(Layer):
                 "epsilon": self.epsilon,
                 "use_last_relu": self.use_last_relu,
                 "nblocks": self.nblocks,
-                "attentionType": self.attention_type
+                "attentionType": self.attention_type,
+                "feat_size":self.feat_size
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:

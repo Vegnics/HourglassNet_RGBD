@@ -18,14 +18,16 @@ def generate_residual_layer(layer_type: str ,
                             name: str = None ,
                             trainable = True,
                             kernel_reg = False,
-                            freeze_attention=False):
+                            freeze_attention=False,
+                            feat_size = None):
         return  ResidualLayer(
                 output_filters= feature_filters,
                 nblocks = nblocks,
                 name=name,
                 trainable=trainable,
                 use_last_relu=False,
-                attentionType=layer_type)
+                attentionType=layer_type,
+                feat_size = feat_size)
         """
         #print("Feature filters",feature_filters)
         if layer_type == "NoAM":
@@ -267,7 +269,8 @@ class HourglassLayer(Layer):
                                                            name=f"Step{i}_ResidualUp1",
                                                            trainable=trainable,
                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention)
+                                                           freeze_attention=self.freeze_attention
+                                                           feat_size = 2**(i+2))
             self.__setattr__(f"dstep_{i}_up_1", _downsampl["up_1"])
             
             _downsampl["low_"] = layers.MaxPool2D(

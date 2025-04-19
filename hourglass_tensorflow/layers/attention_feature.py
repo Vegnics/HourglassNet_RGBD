@@ -134,7 +134,7 @@ class FeatureAttentionMechanism(Layer):
         self.last_projection = layers.Dense(self.filters,
             activation=None,
             use_bias=True,
-            bias_initializer=tf.constant_initializer(-4.0),
+            bias_initializer=tf.constant_initializer(-3.0),
             kernel_initializer='zeros',
             name = "LastProjection",
             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,

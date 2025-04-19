@@ -94,7 +94,7 @@ class ResidualBlock(Layer):
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
-        scores = self.attention_block(inputs)
+        scores = self.attention_block(inputs,training=training)
         alpha = tf.nn.sigmoid(self.alpha)
         _sum = self.add(
             [

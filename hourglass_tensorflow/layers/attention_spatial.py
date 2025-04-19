@@ -4,6 +4,7 @@ from keras.layers import Layer
 from keras.activations import swish
 from keras.regularizers import L2 as RegL2
 from keras.saving import register_keras_serializable
+from keras import constraints
 
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialHead(Layer):
@@ -112,7 +113,7 @@ class SpatialEnergyHead(Layer):
 
         self.Vgen = layers.Dense(
                 units=self.K_size,
-                activation= "softmax", #None,
+                activation= "relu", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Vgen_FC",
@@ -120,7 +121,7 @@ class SpatialEnergyHead(Layer):
                 )
         
         self.Hgen = layers.Dense(self.K_size,
-                activation= "softmax", #None,
+                activation= "relu", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Hgen_FC",
@@ -199,9 +200,18 @@ class SpatialAttentionMechanism(Layer):
             name="proj_gap",
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+            kernel_constraint = constraints.NonNeg(),
             kernel_initializer= tf.constant_initializer(1/256.0),
             use_bias=False,
         )
+        self.bn = layers.BatchNormalization(axis=-1,
+                                            trainable=self.trainable,
+                                            name="BN_sam")
+        
+        self.ln = layers.LayerNormalization(axis=-1,
+                                            trainable=self.trainable,
+                                            name="LN_sam")
+
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         
         for k,layer in enumerate(self.spatial_heads):
@@ -240,13 +250,14 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        projection = self.gap_proj(inputs)
+        _inputs = self.bn(inputs,training=training)
+        projection = self.ln(self.gap_proj(_inputs))
         K = tf.shape(inputs)[1]
         #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
         tiled = tf.reshape(projection, (-1, 4, K // 4, 4, K // 4))
         tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4])
         energy_descriptor = tf.reshape(tf.reduce_mean(tf.math.square(tiled),axis=[3,4]),(-1,16))
-        stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor) for u in range(self.head_num)],axis=-1)
+        stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         scores = tf.nn.sigmoid(self.score_gen(stacked_outs)) 
         return scores
     

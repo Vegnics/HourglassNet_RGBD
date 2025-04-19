@@ -113,14 +113,21 @@ class SpatialEnergyHead(Layer):
 
         self.Vgen = layers.Dense(
                 units=self.K_size,
-                activation= "softmax", #None,
+                activation= None, #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Vgen_FC",
                 )
         
+        self.diff_vec = self.add_weight(
+                shape=[1,16],
+                name="diff_vec",
+                initializer="glorot_normal",
+                trainable=self.trainable,
+            )
+
         self.Hgen = layers.Dense(self.K_size,
-                activation= "softmax", #None,
+                activation=None, #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Hgen_FC",
@@ -139,15 +146,20 @@ class SpatialEnergyHead(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        #gshape = tf.shape(sgap) #NHWC
-        V = tf.reshape(self.Vgen(self.dropout_v(inputs,training=training)),shape=(-1,self.K_size,1))
-        H = tf.reshape(self.Hgen(self.dropout_h(inputs,training=training)),shape=(-1,1,self.K_size))
-        return tf.linalg.matmul(V,H)
+        input_v = tf.transpose(tf.stack((inputs,inputs-self.diff_vec),axis=-1),perm=[0,2,1])
+        input_h = tf.transpose(tf.stack((inputs,inputs+self.diff_vec),axis=-1),perm=[0,2,1])
+
+        v = self.dropout_v(self.Vgen(input_v), training=training)  # (B,K,2)
+        h = self.dropout_h(self.Hgen(input_h), training=training)  # (B,K,2)
+
+        V = tf.nn.softmax(v, axis=-1)                     # (B,2,K)
+        H = tf.nn.softmax(h, axis=-1)                     # (B,2,K)
+
+        V = tf.transpose(V,perm=[0,2,1])                # (B,K,2)
+        #H = tf.reshape(H, (-1, 2, self.K_size))                # (B,2,K)
+
+        return tf.matmul(V, H)                            # (B,K,K)
     def build(self, input_shape):
-        self.Vgen.build(input_shape)
-        self.Hgen.build(input_shape)
-        self.dropout_v.build((None, self.K_size))
-        self.dropout_h.build((None, self.K_size))
         super().build(input_shape)
 
 @register_keras_serializable(package="lattentionSpatial") 

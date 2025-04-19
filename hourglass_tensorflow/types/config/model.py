@@ -28,6 +28,8 @@ MODEL_LOADING_STYLES = Union[
     Literal["Partial_Downsampling_frozen"],
     Literal["Partial_Train_Joints"],
     Literal["Partial_Train_Attention"],
+    Literal["Partial_Train_S2F"],
+    Literal["Partial_Train_F2S"],
     Literal["Frozen"],
     Literal["Partial_Joint_Scheme"],
 ]

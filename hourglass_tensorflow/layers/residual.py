@@ -37,7 +37,7 @@ class ResidualBlock(Layer):
         self.attention_block = None
         if self.attention_type == "NoAM":
             self.attention_block = zeroLayer(self.output_filters,name="AttentionBlock")
-            self.alpha = tf.constant(4.0,dtype=tf.float32)
+            self.alpha = tf.constant(-3.0,dtype=tf.float32)
         
         elif self.attention_type == "SAM":
             self.attention_block = SpatialAttentionMechanism(

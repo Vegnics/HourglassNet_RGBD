@@ -113,19 +113,17 @@ class SpatialEnergyHead(Layer):
 
         self.Vgen = layers.Dense(
                 units=self.K_size,
-                activation= "relu", #None,
+                activation= "softmax", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Vgen_FC",
-                input_shape=(16,)
                 )
         
         self.Hgen = layers.Dense(self.K_size,
-                activation= "relu", #None,
+                activation= "softmax", #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Hgen_FC",
-                input_shape=(16,)
                 )
         
         self.dropout_v = layers.Dropout(0.05)
@@ -142,15 +140,14 @@ class SpatialEnergyHead(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         #gshape = tf.shape(sgap) #NHWC
-        V = tf.reshape(self.dropout_v(self.Vgen(inputs),training=training),shape=(-1,self.K_size,1))
-        H = tf.reshape(self.dropout_h(self.Hgen(inputs),training=training),shape=(-1,1,self.K_size))
+        V = tf.reshape(self.Vgen(self.dropout_v(inputs,training=training)),shape=(-1,self.K_size,1))
+        H = tf.reshape(self.Hgen(self.dropout_h(inputs,training=training)),shape=(-1,1,self.K_size))
         return tf.linalg.matmul(V,H)
     def build(self, input_shape):
         self.Vgen.build(input_shape)
         self.Hgen.build(input_shape)
         self.dropout_v.build((None, self.K_size))
         self.dropout_h.build((None, self.K_size))
-        super().build(input_shape)
         super().build(input_shape)
 
 @register_keras_serializable(package="lattentionSpatial") 
@@ -251,12 +248,12 @@ class SpatialAttentionMechanism(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         _inputs = self.bn(inputs,training=training)
-        projection = self.ln(self.gap_proj(_inputs))
+        projection = self.gap_proj(_inputs)
         K = tf.shape(inputs)[1]
         #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
         tiled = tf.reshape(projection, (-1, 4, K // 4, 4, K // 4))
         tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4])
-        energy_descriptor = tf.reshape(tf.reduce_mean(tf.math.square(tiled),axis=[3,4]),(-1,16))
+        energy_descriptor = self.ln(tf.reshape(tf.reduce_mean(tf.math.square(tiled),axis=[3,4]),(-1,16)))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         scores = tf.nn.sigmoid(self.score_gen(stacked_outs)) 
         return scores

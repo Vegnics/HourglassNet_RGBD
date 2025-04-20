@@ -267,8 +267,9 @@ class SpatialAttentionMechanism(Layer):
         tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4])
         tgrid = tf.range(0,4,1,dtype=tf.float32)
         X,Y = tf.meshgrid(tgrid,tgrid)
-        energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4])
-        pos_encoding = tf.repeat(tf.stack([X,Y],axis=-1),repeats=tf.shape(inputs)[0],axis=0)
+        XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
+        energy_tile = tf.expand_dims(tf.reduce_mean(tf.math.square(tiled),axis=[3,4]),axis=-1) #Nx4x4x1
+        pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
         energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(-1,16,3))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         stacked_outs = self.ln(stacked_outs)

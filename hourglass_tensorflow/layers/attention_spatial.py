@@ -5,6 +5,7 @@ from keras.activations import swish
 from keras.regularizers import L2 as RegL2
 from keras.saving import register_keras_serializable
 from keras import constraints
+from keras import initializers
 
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialHead(Layer):
@@ -117,24 +118,27 @@ class SpatialEnergyHead(Layer):
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Vgen_FC",
+                trainable=self.trainable,
                 )
         
-        #self.diff_vec = self.add_weight(
-        #        shape=[1,16],
-        #        name="diff_vec",
-        #        initializer="glorot_normal",
-        #        trainable=self.trainable,
-        #    )
-
         self.Hgen = layers.Dense(self.K_size,
                 activation=None, #None,
                 use_bias=True,
                 kernel_initializer='glorot_uniform',
                 name = "Hgen_FC",
+                trainable=self.trainable,
                 )
         
-        self.dropout_v = layers.Dropout(0.05)
-        self.dropout_h = layers.Dropout(0.05)
+        self.Hln = layers.LayerNormalization(axis=-1,
+                                            trainable=self.trainable,
+                                            name="HLN_")
+        
+        self.Vln = layers.LayerNormalization(axis=-1,
+                                            trainable=self.trainable,
+                                            name="VLN_")
+        
+        self.dropout_ = layers.Dropout(0.1,name="dpout_")
+        #self.dropout_h = layers.Dropout(0.05,name="dpout_h")
         
     def get_config(self):
         return {
@@ -150,14 +154,15 @@ class SpatialEnergyHead(Layer):
         #input_h = tf.transpose(tf.stack((inputs,inputs+self.diff_vec),axis=-1),perm=[0,2,1])
         _input = tf.transpose(inputs,perm=[0,2,1]) #(B,3,K)
         #input_h = tf.transpose(tf.stack((inputs,inputs+self.diff_vec),axis=-1),perm=[0,2,1])
-        v = tf.nn.relu(self.Vgen(_input))
-        h = tf.nn.relu(self.Hgen(_input ))   
-        V = self.dropout_v(tf.math.l2_normalize(v), training=training)  # (B,3,K)
-        H = self.dropout_h(tf.math.l2_normalize(h), training=training)  # (B,3,K)
+        V = tf.nn.relu(self.Vgen(_input))
+        H = tf.nn.relu(self.Hgen(_input))   
+        #V = self.Vln(v)  # (B,3,K)
+        #H = self.Hln(h)
+        #H = self.dropout_h(tf.math.l2_normalize(h), training=training)  # (B,3,K)
         V = tf.transpose(V,perm=[0,2,1])                # (B,K,3)
         #H = tf.reshape(H, (-1, 2, self.K_size))                # (B,2,K)
 
-        return tf.matmul(V, H)                            # (B,K,K)
+        return self.dropout_(tf.matmul(V, H),training=training)                            # (B,K,K)
     def build(self, input_shape):
         super().build(input_shape)
 
@@ -200,6 +205,7 @@ class SpatialAttentionMechanism(Layer):
         self.feat_size = feat_size
         # Create layers
         #"""
+        #"""
         self.gap_proj = layers.Conv2D(
             filters=1,
             kernel_size=(1,1),
@@ -212,6 +218,7 @@ class SpatialAttentionMechanism(Layer):
             kernel_initializer= tf.constant_initializer(1/256.0),
             use_bias=False,
         )
+        #"""
         self.bn = layers.BatchNormalization(axis=-1,
                                             momentum=0.9,
                                             trainable=self.trainable,
@@ -234,8 +241,8 @@ class SpatialAttentionMechanism(Layer):
             name="AttConv2D_scores",
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= "glorot_uniform",
-            #bias_initializer=tf.constant_initializer(-3.0),
+            kernel_initializer= initializers.RandomNormal(mean=0.0, stddev=0.01),
+            bias_initializer=tf.constant_initializer(-1.9),
             use_bias=True,
         )
         
@@ -260,20 +267,23 @@ class SpatialAttentionMechanism(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         _inputs = self.bn(inputs,training=training)
-        projection = self.gap_proj(_inputs)
+        #projection = self.gap_proj(_inputs)
         K = tf.shape(inputs)[1]
+        C = tf.shape(inputs)[3]
         #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
-        tiled = tf.reshape(projection, (-1, 4, K // 4, 4, K // 4))
-        tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4])
-        tgrid = tf.range(0,4,1,dtype=tf.float32)
+        tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
+        tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5])
+        tgrid = tf.range(0,4,1,dtype=tf.float32)/3.0
         X,Y = tf.meshgrid(tgrid,tgrid)
         XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
-        energy_tile = tf.expand_dims(tf.reduce_mean(tf.math.square(tiled),axis=[3,4]),axis=-1) #Nx4x4x1
+        energy_tile = tf.expand_dims(tf.reduce_mean(tf.math.square(tiled),axis=[3,4,5]),axis=-1) #Nx4x4x1
+        #energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4]) #Nx4x4x1
+        energy_tile = tf.math.l2_normalize(energy_tile,axis=[1,2])
         pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
         energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(-1,16,3))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         stacked_outs = self.ln(stacked_outs)
-        scores = tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
+        scores = tf.nn.sigmoid(self.score_gen(stacked_outs))#tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
         return scores
     
     def build(self, input_shape):

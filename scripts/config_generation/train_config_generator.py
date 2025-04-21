@@ -30,7 +30,7 @@ limbs_2J = [(0,1),(1,2),(2,3),(3,4),(4,5),(6,7),(7,8),(8,12),(9,12),(12,13),(11,
 enable_visibility = False
 
 # Related to the model and training
-model_name = "myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
+model_name = "myModel_SLP_WS_BL_1B_ATT9FTTEST_3_Depth4C.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
 epochs = 150
@@ -42,8 +42,8 @@ learning_rate = 1.5e-6
 
 # Related to loading pre-trained models
 load_model = True
-pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_Depth4C.keras" #"/home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" # # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #
-loading_mode =  "Partial_Train_F2S" #"Partial_Train_Attention" #"Partial_Downsampling_frozen" # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
+pt_model_name = "data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras" #"/home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" # # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #
+loading_mode =  "Partial_Train_Attention" #"Partial_Train_F2S" # #"Partial_Downsampling_frozen" # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
 skip_AM = "NoAM"

@@ -37,7 +37,12 @@ class ResidualBlock(Layer):
         self.attention_block = None
         if self.attention_type == "NoAM":
             self.attention_block = zeroLayer(self.output_filters,name="AttentionBlock")
-            self.alpha = tf.constant(-3.0,dtype=tf.float32)
+            self.alpha = self.add_weight(
+            shape=[],
+            name="att_alpha",
+            initializer=tf.constant_initializer(-3.0),
+            trainable=False,
+            )
         
         elif self.attention_type == "SAM":
             self.attention_block = SpatialAttentionMechanism(
@@ -45,14 +50,14 @@ class ResidualBlock(Layer):
                 filters = self.output_filters,
                 kernel_size = 1,
                 kernel_reg = False,
-                trainable = True,
+                trainable = self.trainable,
                 feat_size = self.feat_size
             )
             self.alpha = self.add_weight(
                 shape=[],
                 name="att_alpha",
                 initializer=tf.constant_initializer(-3.0),
-                trainable=True,
+                trainable=self.trainable,
             )
         elif self.attention_type == "FAM":
             self.attention_block = FeatureAttentionMechanism(
@@ -60,13 +65,13 @@ class ResidualBlock(Layer):
                 filters = self.output_filters,
                 kernel_size = 1,
                 kernel_reg = False,
-                trainable = True
+                trainable = self.trainable
             )
             self.alpha = self.add_weight(
                 shape=[],
                 name="att_alpha",
                 initializer=tf.constant_initializer(-3.0),
-                trainable=True,
+                trainable=self.trainable,
             )
         else:
             raise Exception(f"[{self.name}]:INVALID ATTENTION MECHANISM")
@@ -95,7 +100,7 @@ class ResidualBlock(Layer):
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         scores = self.attention_block(inputs,training=training)
-        alpha = tf.nn.sigmoid(self.alpha)
+        alpha = 1.0-tf.nn.sigmoid(tf.clip_by_value(self.alpha,-3.0,3.0))
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),

@@ -248,7 +248,7 @@ class HTFModelHandler(_HTFModelHandler):
                             print(f"Freezing {main_name}/{layer.residual_2j.name}")
                             layer.residual_2j.trainable = False
                 elif self.config.loading_style == "Partial_Train_F2S":
-                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR S2F (Bottom-up) <<<<<<<<<<<<<<")
+                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR F2S (Top-down) <<<<<<<<<<<<<<")
                     for layer in model.layers:
                         if isinstance(layer,DownSamplingLayer):
                             print(f"Freezing {layer.name}")

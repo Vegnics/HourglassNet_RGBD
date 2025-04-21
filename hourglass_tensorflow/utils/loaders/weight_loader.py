@@ -27,7 +27,7 @@ def recursive_weight_transfer(source_layer, target_layer, verbose=True, path="")
     #if not path:
     #    print_layers_recursive(target_layer,path="")
     # Compare weights directly
-    if source_layer.weights and target_layer.weights:
+    if source_layer.weights and target_layer.weights: #and target_layer.name != "ff_alpha":
         sw = source_layer.get_weights()
         tw = target_layer.get_weights()
 

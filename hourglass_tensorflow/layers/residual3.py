@@ -37,10 +37,7 @@ class ResidualBlock(Layer):
         self.attention_type = attentionType
         self.feat_size = feat_size
         self.alpha_mask = tf.constant(1.0,dtype=tf.float32)
-        self.ff_alpha = layers.Dense(1,activation="sigmoid",
-                                     kernel_initializer="zeros",
-                                     name="ff_alpha",
-                                     bias_initializer=tf.constant_initializer(-2.5))
+        #self.ff_alpha = lambda x:x
         # Convolutional block
         self.attention_block = None
         if self.attention_type == "NoAM":
@@ -105,15 +102,14 @@ class ResidualBlock(Layer):
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
-        B = tf.shape(inputs)[0]
+        #B = tf.shape(inputs)[0]
         scores = self.attention_block(inputs,training=training)
-        entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
-        numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
-        entropy = entropy / numel
-        r_alpha = self.alpha*tf.ones_like(entropy)
-        in_ffalpha = tf.stack([entropy,r_alpha],axis=1)
-        alpha = tf.expand_dims(self.alpha_mask*self.ff_alpha(in_ffalpha),axis=1)
-        alpha = tf.expand_dims(alpha,axis=1)
+        #entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
+        #numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
+        #entropy = entropy / numel
+        #r_alpha = self.alpha*tf.ones_like(entropy)
+        #in_ffalpha = tf.stack([entropy,r_alpha],axis=1)
+        alpha = self.alpha_mask*self.alpha
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
@@ -123,7 +119,10 @@ class ResidualBlock(Layer):
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
-        
+        #self.ff_alpha = layers.Dense(1,activation="sigmoid",
+        #                             kernel_initializer="zeros",
+        #                             name="ff_alpha",
+        #                             bias_initializer=tf.constant_initializer(-2.5))
         super().build(input_shape)
         self.built = True
 

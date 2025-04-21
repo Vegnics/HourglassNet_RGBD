@@ -110,7 +110,6 @@ class FeatureAttentionMechanism(Layer):
         #"""
         #self.heads = []
         # EXPERIMENTAL GAPP-FLATTEN
-        self.alpha = self.add_weight(shape=(1,),name="att_alpha", initializer="ones", trainable=self.trainable)
         self.norm_layer = layers.LayerNormalization(axis=-1,
                                                epsilon=0.0001
                                                )

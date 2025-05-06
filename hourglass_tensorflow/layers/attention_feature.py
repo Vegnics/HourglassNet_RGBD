@@ -5,6 +5,7 @@ from keras.activations import swish
 from keras.regularizers import L2,L1
 from keras.saving import register_keras_serializable
 from keras import initializers
+import keras
 
 class _SpatialBasedPooling(Layer):
     def __init__(
@@ -114,13 +115,28 @@ class FeatureAttentionMechanism(Layer):
         self.norm_layer = layers.LayerNormalization(axis=-1,
                                                epsilon=0.0001
                                                )
+                                               
         self.heads = [
-                layers.Dense(self.filters//16,
-                activation= None, #None,
-                use_bias=True,
-                kernel_initializer='glorot_normal',
+                keras.Sequential(
+                    layers = [
+                    layers.Dense(self.filters//16,
+                        activation= "gelu", #None,
+                        use_bias=True,
+                        bias_initializer=tf.random_uniform_initializer(minval=-0.15, maxval=0.15),
+                        kernel_initializer='glorot_uniform',
+                        kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
+                        ),
+                    layers.Dense(self.filters//4,
+                        activation= "gelu", #None,
+                        use_bias=True,
+                        bias_initializer=tf.random_uniform_initializer(minval=-0.15, maxval=0.15),
+                        kernel_initializer='glorot_uniform',
+                        kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
+                        ),
+                    layers.LayerNormalization(axis=-1,)
+                    ],
                 name = "Head_{}".format(i),
-                kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
+                trainable=self.trainable
                 )
             for i in range(self.head_num)
         ]
@@ -131,13 +147,25 @@ class FeatureAttentionMechanism(Layer):
         # EXPERIMENTAL GAPP-FLATTEN
         #self.spatialgap = _SpatialBasedPooling(self.filters)
         self.dropout_last = layers.Dropout(0.05)
-        self.last_projection = layers.Dense(self.filters,
-            activation=None,
-            use_bias=True,
-            bias_initializer=initializers.Constant(value=0.0),
-            kernel_initializer=initializers.Constant(value=1e-6),
+        self.last_projection = keras.Sequential(
+            layers=[
+                layers.Dense(self.filters//16,
+                            activation="gelu",
+                            use_bias=True,
+                            bias_initializer="zeros",
+                            kernel_initializer="glorot_uniform",
+                            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+                        ),
+                layers.Dense(self.filters,
+                            activation=None,
+                            use_bias=True,
+                            bias_initializer=initializers.Constant(value=0.0),
+                            kernel_initializer=initializers.Constant(value=1/float(self.filters)),
+                            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+                        )
+                    ],
             name = "LastProjection",
-            kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
+            trainable=self.trainable
         )
         
     def get_config(self):
@@ -176,14 +204,15 @@ class FeatureAttentionMechanism(Layer):
         head_stack = tf.stack(head_outs,axis=-1) #B,d_out,N_head
         head_mean = tf.reduce_mean(head_stack,keepdims=True,axis=-1)
         head_var = tf.reduce_mean(tf.math.square(head_stack-head_mean),axis=[1,2])+1e-6
-        loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
-        loss_diversity = tf.minimum(loss_diversity,0.8)
+        penalty = tf.reduce_mean(tf.math.sqrt(head_var))
+        loss_diversity = tf.nn.softplus(1.5 - penalty)  # prefer variance > 1.5
+        #self.add_loss(λ * penalty)
         #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
         #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
-        self.add_loss(-0.0000005 * loss_diversity)
-        _head_out = tf.nn.relu(head_out)
-        _head_out = self.norm_layer(_head_out)
-        _head_out = self.dropout_last(_head_out,training=training)
+        self.add_loss(0.00001 * loss_diversity)
+        #_head_out = tf.nn.relu(head_out)
+        #_head_out = self.norm_layer(_head_out)
+        _head_out = self.dropout_last(head_out,training=training)
         scores = self.last_projection(_head_out)
         #scores = tf.nn.sigmoid(scores)
         #scores_shape = tf.shape(scores)

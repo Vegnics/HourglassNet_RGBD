@@ -116,7 +116,9 @@ class SpatialEnergyHead(Layer):
                 units=self.K_size,
                 activation= None, #None,
                 use_bias=True,
+                bias_initializer=initializers.Constant(-1.0),
                 kernel_initializer='glorot_uniform',
+                kernel_constraint=constraints.MaxNorm(2.1),
                 name = "Vgen_FC",
                 trainable=self.trainable,
                 )
@@ -124,6 +126,7 @@ class SpatialEnergyHead(Layer):
         self.Hgen = layers.Dense(self.K_size,
                 activation=None, #None,
                 use_bias=True,
+                bias_initializer=initializers.Constant(1.0),
                 kernel_initializer='glorot_uniform',
                 name = "Hgen_FC",
                 trainable=self.trainable,
@@ -205,7 +208,7 @@ class SpatialAttentionMechanism(Layer):
         self.feat_size = feat_size
         # Create layers
         #"""
-        #"""
+        """
         self.gap_proj = layers.Conv2D(
             filters=1,
             kernel_size=(1,1),
@@ -218,7 +221,7 @@ class SpatialAttentionMechanism(Layer):
             kernel_initializer= tf.constant_initializer(1/256.0),
             use_bias=False,
         )
-        #"""
+        """
         self.bn = layers.BatchNormalization(axis=-1,
                                             momentum=0.9,
                                             trainable=self.trainable,
@@ -242,7 +245,7 @@ class SpatialAttentionMechanism(Layer):
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
             kernel_initializer= initializers.RandomNormal(mean=0.0, stddev=0.01),
-            bias_initializer=tf.constant_initializer(-1.9),
+            bias_initializer=tf.constant_initializer(0.0),
             use_bias=True,
         )
         
@@ -266,8 +269,10 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        _inputs = self.bn(inputs,training=training)
+        #_inputs = self.bn(inputs,training=training)
+        _inputs = tf.clip_by_value(inputs,-1e4,1e4)
         #projection = self.gap_proj(_inputs)
+        B = tf.shape(inputs)[0]
         K = tf.shape(inputs)[1]
         C = tf.shape(inputs)[3]
         #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
@@ -276,15 +281,28 @@ class SpatialAttentionMechanism(Layer):
         tgrid = tf.range(0,4,1,dtype=tf.float32)/3.0
         X,Y = tf.meshgrid(tgrid,tgrid)
         XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
-        energy_tile = tf.expand_dims(tf.reduce_mean(tf.math.square(tiled),axis=[3,4,5]),axis=-1) #Nx4x4x1
+        tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
+        energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1
         #energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4]) #Nx4x4x1
-        energy_tile = tf.math.l2_normalize(energy_tile,axis=[1,2])
+        mean_e = tf.reduce_mean(energy_tile, axis=[1,2], keepdims=True)
+        std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
+        energy_tile = (energy_tile - mean_e) / std_e
+        #energy_tile = tf.math.l2_normalize(energy_tile,axis=[1,2],epsilon=1e-3)
         pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
-        energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(-1,16,3))
+        energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         stacked_outs = self.ln(stacked_outs)
-        scores = tf.nn.sigmoid(self.score_gen(stacked_outs))#tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
-        return scores
+
+        #head_mean = tf.math.reduce_std(stacked_outs, axis=-1)  # B x K x K x self.head_num
+        head_mean = tf.reduce_mean(stacked_outs,keepdims=True,axis=-1)
+        head_var = tf.reduce_mean(tf.math.square(stacked_outs-head_mean),axis=[1,2,3])+1e-6
+        loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
+        #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
+        #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
+        self.add_loss(-0.00002 * loss_diversity)
+        scores_raw = self.score_gen(stacked_outs)
+        #scores = tf.nn.sigmoid(self.score_gen(stacked_outs))#tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
+        return scores_raw
     
     def build(self, input_shape):
         super().build(input_shape)

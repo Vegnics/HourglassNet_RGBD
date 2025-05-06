@@ -4,6 +4,7 @@ from keras.layers import Layer
 from keras.activations import swish
 from keras.regularizers import L2,L1
 from keras.saving import register_keras_serializable
+from keras import initializers
 
 class _SpatialBasedPooling(Layer):
     def __init__(
@@ -133,8 +134,8 @@ class FeatureAttentionMechanism(Layer):
         self.last_projection = layers.Dense(self.filters,
             activation=None,
             use_bias=True,
-            bias_initializer=tf.constant_initializer(-3.0),
-            kernel_initializer='zeros',
+            bias_initializer=initializers.Constant(value=0.0),
+            kernel_initializer=initializers.Constant(value=1e-6),
             name = "LastProjection",
             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
         )
@@ -176,12 +177,12 @@ class FeatureAttentionMechanism(Layer):
         _head_out = self.norm_layer(_head_out)
         _head_out = self.dropout_last(_head_out,training=training)
         scores = self.last_projection(_head_out)
-        scores = tf.nn.sigmoid(scores)
+        #scores = tf.nn.sigmoid(scores)
         #scores_shape = tf.shape(scores)
         #alpha_batch = 4.0*self.alpha*tf.ones(shape=(scores_shape[0],1))
         #scoreswalpha = tf.concat([scores,alpha_batch],axis=-1)
         scores = tf.expand_dims(scores,axis=1)
-        scores = tf.expand_dims(scores,axis=1)
-        return scores #,
+        scores_raw = tf.expand_dims(scores,axis=1)
+        return scores_raw #,
     def build(self, input_shape):
         super().build(input_shape)

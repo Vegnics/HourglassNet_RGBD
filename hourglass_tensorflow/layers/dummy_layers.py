@@ -58,6 +58,39 @@ class zeroLayer(Layer):
         super().build(input_shape)
         self.built = True
 
+
+@register_keras_serializable(package="lDummy")
+class constantLayer(Layer):
+    def __init__(
+        self,
+        output_channels: int = None,
+        name: str = None,
+        trainable=False,
+        value: float = None,
+        **kwargs
+    ) -> None:
+        super().__init__(name=name, trainable=trainable,**kwargs)
+        # Store Config
+        self.output_channels = output_channels
+        self.value_out = value 
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "output_channels": self.output_channels,
+                "value":self.value_out,
+            },
+        }
+    def call(self,inputs):
+        batch_size = tf.shape(inputs)[0]
+        height = tf.shape(inputs)[1]
+        width = tf.shape(inputs)[2]
+        return self.value_out*tf.ones([batch_size, height, width, self.output_channels], dtype=inputs.dtype)
+
+    def build(self,input_shape):
+        super().build(input_shape)
+        self.built = True
+
     """
     @classmethod
     def from_config(cls, config):

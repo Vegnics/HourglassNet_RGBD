@@ -8,10 +8,10 @@ from keras import constraints
 from hourglass_tensorflow.layers.skip import SkipLayer
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
-from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
+from hourglass_tensorflow.layers.dummy_layers import IdentityLayer, constantLayer
 from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
 from hourglass_tensorflow.layers.attention_spatial import SpatialAttentionMechanism
-from hourglass_tensorflow.layers.dummy_layers import zeroLayer
+from hourglass_tensorflow.layers.dummy_layers import zeroLayer,constantLayer
 
 
 @register_keras_serializable(package="lResiduals")
@@ -37,15 +37,15 @@ class ResidualBlock(Layer):
         self.attention_type = attentionType
         self.feat_size = feat_size
         self.alpha_mask = tf.constant(1.0,dtype=tf.float32)
-        self.ff_alpha = layers.Dense(1,activation="sigmoid",
-                                     kernel_initializer="zeros",
-                                     name="ff_alpha",
-                                     bias_initializer=tf.constant_initializer(-2.5))
+        #self.ff_alpha = layers.Dense(1,activation="sigmoid",
+        #                             kernel_initializer="zeros",
+        #                             name="ff_alpha",
+        #                             bias_initializer=tf.constant_initializer(-2.5))
         # Convolutional block
         self.attention_block = None
         if self.attention_type == "NoAM":
-            self.attention_block = zeroLayer(self.output_filters,name="AttentionBlock")
-            self.alpha = tf.constant(-3.0,dtype=tf.float32)
+            self.attention_block = constantLayer(self.output_filters,name="AttentionBlock",value=0.0)
+            self.alpha = tf.constant(0.0,dtype=tf.float32)
             self.alpha_mask = 0.0*self.alpha_mask
         
         elif self.attention_type == "SAM":
@@ -60,10 +60,11 @@ class ResidualBlock(Layer):
             self.alpha = self.add_weight(
                 shape=[1,],
                 name="att_alpha",
-                initializer=tf.constant_initializer(-2.8),
-                constraint=constraints.max_norm(3.0),
-                trainable=self.trainable,
+                initializer=tf.constant_initializer(0.8),
+                constraint=constraints.max_norm(2.5),
+                trainable=False,
             )
+            
         elif self.attention_type == "FAM":
             self.attention_block = FeatureAttentionMechanism(
                 name="AttentionBlock",
@@ -75,10 +76,11 @@ class ResidualBlock(Layer):
             self.alpha = self.add_weight(
                 shape=[1,],
                 name="att_alpha",
-                initializer=tf.constant_initializer(-2.8),
-                constraint=constraints.max_norm(3.0),
-                trainable=self.trainable,
+                initializer=tf.constant_initializer(0.8),
+                constraint=constraints.max_norm(2.5),
+                trainable=False,
             )
+            
         else:
             raise Exception(f"[{self.name}]:INVALID ATTENTION MECHANISM")
             
@@ -106,18 +108,20 @@ class ResidualBlock(Layer):
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         B = tf.shape(inputs)[0]
-        scores = self.attention_block(inputs,training=training)
-        entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
-        numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
-        entropy = entropy / numel
-        r_alpha = self.alpha*tf.ones_like(entropy)
-        in_ffalpha = tf.stack([entropy,r_alpha],axis=1)
-        alpha = tf.expand_dims(self.alpha_mask*self.ff_alpha(in_ffalpha),axis=1)
-        alpha = tf.expand_dims(alpha,axis=1)
+        scores = tf.clip_by_value(self.attention_block(inputs,training=training),-1.8,1.8)
+        scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-1.8))/(tf.nn.sigmoid(1.8)-tf.nn.sigmoid(-1.8))
+        #entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
+        #numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
+        #entropy = entropy / numel
+        #r_alpha = self.alpha*tf.ones_like(entropy)
+        #in_ffalpha = tf.stack([entropy,r_alpha],axis=1)
+        #alpha = tf.expand_dims(self.alpha_mask*self.ff_alpha(in_ffalpha),axis=1)
+        #alpha = tf.expand_dims(alpha,axis=1)
+        alpha_gen = tf.reshape(self.alpha,[1, 1, 1, 1]) #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
-                inputs*(alpha*scores+(1.0-alpha)),
+                inputs*(alpha_gen*scores+(1.0-alpha_gen)),
             ])
         return self.relu(_sum)
     

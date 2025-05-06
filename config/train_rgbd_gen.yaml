@@ -130,7 +130,7 @@ model:
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras
+  model_path: data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras
   loading_style: Partial_Train_Attention
 train:
   object:
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_ATT9FTTEST_3_Depth4C.keras_15:36:45.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_1B_ATT9FTTEST_3_Depth4C.keras_13:11:52.csv
 test: null

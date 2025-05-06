@@ -299,7 +299,7 @@ class SpatialAttentionMechanism(Layer):
         loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
         #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
         #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
-        self.add_loss(-0.00002 * loss_diversity)
+        self.add_loss(-0.000001 * loss_diversity)
         scores_raw = self.score_gen(stacked_outs)
         #scores = tf.nn.sigmoid(self.score_gen(stacked_outs))#tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
         return scores_raw

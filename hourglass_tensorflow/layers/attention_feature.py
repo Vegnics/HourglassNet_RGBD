@@ -177,6 +177,7 @@ class FeatureAttentionMechanism(Layer):
         head_mean = tf.reduce_mean(head_stack,keepdims=True,axis=-1)
         head_var = tf.reduce_mean(tf.math.square(head_stack-head_mean),axis=[1,2])+1e-6
         loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
+        loss_diversity = tf.minimum(loss_diversity,0.8)
         #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
         #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
         self.add_loss(-0.0000005 * loss_diversity)

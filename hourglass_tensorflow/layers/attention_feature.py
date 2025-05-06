@@ -179,7 +179,7 @@ class FeatureAttentionMechanism(Layer):
         loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
         #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
         #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
-        self.add_loss(-0.000001 * loss_diversity)
+        self.add_loss(-0.0000005 * loss_diversity)
         _head_out = tf.nn.relu(head_out)
         _head_out = self.norm_layer(_head_out)
         _head_out = self.dropout_last(_head_out,training=training)

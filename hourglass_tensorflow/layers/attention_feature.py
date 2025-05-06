@@ -173,6 +173,13 @@ class FeatureAttentionMechanism(Layer):
         for i in range (self.head_num):
             head_outs.append(self.heads[i](learned_gap))
         head_out = tf.concat(head_outs,axis=-1)
+        head_stack = tf.stack(head_outs,axis=-1) #B,d_out,N_head
+        head_mean = tf.reduce_mean(head_stack,keepdims=True,axis=-1)
+        head_var = tf.reduce_mean(tf.math.square(head_stack-head_mean),axis=[1,2,3])+1e-6
+        loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
+        #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
+        #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
+        self.add_loss(-0.00001 * loss_diversity)
         _head_out = tf.nn.relu(head_out)
         _head_out = self.norm_layer(_head_out)
         _head_out = self.dropout_last(_head_out,training=training)

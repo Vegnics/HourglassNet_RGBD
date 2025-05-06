@@ -120,7 +120,7 @@ class FeatureAttentionMechanism(Layer):
                                                
         self.heads = [
                 SequentialLayer(
-                    layers = [
+                    layer_list = [
                     layers.Dense(self.filters//16,
                         activation= "gelu", #None,
                         use_bias=True,
@@ -152,7 +152,7 @@ class FeatureAttentionMechanism(Layer):
         #self.spatialgap = _SpatialBasedPooling(self.filters)
         self.dropout_last = layers.Dropout(0.05)
         self.last_projection = SequentialLayer(
-            layers=[
+            layer_list=[
                 layers.Dense(self.filters//16,
                             activation="gelu",
                             use_bias=True,

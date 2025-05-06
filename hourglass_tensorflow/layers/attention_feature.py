@@ -6,6 +6,7 @@ from keras.regularizers import L2,L1
 from keras.saving import register_keras_serializable
 from keras import initializers
 import keras
+from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
 class _SpatialBasedPooling(Layer):
     def __init__(
@@ -113,11 +114,12 @@ class FeatureAttentionMechanism(Layer):
         #self.heads = []
         # EXPERIMENTAL GAPP-FLATTEN
         self.norm_layer = layers.LayerNormalization(axis=-1,
-                                               epsilon=0.0001
+                                               epsilon=0.0001,
+                                               name="main_LN"
                                                )
                                                
         self.heads = [
-                keras.Sequential(
+                SequentialLayer(
                     layers = [
                     layers.Dense(self.filters//16,
                         activation= "gelu", #None,
@@ -135,7 +137,7 @@ class FeatureAttentionMechanism(Layer):
                         kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
                         name = "head_dense_B",
                         ),
-                    layers.LayerNormalization(axis=-1,)
+                    layers.LayerNormalization(axis=-1,name="head_LN")
                     ],
                 name = "Head_{}".format(i),
                 trainable=self.trainable
@@ -149,7 +151,7 @@ class FeatureAttentionMechanism(Layer):
         # EXPERIMENTAL GAPP-FLATTEN
         #self.spatialgap = _SpatialBasedPooling(self.filters)
         self.dropout_last = layers.Dropout(0.05)
-        self.last_projection = keras.Sequential(
+        self.last_projection = SequentialLayer(
             layers=[
                 layers.Dense(self.filters//16,
                             activation="gelu",

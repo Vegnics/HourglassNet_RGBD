@@ -130,8 +130,8 @@ model:
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: data/model_t/myModel_SLP_WS_BL_WithAtt_Depth4C_FT1.keras
-  loading_style: Partial_Train_F2S
+  model_path: data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT1.keras
+  loading_style: Full_Train
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
@@ -140,7 +140,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 1.5e-05
+  learning_rate: 5.0e-06
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -182,7 +182,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C.keras
+      filepath: data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_WithAtt2_Depth4C.keras_09:14:10.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras_18:27:44.csv
 test: null

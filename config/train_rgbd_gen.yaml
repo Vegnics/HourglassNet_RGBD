@@ -85,7 +85,7 @@ dataset:
     - (10, 9)
     stddev: 1.1
     stddev_factor: 1.3
-    enable_visibility: false
+    enable_visibility: true
   normalization: Idem
   augmentation: null
   sets:
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras_18:27:44.csv
+      filename: logs/myModelLogs_myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras_18:54:38.csv
 test: null

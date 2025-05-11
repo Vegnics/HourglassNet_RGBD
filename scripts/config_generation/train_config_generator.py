@@ -27,7 +27,7 @@ use2joints = False
 heatmap_stddev =  1.1
 stddev_factor = 1.3
 limbs_2J = [(0,1),(1,2),(2,3),(3,4),(4,5),(6,7),(7,8),(8,12),(9,12),(12,13),(11,10),(10,9)] 
-enable_visibility = False
+enable_visibility = True
 
 # Related to the model and training
 model_name = "myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"

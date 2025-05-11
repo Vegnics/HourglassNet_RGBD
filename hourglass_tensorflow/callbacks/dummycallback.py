@@ -32,7 +32,7 @@ class DummyCallback(Callback):
         self.input_data = x_val
     
     def on_epoch_end(self, epoch, logs=None):
-        if int(epoch) % 4 ==0 and False:
+        if int(epoch) % 4 ==0:
             print(f"Executing dummy callback at epoch: {epoch}")
             data1 = self.input_data.map(lambda imgs:1.0*imgs)
             data2 = self.input_data.map(lambda imgs:1.0*imgs)
@@ -46,9 +46,9 @@ class DummyCallback(Callback):
             """
             # Save the model and check consistency in the results
             #keras.config.enable_unsafe_deserialization()
-            _ = self.model(tf.ones((1, 256, 256, 1)), training=True)
+            _ = self.model(tf.ones((1,7, 256, 256, 4)), training=True)
             self.model.trainable = True
-            self.model.save("data/dummymodel.keras")
+            self.model.save("bed_action_recognition/data/dummymodel.keras")
             print(json.dumps(self.model.get_config(), indent=1)) 
             #self.model.save_weights("data/baseline.weights.h5")
             sleep(2.0)
@@ -82,31 +82,36 @@ class DummyCallback(Callback):
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
             
             """
-            dummymodel = load_basemodel_weights(self.model,"data/dummymodel.keras",compile=False)
+            dummymodel = keras.models.load_model("bed_action_recognition/data/dummymodel.keras")
+            dummymodel(tf.random.normal((1,7,256,256,4)),training=False)
+            #dummymodel = load_basemodel_weights(self.model,"data/dummymodel.keras",compile=False)
             #dummymodel = load_basemodel_weights(self.model,"data/model_t/myModel_SLP_fABC10_2j.keras",compile=False)
             #lazyInput = tf.ones(shape=(160,256,256,1),dtype=tf.float32)
             #lazydataset  = tf.data.Dataset.from_tensor_slices(lazyInput).batch(40)
             #dummymodel.predict(lazydataset)
             #matched, skipped = recursive_weight_transfer(dummymodel,self.model)
             #print(f"\nSummary: {matched} matched | {skipped} skipped")
-            weights_model = self.model.get_weights()
+            
+            #weights_model = self.model.get_weights()
+            
             #dummymodel.load_weights("data/baseline.weights.h5",skip_mismatch=True)
             #dummymodel.set_weights(weights_model)
-            weights_dummymodel = dummymodel.get_weights()
+            
+            #weights_dummymodel = dummymodel.get_weights()
             print("===== MODEL SUMMARY ======")
             self.model.summary()
             print("===== DUMMYMODEL SUMMARY ======")
             dummymodel.summary()
-            for layer in dummymodel.layers:
-                if isinstance(layer, keras.layers.BatchNormalization):
-                    print(f"Layer {layer.name} - Gamma: {layer.gamma.numpy()}")
-                    print(f"Layer {layer.name} - Beta: {layer.beta.numpy()}")
-                    print(f"Layer {layer.name} - Moving Mean: {layer.moving_mean.numpy()}")
-                    print(f"Layer {layer.name} - Moving Variance: {layer.moving_variance.numpy()}")
-                else:
+            #for layer in dummymodel.layers:
+            #    if isinstance(layer, keras.layers.BatchNormalization):
+            #        print(f"Layer {layer.name} - Gamma: {layer.gamma.numpy()}")
+            #        print(f"Layer {layer.name} - Beta: {layer.beta.numpy()}")
+            #        print(f"Layer {layer.name} - Moving Mean: {layer.moving_mean.numpy()}")
+            #        print(f"Layer {layer.name} - Moving Variance: {layer.moving_variance.numpy()}")
+            #    else:
                     #for _layer in layer.submodules:
-                    print(f" --- Layer {layer.name}: {layer.get_config()}")
-            #"""
+            #        print(f" --- Layer {layer.name}: {layer.get_config()}")
+            """
             if(False):
                 try:
                     # Check if the weights match and print more detailed information
@@ -123,11 +128,11 @@ class DummyCallback(Callback):
                             difference = np.abs(w1 - w2)
                             max_diff = np.mean(difference)
                             print(f"[Layer: {idx}] Weights do not match. || {max_diff}")
-                            #"""
-                except:
-                    print("Could not compare the weights")
-                    print(w1,type(w1),w2,type(w2))
-                """
+
+                #except:
+                #    print("Could not compare the weights")
+                #    print(w1,type(w1),w2,type(w2))
+
                             print(f"  Max difference in weights: {max_diff:.5f}")
 
                             # Show a few sample differences for better visualization (optional)
@@ -137,8 +142,8 @@ class DummyCallback(Callback):
                                 print(f"    Dummy model weights: {w2.flatten()[:5]}")
                                 print(f"    Difference: {difference.flatten()[:5]}")
                             print("\n")  # Add a blank line for better readability
-                            """
-            #"""
+                            #"""
+            """
             
             #"""
             dummymodel.trainable = False
@@ -146,8 +151,8 @@ class DummyCallback(Callback):
             y_pred0 = self.model.predict(self.input_data)
             y_pred1 = dummymodel.predict(self.input_data)
             error = tf.math.abs(y_pred0-y_pred1)
-            error2 = tf.reduce_mean(error,axis=[1,2,3,4])
-            error3 = tf.reduce_mean(error2)
+            #error2 = tf.reduce_mean(error,axis=[1,2,3,4])
+            error3 = tf.reduce_mean(error)
             print("Error prediction::", error3)
             self.model.trainable = True # Set to inference mode (no training layers active
     def on_train_begin(self, logs=None):

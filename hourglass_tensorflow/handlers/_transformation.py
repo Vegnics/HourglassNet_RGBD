@@ -48,6 +48,32 @@ def tf_train_map_build_slice_RGB(filename: tf.Tensor, coordinates: tf.Tensor) ->
     return (concat_image, coordinates, visibility,img_shape)
 
 @tf.function
+def tf_load_Depth_squared(filename_depth: tf.Tensor):
+    _fnamedepth = tf.squeeze(filename_depth)
+    imagedepth = tf_load_image(_fnamedepth)
+    depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=-1)
+    depthmap = tf_normalize_tensor(depthmap,20)
+    depthmap.set_shape([None, None, 1])  
+    depth_resized = tf.image.resize(depthmap,size=[256,256],method="nearest")
+    depth_resized.set_shape([256, 256, 1]) 
+    concat = tf.concat([depth_resized,tf.zeros(shape=(256,256,3),dtype=tf.float32)],axis=-1)
+    return concat
+
+@tf.function
+def tf_check_samples(filenames_depth: tf.Tensor, action_encoded: tf.Tensor):
+    #tf.print("PPPPPPP",filenames_depth[0])
+    return filenames_depth,action_encoded
+
+@tf.function
+def tf_train_map_build_sequence_Depth(filenames_depth: tf.Tensor, action_encoded: tf.Tensor):
+    
+    _map = tf.map_fn(tf_load_Depth_squared,
+                     elems=tf.expand_dims(filenames_depth,axis=-1),
+                     fn_output_signature=tf.TensorSpec(shape=(256, 256, 4), dtype=tf.float32),
+                     parallel_iterations=10)
+    return _map,tf.squeeze(action_encoded)
+
+@tf.function
 def tf_train_map_build_slice_RGBD(filename_rgb: tf.Tensor, filename_depth: tf.Tensor, coordinates: tf.Tensor) -> tf.Tensor:
     """First step loader for tf.data.Dataset mapper
 

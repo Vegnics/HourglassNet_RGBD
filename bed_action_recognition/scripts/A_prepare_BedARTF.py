@@ -3,8 +3,8 @@ import json
 from glob import glob
 
 # ---------- CONFIG ----------
-MAIN_FOLDER = '/path/to/MAIN_FOLDER'  # Replace with your actual path
-SEQ_LEN = 16                          # Sequence length (must match your dataset assumptions)
+MAIN_FOLDER = "/home/quinoa/Desktop/dccv_act_recog_sequences"  # Replace with your actual path
+SEQ_LEN = 7                          # Sequence length (must match your dataset assumptions)
 OUT_JSON = 'dataset_sequences.json'  # Output file
 
 # ---------- HELPER ----------
@@ -36,10 +36,19 @@ def build_sequence_metadata(main_dir, seq_len):
 
             entry = {}
             for i in range(seq_len):
-                entry[f"RGB_{i}"] = os.path.relpath(rgb_imgs[i], start=main_dir)
-                entry[f"Depth_{i}"] = os.path.relpath(depth_imgs[i], start=main_dir)
+                entry["RGB_{:02d}".format(i)] = os.path.relpath(rgb_imgs[i], start=main_dir)
+                entry["Depth_{:02d}".format(i)] = os.path.relpath(depth_imgs[i], start=main_dir)
             entry["Action_class"] = action_class
+            entry["Sequence_path"] = os.path.relpath(seq_dir, start=main_dir)
 
             sequence_list.append(entry)
 
     return sequence_list
+
+if __name__=="__main__":
+    JSON_FNAME = "data_bed_action.ignore.json"
+    json_dataset = build_sequence_metadata(MAIN_FOLDER,SEQ_LEN) 
+    with open(f"bed_action_recognition/data/{JSON_FNAME}","w") as file:
+        json.dump(json_dataset,file)
+    print(len(json_dataset))
+    print(json_dataset[0])

@@ -17,12 +17,15 @@ class ActionRecognitionLayer(Layer):
         super().__init__(name=name,trainable=trainable,**kwargs)
         
         # Shared Conv2D
-        self.shared_conv = keras.Sequential([
-            keras.layers.Conv2D(32, kernel_size=1, padding='same', activation='relu'),
-            keras.layers.BatchNormalization(),
-            keras.layers.Conv2D(self.emb_len, strides=4, kernel_size=5, padding='same', activation='relu'),
-            keras.layers.BatchNormalization()
-        ])
+        self.shared_conv = SequentialLayer([
+                keras.layers.Conv2D(32, kernel_size=1, padding='same', activation='relu'),
+                keras.layers.BatchNormalization(name="BN_AR1"),
+                keras.layers.Conv2D(self.emb_len, strides=4, kernel_size=5, padding='same', activation='relu'),
+                keras.layers.BatchNormalization(name="BN_AR2")
+            ],
+            name="sequential_shared_conv")
+        # time distributed layer (per-frame processing)
+        self.t_distributed = keras.layers.TimeDistributed(self.shared_conv,name="time_distributed")
         
         #Positional encoding
         self.pos_encoding = keras.layers.Embedding(input_dim=self.context_T, output_dim=self.emb_len,name="pos_encoding")
@@ -30,15 +33,16 @@ class ActionRecognitionLayer(Layer):
         #Last conv layer across frame descriptors
         self.last_conv = keras.layers.Conv2D(filters=16,strides=1,kernel_size=1, padding='same', activation='relu', name="last_conv")
         
-        self.class_head = keras.Sequential([
-            keras.layers.Dense(128, activation='relu'),
-            keras.layers.Dropout(0.1),
-            keras.layers.Dense(self.NActions,activation="softmax")
-        ])
+        self.class_head = SequentialLayer([
+                keras.layers.Dense(128, activation='relu'),
+                keras.layers.Dropout(0.1,name="class_dropout"),
+                keras.layers.Dense(self.NActions,activation="softmax")
+            ],
+            name="sequential_class_head")
         
     def call(self,inputs,training=False):
         # Apply shared Conv2D to the sequence (spatial info -> frame descriptors)
-        x = keras.layers.TimeDistributed(self.shared_conv)(inputs,training=training)  # Shape: (B, T, 16,16,64)
+        x = self.t_distributed(inputs,training=training)  # Shape: (B, T, 16,16,64)
         
         # Add positional Encoding
         pos_encoding = self.pos_encoding(tf.range(self.context_T))
@@ -53,5 +57,19 @@ class ActionRecognitionLayer(Layer):
         x = tf.reshape(x,shape=(-1,16*16*16))
 
         # Classification head
-        outputs = self.class_head(x)
-        return outputs
+        outputs = self.class_head(x,training=training)
+        return outputs #tf.expand_dims(outputs,axis=1)
+    
+    def get_config(self):
+        return {
+            "NJoints":  self.NJoints,
+            "NActions": self.NActions,
+            "context_T": self.context_T,
+            "emb_len": self.emb_len,
+            "name": self.name,
+            "trainable": self.trainable,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)

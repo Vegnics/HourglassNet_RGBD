@@ -77,11 +77,11 @@ class _HTFDatasetHandler(_HTFHandler):
 
     @property
     def bbox(self) -> HTFDatasetBBox:
-        return self.config.sets
+        return self.config.bbox
 
     @property
     def heatmap(self) -> HTFDatasetHeatmap:
-        return self.config.sets
+        return self.config.heatmap
 
     def select_engine(self, data: Any) -> HTFEngine:
         try:

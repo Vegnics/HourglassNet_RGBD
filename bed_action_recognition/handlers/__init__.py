@@ -4,7 +4,6 @@ from bed_action_recognition.handlers.data import BedARHTDataHandler
 from bed_action_recognition.handlers.dataset import BedARTF_DatasetHandler
 from bed_action_recognition.handlers.train import BedARTF_TrainHandler
 from bed_action_recognition.handlers.model import BedARHTModelHandler
-
 from matplotlib import pyplot as plt
 
 
@@ -49,7 +48,7 @@ class BedARHTManager():
                 break
         """
         _train_dataset = self.dataset_handler._train_dataset
-        print("TRAIN_DATASET:::",_train_dataset)
+        #print("TRAIN_DATASET:::",_train_dataset)
         _validation_dataset = self.dataset_handler._validation_dataset
         _test_dataset = self.dataset_handler._test_dataset
         self.model_handler()
@@ -60,8 +59,7 @@ class BedARHTManager():
                                validation_dataset=_validation_dataset)
         
 
-        
-
+    
 if __name__ == "__main__":
     manager = BedARHTManager()
     manager.train()

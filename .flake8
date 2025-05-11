@@ -10,3 +10,5 @@ exclude =
     old
     build
     dist
+    data
+    bed_action_recognition/data

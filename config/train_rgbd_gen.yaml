@@ -7,13 +7,13 @@ data:
       foo: bar
   input:
     mode: Depth
-    source: /home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD_v3
+    source: /home/quinoa/Desktop/DCCV_bedpose
     extensions:
     - png
     - jpeg
     - jpg
   output:
-    source: data/htf_slp_dataset.ignore.json
+    source: data/htf_dccv_dataset.ignore.json
     source_prefixed: false
     prefix_columns:
     - set
@@ -97,9 +97,9 @@ dataset:
     test: true
     train: true
     validation: true
-    ratio_test: 0.005
-    ratio_train: 0.8
-    ratio_validation: 0.19
+    ratio_test: 0.05
+    ratio_train: 0.75
+    ratio_validation: 0.2
   bbox:
     activate: true
     factor: 1.15
@@ -124,23 +124,23 @@ model:
     intermediate_supervision: true
     skip_AM: NoAM
     s2f_AM: FAM
-    f2s_AM: FAM
+    f2s_AM: NoAM
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT1.keras
+  model_path: data/model_t/myModel_SLP_WS_BL_WithAtt_Depth4C_FT2.keras
   loading_style: Full_Train
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
     params:
       foo: bar
-  epochs: 150
+  epochs: 30
   epoch_size: 92
   batch_size: 20
-  learning_rate: 5.0e-06
+  learning_rate: 2.0e-06
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -182,7 +182,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras
+      filepath: data/model_t/myModel_DCCV_WS_BL_WithAtt_Depth4C_FT.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_myModel_SLP_WS_BL_WithAtt2_Depth4C_FT2.keras_18:54:38.csv
+      filename: logs/myModelLogs_myModel_DCCV_WS_BL_WithAtt_Depth4C_FT.keras_20:52:50.csv
 test: null

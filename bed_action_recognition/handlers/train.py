@@ -66,13 +66,13 @@ class BedARTF_TrainHandler():
         *args,
         **kwargs,
     ) -> None:
-        dummyds = tf.data.Dataset.from_tensor_slices(tf.random.normal((40,7,256,256,4)))
-        dummyds = dummyds.batch(15)
-        self._callbacks.append(DummyCallback(dummyds))
+        #dummyds = tf.data.Dataset.from_tensor_slices(tf.random.normal((40,7,256,256,4)))
+        #dummyds = dummyds.batch(15)
+        #self._callbacks.append(DummyCallback(dummyds))
         with tf.device('/GPU:0'):
             tds_card = 1000
             train_dataset = train_dataset.shuffle(tds_card,reshuffle_each_iteration=True)
-            train_dataset = train_dataset.repeat(4)
+            train_dataset = train_dataset.repeat(6)
             batch_train = self._apply_batch(train_dataset) 
             #print("   ??????    >>>BATCH TRAIN: ",batch_train)
             batch_validation = validation_dataset.batch(80)#self._apply_batch(validation_dataset)

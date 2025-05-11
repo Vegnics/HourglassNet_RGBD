@@ -27,3 +27,4 @@ log/*
 reports/*.xml
 reports/*.txt
 data/*
+bed_action_recognition/data/*

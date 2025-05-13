@@ -201,9 +201,9 @@ action_names = ["00_supine",
                 "08_laying_down"]
 
 MAIN_FOLDER = "/home/quinoa/Desktop/ntu_patient_action_recognition"
-subject_num = 0
+subject_num = 1
 sample_num = 2
-action_num = 7
+action_num = 5
 
 armodel = keras.models.load_model("bed_action_recognition/data/model_bedar.keras")
 print(armodel.get_config())

@@ -27,12 +27,12 @@
 <a href="https://github.com/Vegnics/HourglassNet_RGBD/watchers" alt="Watchers"><img src="https://img.shields.io/github/watchers/Vegnics/HourglassNet_RGBD?style=social" alt="Watchers" /></a>
 </p>
 
-Collaborative project between NTU _(National Taiwan University)_ CSIE DCCV-Lab and NDHU _(National Dong Hwa University)_. The project addresses Human Pose Estimation and Action Recognition under in-bed settings. This repository includes a reimplementation of _A.Newell et Al_, [_**Stacked Hourglass Network for Human Pose Estimation**_](https://arxiv.org/abs/1603.06937) using **TensorFlow 2** (based on [**Walid Benbihi's**](https://github.com/wbenbihi/hourglasstensorflow) implementation). Additionally, novel attention mechanisms (spatial and feature domain) have been incorporated into the Residual Modules comprising the main blocks of the HGNet.
+Collaborative project between **NTU** _(National Taiwan University)_ **CSIE DCCV-Lab** and NDHU _(National Dong Hwa University)_. The project addresses Human Pose Estimation and Action Recognition under in-bed settings. The repository includes a reimplementation of _A.Newell et Al_, [_**Stacked Hourglass Network for Human Pose Estimation**_](https://arxiv.org/abs/1603.06937) using **TensorFlow 2** (based on [**Walid Benbihi's**](https://github.com/wbenbihi/hourglasstensorflow) implementation). Additionally, novel attention mechanisms (spatial and feature domain) have been incorporated into the Residual Modules comprising the main blocks of the HGNet.
 In short, the core contributions of the project include:
 
 - **Addition of novel attention mechanisms**: A third branch (attention branch) is incorporated within the Residual Modules comprising the core Hourglasses. Attention is applied in a soft-way (i.e. attention scores cannot suppress features). Ablations are proposed to prove the performance boost achieved by the proposed attention scheme. 
 -  **Stage specific ground-truth**: Conversely to using the same ground-truth for all the stages as done in previous works, the ground-truth heatmaps adopted to train the models in this project regards the location of an Hourglass (stage) within the whole model. 
-- **Light-weight models for in-bed pose estimation**: Within in-bed settings, models of ~$7.5M$ parameters are suficient to achieve an accuracy comparable with larger models.
+- **Light-weight models for in-bed pose estimation**: Within in-bed settings, models of $~7.5M$ parameters are suficient to achieve an accuracy comparable with larger models.
 
 - **Heatmap-based in-bed action recognition**: The heatmaps generated with the proposed models are used within a sequence-based in-bed action recognition (BedAR) model ($\leq 8M$ params).  
 

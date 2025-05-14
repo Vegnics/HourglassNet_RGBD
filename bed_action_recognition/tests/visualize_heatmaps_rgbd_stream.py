@@ -201,9 +201,9 @@ action_names = ["00_supine",
                 "08_laying_down"]
 
 MAIN_FOLDER = "/home/quinoa/Desktop/ntu_patient_action_recognition"
-subject_num = 1
+subject_num = 0
 sample_num = 2
-action_num = 5
+action_num = 1
 
 armodel = keras.models.load_model("bed_action_recognition/data/model_bedar.keras")
 print(armodel.get_config())
@@ -240,6 +240,15 @@ while cap.isOpened():
         _depthimg,tbbox = tf_test_map_squarify(rgbd_image_in,tf.convert_to_tensor(cbbox))
         _obbox = tbbox[0:2,0:2]
         padding = tbbox[2,0:2]
+        depth_vis = tf.squeeze(tf.identity(_depthimg[:, 20:-20, 0])).numpy()
+
+        orig_h, orig_w = depth_vis.shape[:2]
+        target_h = 960
+        scale = target_h / orig_h
+        target_w = int(round(orig_w * scale))
+        depth_vis_rs = cv2.resize(depth_vis, (target_w, target_h), interpolation=cv2.INTER_AREA)
+        depth_vis_rs = 255*(depth_vis_rs-np.min(depth_vis_rs))/(np.max(depth_vis_rs)-np.min(depth_vis_rs))
+        depth_vis_color = cv2.applyColorMap(np.uint8(depth_vis_rs),cv2.COLORMAP_JET)
         if k%2==0:
             print(f"K: {k}",_depthimg.shape)
             if len(seq_buffer)>6:
@@ -251,16 +260,16 @@ while cap.isOpened():
                             preds = armodel.predict(tf.expand_dims(seq_tf,axis=0))
                             print(preds)
                             pred_act = tf.argmax(tf.squeeze(preds))
-                            cv2.putText(rframe,f"True action: {action_names[action_num]}",org=(10,30),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(255,0,0),thickness=2)
-                            cv2.putText(rframe,f"Pred action: {action_names[int(pred_act.numpy())]}",org=(10,60),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(0,0,255),thickness=2)
+                            cv2.putText(rframe,f"True action: {action_names[action_num]}",org=(10,900),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(255,0,0),thickness=2)
+                            cv2.putText(rframe,f"Pred action: {action_names[int(pred_act.numpy())]}",org=(10,950),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(0,0,255),thickness=2)
                             print(action_names[int(pred_act.numpy())])
 
             else:
                 seq_buffer.append(tf.squeeze(tf.identity(_depthimg)))
         else:
              if pred_act is not None:
-                cv2.putText(rframe,f"True action: {action_names[action_num]}",org=(10,30),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(255,0,0),thickness=2)
-                cv2.putText(rframe,f"Pred action: {action_names[int(pred_act.numpy())]}",org=(10,60),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(0,0,255),thickness=2)
+                cv2.putText(rframe,f"True action: {action_names[action_num]}",org=(10,900),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(255,0,0),thickness=2)
+                cv2.putText(rframe,f"Pred action: {action_names[int(pred_act.numpy())]}",org=(10,950),fontScale=2.0,fontFace=cv2.FONT_HERSHEY_PLAIN,color=(0,0,255),thickness=2)
         """
         preds = hms[0,-1,:,:,:]
         img_bgr = draw_pose(imgrgb,preds,_obbox,padding)
@@ -292,7 +301,7 @@ while cap.isOpened():
         #print(plotfinal.shape)
         """
         #rgb_frame_buffer.append(np.copy(plotfinal))
-        cv2.imshow("results",rframe)
+        cv2.imshow("results",np.hstack([rframe,depth_vis_color]))
         cv2.waitKey(0)
         k +=1 
     else:

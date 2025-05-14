@@ -32,7 +32,7 @@ class BedARTF_DatasetHandler():
         self.sets: Dict = {"train":True,
                      "validation":True,
                      "test":True,
-                     "ratio_train":0.8,
+                     "ratio_train":0.5,
                      "ratio_validation":0.19,
                      "ratio_test":0.01}
         

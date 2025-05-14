@@ -41,15 +41,31 @@ def read_landmark_data(csv_path: str):
     return annopoints
 
 def read_slp_folder_to_htf_data(
-        main_folder
+        main_folder,task: str="train",cover_setting: str = "All"
 )-> Union[List[HTFPersonDatapointRGBD], Tuple[List[HTFPersonDatapointRGBD], Tuple]]:
     record_to_return = []
-    for sub_num in range(1,91):
+    if task=="train":
+        sub_num_range = list(range(1,91))
+    elif task=="test":
+        sub_num_range = list(range(91,103))
+    else:
+        raise Exception("SLP parser, Task invalid!")
+    if cover_setting=="All":
+        cover_range = ["uncover","cover1","cover2"]
+    elif cover_setting=="C0":
+        cover_range = ["uncover"]
+    elif cover_setting=="C1":
+        cover_range = ["cover1"]
+    elif cover_setting=="C2":
+        cover_range = ["cover2"]
+    else:
+        raise Exception("SLP parser, cover setting invalid!")
+    for sub_num in sub_num_range:
         sub_id = "{:05d}".format(sub_num)
         for sample_num in range(1,46):
             sample_id = "{0:06d}".format(sample_num)
             annopoints = read_landmark_data(os.path.join(main_folder,sub_id,"LMData",f"lm_{sample_id}.csv")) 
-            for cover_opt in ["uncover","cover1","cover2"]:
+            for cover_opt in cover_range:
             #for cover_opt in ["cover2"]:
                 record_to_return.append(
                 HTFPersonDatapointRGBD(

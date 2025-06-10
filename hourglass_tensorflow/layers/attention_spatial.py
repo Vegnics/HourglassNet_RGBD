@@ -245,11 +245,14 @@ class SpatialAttentionMechanism(Layer):
             name="AttConv2D_scores",
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= initializers.RandomNormal(mean=0.0, stddev=0.01),
+            kernel_initializer= "glorot_uniform", #initializers.RandomNormal(mean=0.0, stddev=0.01),
             bias_initializer=tf.constant_initializer(0.0),
             use_bias=True,
         )
-        
+
+        self.pos_encoding_x = layers.Embedding(input_dim=4, output_dim=4,name="pos_encoding_x")
+        self.pos_encoding_y = layers.Embedding(input_dim=4, output_dim=4,name="pos_encoding_y")
+
     def get_config(self):
         return {
             **super().get_config(),
@@ -279,8 +282,12 @@ class SpatialAttentionMechanism(Layer):
         #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
         tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
         tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5])
-        tgrid = tf.range(0,4,1,dtype=tf.float32)/3.0
-        X,Y = tf.meshgrid(tgrid,tgrid)
+
+        pos_encx = self.pos_encoding_x(tf.range(4))
+        pos_ency = self.pos_encoding_y(tf.range(4))
+        #tgrid = tf.range(0,4,1,dtype=tf.float32)/3.0
+        #X,Y = tf.meshgrid(tgrid,tgrid)
+        X,Y = tf.meshgrid(pos_encx,pos_ency)
         XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
         tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
         energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1

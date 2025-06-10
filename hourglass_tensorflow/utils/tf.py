@@ -656,7 +656,7 @@ def tf_depth_parameterized_noise(tensor:tf.Tensor,shape: tf.Tensor,thresh_val: f
         )
     G = tf.reduce_mean(tf.random.uniform(shape=[10],minval=0,maxval=500,dtype=precision))
     k = 1/(tf.cast(shape[1], precision))
-    angle = tf.random.uniform(shape=[],minval=-90.0,maxval=90.0,dtype=precision)
+    angle = tf.random.uniform(shape=[],minval=-60.0,maxval=60.0,dtype=precision)
     kx = tf.math.sin(angle/180*3.141592)*k
     ky = tf.math.cos(angle/180*3.141592)*k
     Z = G*(kx*X+ky*Y)

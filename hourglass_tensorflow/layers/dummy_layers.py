@@ -60,7 +60,7 @@ class zeroLayer(Layer):
 
 
 @register_keras_serializable(package="lDummy")
-class constantLayer(Layer):
+class  quasiConstantLayer(Layer):
     def __init__(
         self,
         output_channels: int = None,
@@ -85,7 +85,8 @@ class constantLayer(Layer):
         batch_size = tf.shape(inputs)[0]
         height = tf.shape(inputs)[1]
         width = tf.shape(inputs)[2]
-        return self.value_out*tf.ones([batch_size, height, width, self.output_channels], dtype=inputs.dtype)
+        outs = tf.random.normal(shape=[batch_size, height, width, self.output_channels],mean=self.value_out,stddev=0.2, dtype=inputs.dtype)
+        return outs #self.value_out*outs #tf.ones([batch_size, height, width, self.output_channels], dtype=inputs.dtype)
 
     def build(self,input_shape):
         super().build(input_shape)

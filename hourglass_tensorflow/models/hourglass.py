@@ -70,11 +70,7 @@ class HourglassModel(Model):
         self.ndownsamplings = downsamplings_per_stage
         self.residual_nblocks = residual_nblocks
         self.trainable = trainable
-            #dtype=dtype,
-            #dynamic=dynamic,
-            #*args,
-            #**kwargs,
-        #)
+
         # Layers
         self.downsampling = DownSamplingLayer(
             input_size=self.input_size,
@@ -85,6 +81,7 @@ class HourglassModel(Model):
             residual_nblocks=self.residual_nblocks,
             trainable=self.trainable,
         )
+        
         self.hourglasses = [
             HourglassLayer(
                 downsamplings=self.ndownsamplings,

@@ -243,6 +243,7 @@ class HourglassLayer(Layer):
                                             trainable=trainable,
         )
 
+        """
         self.bn_feats_1j = layers.BatchNormalization(
             axis=-1,
             momentum=0.989,
@@ -251,6 +252,11 @@ class HourglassLayer(Layer):
             trainable=trainable,
             name="BN_Feats_1J",
         )
+        """
+
+        self.ln_inputs = layers.LayerNormalization(axis=-1, name="LN_inputs")
+        self.ln_main = layers.LayerNormalization(axis=-1, name="LN_main")
+        self.ln_feats1j = layers.LayerNormalization(axis=-1, name="LN_feats1j")
 
         self.residual_brc = ResidualWithBNRC(
                     output_filters=self.feature_filters,
@@ -390,7 +396,7 @@ class HourglassLayer(Layer):
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        _x = self.residual_brc(_x,training=training)
+        _x = self.residual_brc(_x,training=training) # Output of the Hourglass module
         main_feats = self.merge_feats_main(_x)
         intermediate_2jhms = self.hm2_output(_x,training=training)
         features_2jhms = self.features_hm2(intermediate_2jhms) 
@@ -401,10 +407,15 @@ class HourglassLayer(Layer):
         #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
         #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training)
         feats1j = self.merge_feats_1j(intermediate_1jhms)
-        feats1j = self.bn_feats_1j(feats1j,training=training)
+        feats1j_norm = self.bn_feats_1j(feats1j,training=training)
         #_out = self._last_residual(_x,training=training)
+
+        inputs_norm = self.ln_inputs(inputs)
+        main_feats_norm = self.ln_main(main_feats)
+        feats1j_norm = self.ln_feats1j(feats1j)
+
         out_tensor = tf.add_n(
-            [inputs, main_feats, feats1j], #_out
+            [inputs_norm, main_feats_norm, feats1j_norm], #_out
             name=f"{self.name}_OutputAdd",
         )
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)

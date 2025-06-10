@@ -407,7 +407,7 @@ class HourglassLayer(Layer):
         #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
         #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training)
         feats1j = self.merge_feats_1j(intermediate_1jhms)
-        feats1j_norm = self.bn_feats_1j(feats1j,training=training)
+        #feats1j_norm = self.bn_feats_1j(feats1j,training=training)
         #_out = self._last_residual(_x,training=training)
 
         inputs_norm = self.ln_inputs(inputs)

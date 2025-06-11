@@ -97,7 +97,7 @@ class SpatialHead(Layer):
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialEnergyHead(Layer):
     """
-    This layer performs 2D convolution, Batch Normalization, and ReLU.
+    This layer generates a low-rank single-channel spatial representation.  
     """
     def __init__(
         self,
@@ -110,12 +110,13 @@ class SpatialEnergyHead(Layer):
         # Store config
         self.K_size = K_size
         self.kernel_initializer = kernel_initializer
+        
         # Create layers
-        #"""
 
+        # FC for the vertical components (row vectors)
         self.Vgen = layers.Dense(
                 units=self.K_size,
-                activation= None, #None,
+                activation= None,
                 use_bias=True,
                 bias_initializer=initializers.Constant(-1.0),
                 kernel_initializer='glorot_uniform',
@@ -124,8 +125,9 @@ class SpatialEnergyHead(Layer):
                 trainable=self.trainable,
                 )
         
+        # FC for the horizontal components (column vectors) 
         self.Hgen = layers.Dense(self.K_size,
-                activation=None, #None,
+                activation=None,
                 use_bias=True,
                 bias_initializer=initializers.Constant(1.0),
                 kernel_initializer='glorot_uniform',
@@ -133,16 +135,8 @@ class SpatialEnergyHead(Layer):
                 trainable=self.trainable,
                 )
         
-        self.Hln = layers.LayerNormalization(axis=-1,
-                                            trainable=self.trainable,
-                                            name="HLN_")
-        
-        self.Vln = layers.LayerNormalization(axis=-1,
-                                            trainable=self.trainable,
-                                            name="VLN_")
-        
+        # Dropout applied to the generated kernel.
         self.dropout_ = layers.Dropout(0.1,name="dpout_")
-        #self.dropout_h = layers.Dropout(0.05,name="dpout_h")
         
     def get_config(self):
         return {
@@ -154,26 +148,18 @@ class SpatialEnergyHead(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        #input_v = tf.transpose(tf.stack((inputs,inputs-self.diff_vec),axis=-1),perm=[0,2,1])
-        #input_h = tf.transpose(tf.stack((inputs,inputs+self.diff_vec),axis=-1),perm=[0,2,1])
         _input = tf.transpose(inputs,perm=[0,2,1]) #(B,3,K)
-        #input_h = tf.transpose(tf.stack((inputs,inputs+self.diff_vec),axis=-1),perm=[0,2,1])
-        V = tf.nn.relu(self.Vgen(_input))
-        H = tf.nn.relu(self.Hgen(_input))   
-        #V = self.Vln(v)  # (B,3,K)
-        #H = self.Hln(h)
-        #H = self.dropout_h(tf.math.l2_normalize(h), training=training)  # (B,3,K)
-        V = tf.transpose(V,perm=[0,2,1])                # (B,K,3)
-        #H = tf.reshape(H, (-1, 2, self.K_size))                # (B,2,K)
-
-        return self.dropout_(tf.matmul(V, H),training=training)                            # (B,K,K)
+        V = tf.nn.relu(self.Vgen(_input)) # Vertical components : (B,3,K)
+        H = tf.nn.relu(self.Hgen(_input)) # Horizontal components : (B,3,K)  
+        V = tf.transpose(V,perm=[0,2,1])  # (B,K,3)
+        return self.dropout_(tf.matmul(V, H),training=training)# (B,K,K)
     def build(self, input_shape):
         super().build(input_shape)
 
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialAttentionMechanism(Layer):
     """
-    This layer performs 2D convolution, Batch Normalization, and ReLU.
+    This layer generates spatial-wise raw attention scores from low-rank representations. 
     """
     def __init__(
         self,
@@ -208,7 +194,6 @@ class SpatialAttentionMechanism(Layer):
         self.kernel_reg = kernel_reg
         self.feat_size = feat_size
         # Create layers
-        #"""
         """
         self.gap_proj = layers.Conv2D(
             filters=1,
@@ -223,20 +208,19 @@ class SpatialAttentionMechanism(Layer):
             use_bias=False,
         )
         """
-        self.bn = layers.BatchNormalization(axis=-1,
-                                            momentum=0.9,
-                                            trainable=self.trainable,
-                                            name="BN_sam")
-        
+        # Layer normalization for the heads' outputs
         self.ln = layers.LayerNormalization(axis=-1,
                                             trainable=self.trainable,
                                             name="LN_sam")
 
+        # Spatial Attention heads
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         
+        # Set spatial heads as attributes to ensure full serialization.
         for k,layer in enumerate(self.spatial_heads):
             self.__setattr__(f"sam_{k}", layer)
 
+        # Conv layer for combining the spatial heads' outputs.
         self.score_gen = layers.Conv2D(
             filters=1,
             kernel_size=(3,3),
@@ -250,6 +234,7 @@ class SpatialAttentionMechanism(Layer):
             use_bias=True,
         )
 
+        # 2D Tile positional encodings 
         self.pos_encoding_x = layers.Embedding(input_dim=4, output_dim=1,name="pos_encoding_x")
         self.pos_encoding_y = layers.Embedding(input_dim=4, output_dim=1,name="pos_encoding_y")
 
@@ -273,15 +258,20 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        #_inputs = self.bn(inputs,training=training)
+        # Compute the mean energy 2D 4x4 tile. 
         _inputs = tf.clip_by_value(inputs,-1e4,1e4)
         #projection = self.gap_proj(_inputs)
-        B = tf.shape(inputs)[0]
-        K = tf.shape(inputs)[1]
-        C = tf.shape(inputs)[3]
-        #_inputs = tf.reduce_mean(tf.math.square(inputs),keepdims=True,axis=-1)
+        B = tf.shape(inputs)[0] 
+        K = tf.shape(inputs)[1] # Width or Height
+        C = tf.shape(inputs)[3] # Channels
         tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
-        tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5])
+        tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5]) # (B,4,4,K//4,K//4,C)
+        tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
+        energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1
+        #energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4]) #Nx4x4x1
+        mean_e = tf.reduce_mean(energy_tile, axis=[1,2], keepdims=True)
+        std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
+        energy_tile = (energy_tile - mean_e) / std_e # patch-wise energy tile normalization
 
         # Simple 2D positional encoding
         pos_encx = tf.reshape(self.pos_encoding_x(tf.range(4)),(4,)) # 4
@@ -289,21 +279,11 @@ class SpatialAttentionMechanism(Layer):
         X,Y = tf.meshgrid(pos_encx,pos_ency) # 2 4x4
         XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0) # 1x4x4x2
         pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
-        #tgrid = tf.range(0,4,1,dtype=tf.float32)/3.0
-        #X,Y = tf.meshgrid(tgrid,tgrid)
-        #X,Y = tf.meshgrid(pos_encx,pos_ency)
-        #XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
-        tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
-        energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1
-        #energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4]) #Nx4x4x1
-        mean_e = tf.reduce_mean(energy_tile, axis=[1,2], keepdims=True)
-        std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
-        energy_tile = (energy_tile - mean_e) / std_e
-        #energy_tile = tf.math.l2_normalize(energy_tile,axis=[1,2],epsilon=1e-3)
-        #energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
+     
+        # Input the energy-based spatial descriptor (energy tile,pos encoding) to the Spatial Attention heads  
         energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
-        stacked_outs = self.ln(stacked_outs) # B x K x K x self.head_num
+        stacked_outs = self.ln(stacked_outs) # (B,K,K,self.head_num)
 
         # Enforce orthogonality between heads
         head_outs_flatten = tf.reshape(tf.transpose(stacked_outs, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
@@ -311,23 +291,12 @@ class SpatialAttentionMechanism(Layer):
         gram = tf.matmul(heads_norm, heads_norm, transpose_b=True)  # (B, H, H)
         eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
         off_diag = gram - eye
-        orthogonality_penalty = tf.reduce_mean(tf.square(off_diag))
-        #self.add_metric(orthogonality_penalty, name=f"{self.name}_orthogonality_loss", aggregation="mean")
-        self.add_loss(1e-4 * orthogonality_penalty)
+        orthogonality_reg = tf.reduce_mean(tf.square(off_diag))
+        self.add_loss(1e-4 * orthogonality_reg)
 
-        """
-        head_mean = tf.reduce_mean(stacked_outs,keepdims=True,axis=-1)
-        head_var = tf.reduce_mean(tf.math.square(stacked_outs-head_mean),axis=[1,2,3])+1e-6
-        loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
-        loss_diversity = tf.minimum(loss_diversity,0.8)
-        self.add_metric(loss_diversity, name=f"{self.name}_loss", aggregation="mean")
-        #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
-        #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
-        self.add_loss(-0.000001 * loss_diversity)
-        """
+        # Raw scores generation 
         scores_raw = self.score_gen(stacked_outs)
-        #scores = tf.nn.sigmoid(self.score_gen(stacked_outs))#tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
-        return scores_raw
+        return scores_raw # (B,K,K,1)=(B,H,W,1)
     
     def build(self, input_shape):
         super().build(input_shape)

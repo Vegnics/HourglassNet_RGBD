@@ -79,7 +79,11 @@ class _SpatialBasedPooling(Layer):
 @register_keras_serializable(package="lattentionFeature") 
 class FeatureAttentionMechanism(Layer):
     """
-    This layer performs 2D convolution, Batch Normalization, and ReLU.
+    This layer regards the Mean Energy Tensor (MET) of the input features to generate
+    raw channel-wise scores. It employs multiple parallel Feature Attention Heads
+    to process the MET, concatenate the heads outputs into a single 1d tensor and use 
+    2 FC layers to compute the raw scores. Head output orthogonality regularization is 
+    applied.   
     """
     def __init__(
         self,
@@ -112,21 +116,13 @@ class FeatureAttentionMechanism(Layer):
         self.trainable = trainable
         self.kernel_reg = kernel_reg
         # Create layers
-        #"""
-        #self.heads = []
-        # EXPERIMENTAL GAPP-FLATTEN
-        self.norm_layer = layers.LayerNormalization(axis=-1,
-                                               epsilon=0.0001,
-                                               name="main_LN"
-                                               )
 
-        self.blender = layers.Conv1D(filters=1,
-                                     kernel_size=3,
-                                     padding="same",
-                                     kernel_initializer="glorot_uniform",
-                                     name="conv1d_blender",
-                                     )
+        #self.norm_layer = layers.LayerNormalization(axis=-1,
+        #                                       epsilon=0.0001,
+        #                                       name="main_LN"
+        #                                       )
 
+        # Feature Attention heads (FC->FC->LN)
         self.heads = [
                 SequentialLayer(
                     layer_list = [
@@ -154,13 +150,14 @@ class FeatureAttentionMechanism(Layer):
             for i in range(self.head_num)
         ]
 
-        # Set all the Heads as attributes to ensure full serialization.
+        # Set all Attention heads as attributes to ensure full serialization.
         for k,layer in enumerate(self.heads):
             self.__setattr__(f"fam_{k}", layer)
 
-        # EXPERIMENTAL GAPP-FLATTEN
-        #self.spatialgap = _SpatialBasedPooling(self.filters)
+        # Dropout previous to the raw score generation layer
         self.dropout_last = layers.Dropout(0.08)
+
+        # Raw score generation layer (aka Last projection)
         self.last_projection = SequentialLayer(
             layer_list=[
                 layers.Dense(self.filters//4,
@@ -203,28 +200,18 @@ class FeatureAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-9)
+        # Mean Energy tensor computation 
         _shape = tf.shape(inputs)
-        _inputs = tf.clip_by_value(inputs,-1e6,1e6) # Clip the inputs to avoid numerical instability
-        #tf.print("inputs shape:", _shape)
-        #learned_gap = tf.clip_by_value(tf.reduce_mean(tf.math.square(_clip_inputs),axis=[1,2]),0,1e8)
-        channel_rms_val = tf.math.sqrt(tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])+1e-6)
-        #channel_mean_val = tf.reduce_mean(inputs,axis=[1,2])
-        #channel_var_val = tf.reduce_mean(tf.math.square(inputs - tf.expand_dims(tf.expand_dims(channel_mean_val,axis=1),axis=1)),axis=[1,2])
-        #channel_stats = tf.stack([channel_rms_val,channel_mean_val,channel_var_val],axis=-1)
-        embedding = channel_rms_val
-        #embedding = self.blender(channel_stats) # N,Feats,3 
+        _inputs = tf.clip_by_value(inputs,-1e6,1e6) # Clip the input feats to avoid numerical instability
+        energy_tensor = tf.math.sqrt(tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])+1e-6)# per-channel mean energy 
 
-        #learned_gap = self.spatialgap(inputs)
-        #learned_gap = tf.reduce_mean(inputs,axis=[1,2]) #NC
-        #embedding = tf.reshape(embedding,shape=(-1,self.filters))
-        #embedding = tf.squeeze(embedding,axis=-1)
+        # Input the Mean Energy Tensor to the Feature Attention heads 
         head_outs = []
         for i in range (self.head_num):
-            head_outs.append(self.heads[i](embedding))
+            head_outs.append(self.heads[i](energy_tensor))
         head_out = tf.concat(head_outs,axis=-1)
         
-        # Penalty to encourage heads' output orthogonality
+        # Heads' output orthogonality regularization
         head_stack = tf.stack(head_outs,axis=-1) # Stacking heads' output -> B,d_out,N_head
         normed_heads = tf.nn.l2_normalize(head_stack, axis=1) # along d_head (B,d_head,N_heads)
         similarity = tf.matmul(tf.transpose(normed_heads,perm=[0,2,1]), normed_heads)  # cosine similarity between head's outputs (B,N_heads,N_heads)
@@ -233,25 +220,12 @@ class FeatureAttentionMechanism(Layer):
         penalty = tf.reduce_mean(tf.math.sqrt(penalty+1e-6))
         self.add_loss(1e-4 * penalty)
         
-        
-        #head_mean = tf.reduce_mean(head_stack,keepdims=True,axis=-1)
-        #head_var = tf.reduce_mean(tf.math.square(head_stack-head_mean),axis=[1,2])+1e-6
-        #penalty = tf.reduce_mean(tf.math.sqrt(head_var))
-        #loss_diversity = tf.nn.softplus(1.2 - penalty)  # prefer variance > 1.5
-        #self.add_loss(λ * penalty)
-        #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
-        #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
-        #self.add_loss(0.00001 * loss_diversity)
-        #_head_out = tf.nn.relu(head_out)
+        # Raw scores computation -> (B,1,1,C) 
         #_head_out = self.norm_layer(_head_out)
         _head_out = self.dropout_last(head_out,training=training)
         scores = self.last_projection(_head_out)
-        #scores = tf.nn.sigmoid(scores)
-        #scores_shape = tf.shape(scores)
-        #alpha_batch = 4.0*self.alpha*tf.ones(shape=(scores_shape[0],1))
-        #scoreswalpha = tf.concat([scores,alpha_batch],axis=-1)
         scores = tf.expand_dims(scores,axis=1)
         scores_raw = tf.expand_dims(scores,axis=1)
-        return scores_raw #,
+        return scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
     def build(self, input_shape):
         super().build(input_shape)

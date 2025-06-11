@@ -154,15 +154,16 @@ class FeatureAttentionMechanism(Layer):
             for i in range(self.head_num)
         ]
 
+        # Set all the Heads as attributes to ensure full serialization.
         for k,layer in enumerate(self.heads):
             self.__setattr__(f"fam_{k}", layer)
 
         # EXPERIMENTAL GAPP-FLATTEN
         #self.spatialgap = _SpatialBasedPooling(self.filters)
-        self.dropout_last = layers.Dropout(0.05)
+        self.dropout_last = layers.Dropout(0.08)
         self.last_projection = SequentialLayer(
             layer_list=[
-                layers.Dense(self.filters//16,
+                layers.Dense(self.filters//4,
                             activation="gelu",
                             use_bias=True,
                             bias_initializer="zeros",
@@ -204,29 +205,29 @@ class FeatureAttentionMechanism(Layer):
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         #gap = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-9)
         _shape = tf.shape(inputs)
-        #_clip_inputs = tf.clip_by_value(inputs,-1e6,1e6)
+        _inputs = tf.clip_by_value(inputs,-1e6,1e6) # Clip the inputs to avoid numerical instability
         #tf.print("inputs shape:", _shape)
         #learned_gap = tf.clip_by_value(tf.reduce_mean(tf.math.square(_clip_inputs),axis=[1,2]),0,1e8)
-        channel_rms_val = tf.math.sqrt(tf.reduce_mean(tf.math.square(inputs),axis=[1,2])+1e-6)
-        channel_mean_val = tf.reduce_mean(inputs,axis=[1,2])
-        channel_var_val = tf.reduce_mean(tf.math.square(inputs - tf.expand_dims(tf.expand_dims(channel_mean_val,axis=1),axis=1)),axis=[1,2])
-        channel_stats = tf.stack([channel_rms_val,channel_mean_val,channel_var_val],axis=-1)
-        embedding = self.blender(channel_stats)
+        channel_rms_val = tf.math.sqrt(tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])+1e-6)
+        #channel_mean_val = tf.reduce_mean(inputs,axis=[1,2])
+        #channel_var_val = tf.reduce_mean(tf.math.square(inputs - tf.expand_dims(tf.expand_dims(channel_mean_val,axis=1),axis=1)),axis=[1,2])
+        #channel_stats = tf.stack([channel_rms_val,channel_mean_val,channel_var_val],axis=-1)
+        embedding = channel_rms_val
+        #embedding = self.blender(channel_stats) # N,Feats,3 
 
         #learned_gap = self.spatialgap(inputs)
         #learned_gap = tf.reduce_mean(inputs,axis=[1,2]) #NC
         #embedding = tf.reshape(embedding,shape=(-1,self.filters))
-        embedding = tf.squeeze(embedding,axis=-1)
+        #embedding = tf.squeeze(embedding,axis=-1)
         head_outs = []
         for i in range (self.head_num):
             head_outs.append(self.heads[i](embedding))
         head_out = tf.concat(head_outs,axis=-1)
-        head_stack = tf.stack(head_outs,axis=-1) #B,d_out,N_head
         
+        # Penalty to encourage heads' output orthogonality
+        head_stack = tf.stack(head_outs,axis=-1) # Stacking heads' output -> B,d_out,N_head
         normed_heads = tf.nn.l2_normalize(head_stack, axis=1) # along d_head (B,d_head,N_heads)
         similarity = tf.matmul(tf.transpose(normed_heads,perm=[0,2,1]), normed_heads)  # cosine similarity between head's outputs (B,N_heads,N_heads)
-
-        # Penalize off-diagonal entries 
         mask = 1.0 - tf.eye(self.head_num)
         penalty = tf.reduce_mean(tf.square(similarity * mask),axis=[1,2])
         penalty = tf.reduce_mean(tf.math.sqrt(penalty+1e-6))

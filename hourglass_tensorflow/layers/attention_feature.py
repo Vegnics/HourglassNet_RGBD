@@ -229,7 +229,7 @@ class FeatureAttentionMechanism(Layer):
         # Penalize off-diagonal entries 
         mask = 1.0 - tf.eye(self.head_num)
         penalty = tf.reduce_mean(tf.square(similarity * mask),axis=[1,2])
-        penalty = tf.reduce_mean(tf.math.sqrt(penalty+1e-5))
+        penalty = tf.reduce_mean(tf.math.sqrt(penalty+1e-6))
         self.add_loss(1e-4 * penalty)
         
         

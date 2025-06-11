@@ -250,8 +250,8 @@ class SpatialAttentionMechanism(Layer):
             use_bias=True,
         )
 
-        self.pos_encoding_x = layers.Embedding(input_dim=4, output_dim=4,name="pos_encoding_x")
-        self.pos_encoding_y = layers.Embedding(input_dim=4, output_dim=4,name="pos_encoding_y")
+        self.pos_encoding_x = layers.Embedding(input_dim=4, output_dim=1,name="pos_encoding_x")
+        self.pos_encoding_y = layers.Embedding(input_dim=4, output_dim=1,name="pos_encoding_y")
 
     def get_config(self):
         return {
@@ -283,12 +283,16 @@ class SpatialAttentionMechanism(Layer):
         tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
         tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5])
 
-        pos_encx = self.pos_encoding_x(tf.range(4))
-        pos_ency = self.pos_encoding_y(tf.range(4))
+        # Simple 2D positional encoding
+        pos_encx = tf.reshape(self.pos_encoding_x(tf.range(4)),(4,)) # 4
+        pos_ency = tf.reshape(self.pos_encoding_y(tf.range(4)),(4,)) # 4
+        X,Y = tf.meshgrid(pos_encx,pos_ency) # 2 4x4
+        XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0) # 1x4x4x2
+        pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
         #tgrid = tf.range(0,4,1,dtype=tf.float32)/3.0
         #X,Y = tf.meshgrid(tgrid,tgrid)
-        X,Y = tf.meshgrid(pos_encx,pos_ency)
-        XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
+        #X,Y = tf.meshgrid(pos_encx,pos_ency)
+        #XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0)
         tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
         energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1
         #energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4]) #Nx4x4x1
@@ -296,12 +300,22 @@ class SpatialAttentionMechanism(Layer):
         std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
         energy_tile = (energy_tile - mean_e) / std_e
         #energy_tile = tf.math.l2_normalize(energy_tile,axis=[1,2],epsilon=1e-3)
-        pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
+        #energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
         energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
         stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
-        stacked_outs = self.ln(stacked_outs)
+        stacked_outs = self.ln(stacked_outs) # B x K x K x self.head_num
 
-        #head_mean = tf.math.reduce_std(stacked_outs, axis=-1)  # B x K x K x self.head_num
+        # Enforce orthogonality between heads
+        head_outs_flatten = tf.reshape(tf.transpose(stacked_outs, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
+        heads_norm = tf.math.l2_normalize(head_outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
+        gram = tf.matmul(heads_norm, heads_norm, transpose_b=True)  # (B, H, H)
+        eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
+        off_diag = gram - eye
+        orthogonality_penalty = tf.reduce_mean(tf.square(off_diag))
+        self.add_metric(orthogonality_penalty, name=f"{self.name}_orthogonality_loss", aggregation="mean")
+        self.add_loss(1e-4 * orthogonality_penalty)
+
+        """
         head_mean = tf.reduce_mean(stacked_outs,keepdims=True,axis=-1)
         head_var = tf.reduce_mean(tf.math.square(stacked_outs-head_mean),axis=[1,2,3])+1e-6
         loss_diversity = tf.reduce_mean(tf.math.sqrt(head_var))
@@ -310,6 +324,7 @@ class SpatialAttentionMechanism(Layer):
         #loss_diversity = tf.exp(-10.0 * tf.clip_by_value(head_var, 0.0, 5.0))
         #loss_diversity = tf.math.exp(-1.0*head_var)  # penalize low diversity
         self.add_loss(-0.000001 * loss_diversity)
+        """
         scores_raw = self.score_gen(stacked_outs)
         #scores = tf.nn.sigmoid(self.score_gen(stacked_outs))#tf.clip_by_value(tf.nn.swish(self.score_gen(stacked_outs)),0.0,1.0) 
         return scores_raw

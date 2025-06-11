@@ -312,7 +312,7 @@ class SpatialAttentionMechanism(Layer):
         eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
         off_diag = gram - eye
         orthogonality_penalty = tf.reduce_mean(tf.square(off_diag))
-        self.add_metric(orthogonality_penalty, name=f"{self.name}_orthogonality_loss", aggregation="mean")
+        #self.add_metric(orthogonality_penalty, name=f"{self.name}_orthogonality_loss", aggregation="mean")
         self.add_loss(1e-4 * orthogonality_penalty)
 
         """

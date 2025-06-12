@@ -4,7 +4,7 @@ from keras.layers import Layer
 from keras.saving import register_keras_serializable
 
 
-from hourglass_tensorflow.layers.residual_exp import ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual import ResidualLayer,ResidualLayerIn
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer
 from hourglass_tensorflow.layers.linear_projection import LinearProjection
 #from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer

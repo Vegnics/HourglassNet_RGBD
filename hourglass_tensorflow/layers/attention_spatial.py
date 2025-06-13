@@ -300,7 +300,7 @@ class SpatialAttentionMechanism(Layer):
         # Enforce higher variance at the scores
         scores_mean = tf.reduce_mean(scores_raw,axis=[1,2],keepdims=True)
         scores_var = tf.reduce_mean(tf.square(scores_raw-scores_mean),axis=[1,2])
-        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,1e-4))
+        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.01))
         self.add_loss(1e-6*var_reg)
         return scores_raw # (B,K,K,1)=(B,H,W,1)
     

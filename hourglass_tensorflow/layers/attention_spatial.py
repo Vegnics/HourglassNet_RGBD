@@ -7,6 +7,7 @@ from keras.saving import register_keras_serializable
 from keras import constraints
 from keras import initializers
 import keras
+from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialHead(Layer):
@@ -176,7 +177,8 @@ class SpatialAttentionMechanism(Layer):
         headnum: int = 16,
         trainable: bool = True,
         kernel_reg: bool = False,
-        feat_size: int = None
+        feat_size: int = None,
+        rank: int = 4,
     ) -> None:
         super().__init__(name=name, trainable=trainable)
         # Store config
@@ -193,6 +195,7 @@ class SpatialAttentionMechanism(Layer):
         self.trainable = trainable
         self.kernel_reg = kernel_reg
         self.feat_size = feat_size
+        self.rank = rank
         # Create layers
         """
         self.gap_proj = layers.Conv2D(
@@ -212,6 +215,31 @@ class SpatialAttentionMechanism(Layer):
         self.ln = layers.LayerNormalization(axis=-1,
                                             trainable=self.trainable,
                                             name="LN_sam")
+        
+        self.summarizer = SequentialLayer(
+            [   layers.Conv2D( filters=1,
+                            kernel_size=(1,1),
+                            kernel_initializer="glorot_uniform",
+                            kernel_constraint=constraints.NonNeg(),
+                            name="summ_conv1",
+                            ),
+
+                layers.MaxPooling2D(pool_size=(2,2),
+                                    strides=(2,2),
+                                    padding="valid",
+                                    name="summ_pool",
+                                ),
+
+                layers.Conv2D(filters=self.rank,
+                                kernel_size=(3,3),
+                                strides=(2,2),
+                                padding="same",
+                                activation="relu",
+                                name="summ_conv2"
+                                )
+            ],
+            name="SAM_summarizer"
+        )
 
         # Spatial Attention heads
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
@@ -234,9 +262,9 @@ class SpatialAttentionMechanism(Layer):
             use_bias=True,
         )
 
-        # 2D Tile positional encodings 
-        self.pos_encoding_x = layers.Embedding(input_dim=4, output_dim=1,name="pos_encoding_x")
-        self.pos_encoding_y = layers.Embedding(input_dim=4, output_dim=1,name="pos_encoding_y")
+        # 2D positional encodings 
+        self.pos_encoding_x = layers.Embedding(input_dim=self.feat_size//4, output_dim=self.rank,name="pos_encoding_x")
+        self.pos_encoding_y = layers.Embedding(input_dim=self.feat_size//4, output_dim=self.rank,name="pos_encoding_y")
 
     def get_config(self):
         return {
@@ -253,36 +281,45 @@ class SpatialAttentionMechanism(Layer):
                 "outmax": self.outmax,
                 "headnum": self.head_num,
                 "kernel_reg": self.kernel_reg,
-                "feat_size": self.feat_size
+                "feat_size": self.feat_size,
+                "rank":self.rank
             },
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         # Compute the mean energy 2D 4x4 tile. 
-        _inputs = tf.clip_by_value(inputs,-1e4,1e4)
+        #_inputs = tf.clip_by_value(inputs,-1e4,1e4)
         #projection = self.gap_proj(_inputs)
         B = tf.shape(inputs)[0] 
         K = tf.shape(inputs)[1] # Width or Height
         C = tf.shape(inputs)[3] # Channels
-        tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
-        tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5]) # (B,4,4,K//4,K//4,C)
-        tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
-        energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1
+        Kd = K//4
+        #tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
+        #tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5]) # (B,4,4,K//4,K//4,C)
+        #tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
+        #energy_tile = tf.expand_dims(tf.reduce_mean(tiled_norm,axis=[3,4]),axis=-1) #Nx4x4x1
         #energy_tile = tf.reduce_mean(tf.math.square(tiled),axis=[3,4]) #Nx4x4x1
-        mean_e = tf.reduce_mean(energy_tile, axis=[1,2], keepdims=True)
-        std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
-        energy_tile = (energy_tile - mean_e) / std_e # patch-wise energy tile normalization
-
+        
+        #mean_e = tf.reduce_mean(energy_tile, axis=[1,2], keepdims=True)
+        #std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
+        #energy_tile = (energy_tile - mean_e) / std_e # patch-wise energy tile normalization
+        spatial_desc = self.summarizer(inputs)
+        spatial_desc = tf.reshape(spatial_desc,shape=(B,Kd**2,self.rank))
         # Simple 2D positional encoding
-        pos_encx = tf.reshape(self.pos_encoding_x(tf.range(4)),(4,)) # 4
-        pos_ency = tf.reshape(self.pos_encoding_y(tf.range(4)),(4,)) # 4
-        X,Y = tf.meshgrid(pos_encx,pos_ency) # 2 4x4
-        XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0) # 1x4x4x2
-        pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
-     
+        #pos_encx = tf.reshape(self.pos_encoding_x(tf.range(K)//(K//4)),(4,)) # 4
+        #pos_ency = tf.reshape(self.pos_encoding_y(tf.range(K)),(4,)) # 4
+        
+        pos_encx = self.pos_encoding_x(tf.range(Kd**2)//Kd) # 4
+        pos_ency = self.pos_encoding_y(tf.range(Kd**2)%Kd) # 4
+        #X,Y = tf.meshgrid(pos_encx,pos_ency) # 2 4x4
+        #XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0) # 1x4x4x2
+        #pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
+
+        spatial_with_pos = spatial_desc+ pos_encx + pos_ency
         # Input the energy-based spatial descriptor (energy tile,pos encoding) to the Spatial Attention heads  
-        energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
-        stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
+        #energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
+        #stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
+        stacked_outs = tf.stack([self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)],axis=-1)
         stacked_outs = self.ln(stacked_outs) # (B,K,K,self.head_num)
 
         # Enforce orthogonality between heads
@@ -300,8 +337,8 @@ class SpatialAttentionMechanism(Layer):
         # Enforce higher variance at the scores
         scores_mean = tf.reduce_mean(scores_raw,axis=[1,2],keepdims=True)
         scores_var = tf.reduce_mean(tf.square(scores_raw-scores_mean),axis=[1,2])
-        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.01))
-        self.add_loss(1e-6*var_reg)
+        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.1))
+        self.add_loss(1e-4*var_reg)
         return scores_raw # (B,K,K,1)=(B,H,W,1)
     
     def build(self, input_shape):

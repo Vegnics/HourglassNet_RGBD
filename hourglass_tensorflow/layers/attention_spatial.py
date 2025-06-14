@@ -335,10 +335,10 @@ class SpatialAttentionMechanism(Layer):
         scores_raw = self.score_gen(stacked_outs)
 
         # Enforce higher variance at the scores
-        scores_mean = tf.reduce_mean(scores_raw,axis=[1,2],keepdims=True)
-        scores_var = tf.reduce_mean(tf.square(scores_raw-scores_mean),axis=[1,2])
-        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.1))
-        self.add_loss(1e-4*var_reg)
+        #scores_mean = tf.reduce_mean(scores_raw,axis=[1,2],keepdims=True)
+        #scores_var = tf.reduce_mean(tf.square(scores_raw-scores_mean),axis=[1,2])
+        #var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.1))
+        #self.add_loss(1e-4*var_reg)
         return scores_raw # (B,K,K,1)=(B,H,W,1)
     
     def build(self, input_shape):

@@ -118,7 +118,7 @@ class SpatialEnergyHead(Layer):
         self.shared_fc = layers.Dense(
                 units=self.K_size//2,
                 activation=None,
-                use_bias=False,
+                use_bias=True,
                 kernel_initializer='glorot_uniform',
                 trainable=self.trainable
         )
@@ -152,6 +152,7 @@ class SpatialEnergyHead(Layer):
                 use_bias=True,
                 bias_initializer=initializers.Constant(1.0),
                 kernel_initializer='glorot_uniform',
+                kernel_constraint=constraints.MaxNorm(2.1),
                 name = "Hgen_FC0",
                 trainable=self.trainable,
                 )

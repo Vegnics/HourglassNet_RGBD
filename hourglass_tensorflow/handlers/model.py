@@ -183,8 +183,12 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
-                            layer.bn_feats_1j.trainable = False
+                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
+                            layer.ln_inputs.trainable = False
+                            print(f"Freezing {main_name}/{layer.ln_main.name}")
+                            layer.ln_main.trainable = False
+                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
+                            layer.ln_feats1j.trainable = False 
                 elif self.config.loading_style == "Partial_Train_Attention":
                     print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR ATTENTION <<<<<<<<<<<<<<")
                     for layer in model.layers:

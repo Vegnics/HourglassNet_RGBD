@@ -215,7 +215,7 @@ class SpatialAttentionMechanism(Layer):
         self.ln = layers.LayerNormalization(axis=-1,
                                             trainable=self.trainable,
                                             name="LN_sam")
-        
+        """
         self.summarizer = SequentialLayer(
             [   layers.Conv2D( filters=1,
                             kernel_size=(1,1),
@@ -240,7 +240,39 @@ class SpatialAttentionMechanism(Layer):
             ],
             name="SAM_summarizer"
         )
+        """
 
+        self.summarizer = SequentialLayer(
+            [   layers.DepthwiseConv2D(kernel_size=(3,3),
+                                        strides=(2,2),
+                                        depth_multiplier=1,
+                                        padding="same",
+                                        trainable=self.trainable,
+                                        activation=None,
+                                        name="dwise_downsample"),
+        
+                layers.Conv2D( filters=4,
+                            kernel_size=(1,1),
+                            kernel_initializer="glorot_uniform",
+                            name="summ_conv1",
+                            activation="relu"
+                            ),
+
+                layers.MaxPooling2D(pool_size=(2,2),
+                                    strides=(2,2),
+                                    padding="valid",
+                                    name="summ_pool",
+                                ),
+
+                layers.Conv2D(filters=self.rank,
+                                kernel_size=(1,1),
+                                padding="same",
+                                activation="relu",
+                                name="summ_conv2"
+                                )
+            ],
+            name="SAM_summarizer"
+        )
         # Spatial Attention heads
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         

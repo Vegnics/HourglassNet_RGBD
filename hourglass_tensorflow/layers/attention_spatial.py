@@ -114,25 +114,54 @@ class SpatialEnergyHead(Layer):
         
         # Create layers
 
+        # Shared FC layer
+        self.shared_fc = layers.Dense(
+                units=self.K_size//2,
+                activation=None,
+                use_bias=False,
+                kernel_initializer='glorot_uniform',
+                trainable=self.trainable
+        )
+
         # FC for the vertical components (row vectors)
-        self.Vgen = layers.Dense(
-                units=self.K_size,
+        self.Vgen0 = layers.Dense(
+                units=self.K_size//2,
                 activation= None,
                 use_bias=True,
                 bias_initializer=initializers.Constant(-1.0),
                 kernel_initializer='glorot_uniform',
                 kernel_constraint=constraints.MaxNorm(2.1),
-                name = "Vgen_FC",
+                name = "Vgen_FC0",
+                trainable=self.trainable,
+                )
+
+        self.Vgen1 = layers.Dense(
+                units=self.K_size,
+                activation= None,
+                use_bias=True,
+                bias_initializer=initializers.Constant(-1.0),
+                kernel_initializer='glorot_uniform',
+                #kernel_constraint=constraints.MaxNorm(2.1),
+                name = "Vgen_FC1",
                 trainable=self.trainable,
                 )
         
         # FC for the horizontal components (column vectors) 
-        self.Hgen = layers.Dense(self.K_size,
+        self.Hgen0 = layers.Dense(self.K_size//2,
                 activation=None,
                 use_bias=True,
                 bias_initializer=initializers.Constant(1.0),
                 kernel_initializer='glorot_uniform',
-                name = "Hgen_FC",
+                name = "Hgen_FC0",
+                trainable=self.trainable,
+                )
+        
+        self.Hgen1 = layers.Dense(self.K_size,
+                activation=None,
+                use_bias=True,
+                bias_initializer=initializers.Constant(1.0),
+                kernel_initializer='glorot_uniform',
+                name = "Hgen_FC1",
                 trainable=self.trainable,
                 )
         
@@ -149,10 +178,17 @@ class SpatialEnergyHead(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        _input = tf.transpose(inputs,perm=[0,2,1]) #(B,3,K)
-        V = tf.nn.relu(self.Vgen(_input)) # Vertical components : (B,3,K)
-        H = tf.nn.relu(self.Hgen(_input)) # Horizontal components : (B,3,K)  
-        V = tf.transpose(V,perm=[0,2,1])  # (B,K,3)
+        _input = tf.transpose(inputs,perm=[0,2,1]) # (B,R,Kin)
+        """
+        V = tf.nn.relu(self.Vgen0(_input)) # Vertical components : (B,R,K)
+        H = tf.nn.relu(self.Hgen(_input)) # Horizontal components : (B,R,K)  
+        V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
+        """
+        V0 = tf.nn.relu(self.shared_fc(self.Vgen0(_input)))
+        V = tf.nn.relu(self.Vgen1(V0)) # Vertical components : (B,R,K)
+        H0 = tf.nn.relu(self.shared_fc(self.Hgen0(_input)))
+        H = tf.nn.relu(self.Hgen1(H0)) # Horizontal components : (B,R,K)
+        V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
         return self.dropout_(tf.matmul(V, H),training=training)# (B,K,K)
     def build(self, input_shape):
         super().build(input_shape)

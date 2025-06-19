@@ -232,10 +232,10 @@ class HTFModelHandler(_HTFModelHandler):
                             main_name = layer.name
                             # Train only the main hourglass
                             for _,val in layer.layer_list.items():
-                                val["up_1"].trainable = False
+                                val["up_1"].trainable = False # Freeze the Skip layers
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
-                                val["low_1"].trainable = True
-                                val["low_3"].trainable = False
+                                val["low_1"].trainable = True # Train S2F
+                                val["low_3"].trainable = False # Freeze F2S
                                 print("Freezing {}/{}".format(main_name,val["low_3"].name))
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
                             layer.residual_brc.trainable = False
@@ -243,8 +243,14 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
-                            layer.bn_feats_1j.trainable = False
+                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
+                            layer.ln_inputs.trainable = False
+                            print(f"Freezing {main_name}/{layer.ln_main.name}")
+                            layer.ln_main.trainable = False
+                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
+                            layer.ln_feats1j.trainable = False 
+                            #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
+                            #layer.bn_feats_1j.trainable = False
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
@@ -263,11 +269,11 @@ class HTFModelHandler(_HTFModelHandler):
                             main_name = layer.name
                             # Train only the main hourglass
                             for _,val in layer.layer_list.items():
-                                val["up_1"].trainable = False
+                                val["up_1"].trainable = False # Freeze Skip layers
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
-                                val["low_1"].trainable = False
+                                val["low_1"].trainable = False # Freeze S2F layers
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))
-                                val["low_3"].trainable = True
+                                val["low_3"].trainable = True # Train F2S layers
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
                             layer.residual_brc.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")

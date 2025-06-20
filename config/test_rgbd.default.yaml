@@ -145,9 +145,11 @@ model:
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att3Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att4Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att5Depth4C.keras
-  model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att6Depth4C.keras
+  #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att6Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att7Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_Colab_BL_2J_Att6_RGBD4C_FT2.keras
+  #model_path: /home/quinoa/Downloads/SLP_Colab_BL_Depth4C_d2.keras
+  model_path: data/myModel_SLP_Colab_BL_1B_ATT_Depth4C_d2_FT2.keras
   loading_style: Frozen
 
 test:

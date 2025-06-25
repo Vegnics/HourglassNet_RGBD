@@ -17,7 +17,7 @@ data:
   output:
     #source: data/labels.ignore.csv
     #source: data/htf_dccv_dataset_c0.ignore.json
-    source: data/htf_slp_dataset_test_c2.ignore.json
+    source: data/htf_slp_dataset_test.ignore.json
     source_prefixed: false
     prefix_columns:
       - set
@@ -149,7 +149,8 @@ model:
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_Att7Depth4C.keras
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_Colab_BL_2J_Att6_RGBD4C_FT2.keras
   #model_path: /home/quinoa/Downloads/SLP_Colab_BL_Depth4C_d2.keras
-  model_path: data/myModel_SLP_Colab_BL_1B_ATT_Depth4C_d2_FT2.keras
+  #model_path: data/myModel_SLP_Colab_BL_1B_ATT_Depth4C_d2_FT2.keras
+  model_path: data/model_t/myModel_WS_BL_WithAtt777_Depth4C_FT.keras
   loading_style: Frozen
 
 test:

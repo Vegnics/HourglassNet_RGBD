@@ -106,24 +106,60 @@ class SpatialEnergyHead(Layer):
         kernel_initializer: str = "glorot_uniform",
         name: str = None,
         trainable: bool = True,
+        rank: int = None,
     ) -> None:
         super().__init__(name=name, trainable=trainable)
         # Store config
         self.K_size = K_size
         self.kernel_initializer = kernel_initializer
-        
+        self.rank = rank
         # Create layers
 
         # Shared FC layer
-        self.shared_fc = layers.Dense(
-                units=self.K_size//2,
-                activation=None,
-                use_bias=True,
-                kernel_initializer='glorot_uniform',
-                trainable=self.trainable
+        #self.shared_fc = layers.Dense(
+        #        units=self.K_size//2,
+        #        activation=None,
+        #        use_bias=True,
+        #        kernel_initializer='glorot_uniform',
+        #        trainable=self.trainable
+        #)
+        self.merger = SequentialLayer(
+            [
+                layers.Conv2D(
+                filters=2,
+                kernel_size=(1,1),
+                strides=(1,1),
+                padding="same",
+                name="merger0",
+                activation="gelu",
+                kernel_regularizer= None,
+                kernel_initializer= "glorot_uniform", #initializers.RandomNormal(mean=0.0, stddev=0.01),
+                bias_initializer=tf.constant_initializer(0.0),
+                use_bias=True),
+
+                layers.MaxPooling2D(pool_size=(2,2),name="merger_mp0"),
+
+                layers.Conv2D(
+                filters=self.rank,
+                kernel_size=(1,1),
+                strides=(1,1),
+                padding="same",
+                name="merger1",
+                activation="gelu",
+                kernel_regularizer= None,
+                kernel_initializer= "glorot_uniform", #initializers.RandomNormal(mean=0.0, stddev=0.01),
+                bias_initializer=tf.constant_initializer(0.0),
+                use_bias=True),
+
+                layers.MaxPooling2D(pool_size=(2,2),name="merger_mp1")
+            ],
+            name="head_merger",
+            trainable=self.trainable
         )
 
+
         # FC for the vertical components (row vectors)
+        """
         self.Vgen0 = layers.Dense(
                 units=self.K_size//2,
                 activation= None,
@@ -134,19 +170,20 @@ class SpatialEnergyHead(Layer):
                 name = "Vgen_FC0",
                 trainable=self.trainable,
                 )
-
+        """
         self.Vgen1 = layers.Dense(
                 units=self.K_size,
                 activation= None,
                 use_bias=True,
-                bias_initializer=initializers.Constant(-1.0),
+                bias_initializer="zeros",
                 kernel_initializer='glorot_uniform',
                 #kernel_constraint=constraints.MaxNorm(2.1),
                 name = "Vgen_FC1",
                 trainable=self.trainable,
                 )
         
-        # FC for the horizontal components (column vectors) 
+        # FC for the horizontal components (column vectors)
+        """
         self.Hgen0 = layers.Dense(self.K_size//2,
                 activation=None,
                 use_bias=True,
@@ -156,11 +193,12 @@ class SpatialEnergyHead(Layer):
                 name = "Hgen_FC0",
                 trainable=self.trainable,
                 )
-        
+        """ 
+
         self.Hgen1 = layers.Dense(self.K_size,
                 activation=None,
                 use_bias=True,
-                bias_initializer=initializers.Constant(1.0),
+                bias_initializer="zeros",
                 kernel_initializer='glorot_uniform',
                 name = "Hgen_FC1",
                 trainable=self.trainable,
@@ -175,21 +213,24 @@ class SpatialEnergyHead(Layer):
             **{
                 "kernel_initializer": self.kernel_initializer,
                 "K_size": self.K_size,
+                "rank": self.rank,
             },
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        _input = tf.transpose(inputs,perm=[0,2,1]) # (B,R,Kin)
-        """
-        V = tf.nn.relu(self.Vgen0(_input)) # Vertical components : (B,R,K)
-        H = tf.nn.relu(self.Hgen(_input)) # Horizontal components : (B,R,K)  
+        B = tf.shape(inputs)[0] 
+        desc = self.merger(inputs)
+        desc = tf.reshape(desc,shape=(B,(self.K_size//4)**2,self.rank))
+        desc_t = tf.transpose(desc,perm=[0,2,1]) # (B,R,Kin)
+        V = tf.nn.relu(self.Vgen1(desc_t)) # Vertical components : (B,R,K)
+        H = tf.nn.relu(self.Hgen1(desc_t)) # Horizontal components : (B,R,K)  
         V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
-        """
-        V0 = tf.nn.relu(self.shared_fc(self.Vgen0(_input)))
-        V = tf.nn.relu(self.Vgen1(V0)) # Vertical components : (B,R,K)
-        H0 = tf.nn.relu(self.shared_fc(self.Hgen0(_input)))
-        H = tf.nn.relu(self.Hgen1(H0)) # Horizontal components : (B,R,K)
-        V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
+        
+        #V0 = tf.nn.relu(self.shared_fc(self.Vgen0(_input)))
+        #V = tf.nn.relu(self.Vgen1(V0)) # Vertical components : (B,R,K)
+        #H0 = tf.nn.relu(self.shared_fc(self.Hgen0(_input)))
+        #H = tf.nn.relu(self.Hgen1(H0)) # Horizontal components : (B,R,K)
+        #V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
         return self.dropout_(tf.matmul(V, H),training=training)# (B,K,K)
     def build(self, input_shape):
         super().build(input_shape)
@@ -211,7 +252,7 @@ class SpatialAttentionMechanism(Layer):
         epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
-        headnum: int = 16,
+        headnum: int = 4,
         trainable: bool = True,
         kernel_reg: bool = False,
         feat_size: int = None,
@@ -234,6 +275,7 @@ class SpatialAttentionMechanism(Layer):
         self.feat_size = feat_size
         self.rank = rank
         # Create layers
+        self.in_bn = layers.BatchNormalization(axis=-1,trainable=self.trainable)
         """
         self.gap_proj = layers.Conv2D(
             filters=1,
@@ -281,38 +323,39 @@ class SpatialAttentionMechanism(Layer):
 
         self.summarizer = SequentialLayer(
             [   layers.DepthwiseConv2D(kernel_size=(3,3),
-                                        strides=(2,2),
+                                        strides=(1,1),
                                         depth_multiplier=1,
                                         padding="same",
                                         trainable=self.trainable,
                                         activation=None,
                                         name="dwise_downsample"),
         
-                layers.Conv2D( filters=4,
+                layers.Conv2D(filters=32,
                             kernel_size=(1,1),
                             kernel_initializer="glorot_uniform",
                             name="summ_conv1",
                             activation="relu"
                             ),
 
-                layers.MaxPooling2D(pool_size=(2,2),
-                                    strides=(2,2),
-                                    padding="valid",
-                                    name="summ_pool",
-                                ),
+                #layers.MaxPooling2D(pool_size=(2,2),
+                #                    strides=(2,2),
+                #                    padding="valid",
+                #                    name="summ_pool",
+                #                ),
 
-                layers.Conv2D(filters=self.rank,
-                                kernel_size=(1,1),
-                                padding="same",
-                                activation="relu",
-                                name="summ_conv2"
-                                )
+                #layers.Conv2D(filters=self.rank,
+                #                kernel_size=(1,1),
+                #                padding="same",
+                #                activation="relu",
+                #                name="summ_conv2"
+                #                )
             ],
             name="SAM_summarizer"
         )
         # Spatial Attention heads
-        self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
+        self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,rank=self.rank,name=f"SpatialHead_{u}") for u in range(self.head_num)] 
         
+
         # Set spatial heads as attributes to ensure full serialization.
         for k,layer in enumerate(self.spatial_heads):
             self.__setattr__(f"sam_{k}", layer)
@@ -332,8 +375,8 @@ class SpatialAttentionMechanism(Layer):
         )
 
         # 2D positional encodings 
-        self.pos_encoding_x = layers.Embedding(input_dim=self.feat_size//4, output_dim=self.rank,name="pos_encoding_x")
-        self.pos_encoding_y = layers.Embedding(input_dim=self.feat_size//4, output_dim=self.rank,name="pos_encoding_y")
+        self.pos_encoding_x = layers.Embedding(input_dim=self.feat_size, output_dim=8,name="pos_encoding_x")
+        self.pos_encoding_y = layers.Embedding(input_dim=self.feat_size, output_dim=8,name="pos_encoding_y")
 
     def get_config(self):
         return {
@@ -362,7 +405,7 @@ class SpatialAttentionMechanism(Layer):
         B = tf.shape(inputs)[0] 
         K = tf.shape(inputs)[1] # Width or Height
         C = tf.shape(inputs)[3] # Channels
-        Kd = K//4
+        Kd = K//2
         #tiled = tf.reshape(_inputs, (-1, 4, K // 4, 4, K // 4,C))
         #tiled = tf.transpose(tiled, perm=[0, 1, 3, 2, 4,5]) # (B,4,4,K//4,K//4,C)
         #tiled_norm = tf.reduce_sum(tf.math.square(tiled),axis=-1)
@@ -372,19 +415,30 @@ class SpatialAttentionMechanism(Layer):
         #mean_e = tf.reduce_mean(energy_tile, axis=[1,2], keepdims=True)
         #std_e = tf.math.maximum(tf.math.reduce_std(energy_tile, axis=[1,2], keepdims=True), 1e-3*tf.ones_like(energy_tile))
         #energy_tile = (energy_tile - mean_e) / std_e # patch-wise energy tile normalization
-        spatial_desc = self.summarizer(inputs)
-        spatial_desc = tf.reshape(spatial_desc,shape=(B,Kd**2,self.rank))
+        _inputs = self.in_bn(inputs,training=training)
+        spatial_desc = self.summarizer(_inputs)
+        #spatial_desc = tf.reshape(spatial_desc,shape=(B,Kd**2,self.rank))
+        lin_xy = tf.range(K)
+        X,Y = tf.meshgrid(lin_xy,lin_xy)
+        pos_encx = tf.tile(tf.expand_dims(self.pos_encoding_x(X),axis=0),(B,1,1,1))
+        pos_ency = tf.tile(tf.expand_dims(self.pos_encoding_y(Y),axis=0),(B,1,1,1))
+        
         # Simple 2D positional encoding
-        #pos_encx = tf.reshape(self.pos_encoding_x(tf.range(K)//(K//4)),(4,)) # 4
+        #pos_encx = tf.reshape(self.pos_encoding_x( tf.range(K)//(K//4)),(4,)) # 4
         #pos_ency = tf.reshape(self.pos_encoding_y(tf.range(K)),(4,)) # 4
         
-        pos_encx = self.pos_encoding_x(tf.range(Kd**2)//Kd) # 4
-        pos_ency = self.pos_encoding_y(tf.range(Kd**2)%Kd) # 4
+        #pos_encx = self.pos_encoding_x(tf.range(Kd**2)//Kd) # 4
+        #pos_ency = self.pos_encoding_y(tf.range(Kd**2)%Kd) # 4
+        
         #X,Y = tf.meshgrid(pos_encx,pos_ency) # 2 4x4
         #XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0) # 1x4x4x2
         #pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
 
-        spatial_with_pos = spatial_desc+ pos_encx + pos_ency
+        #spatial_with_pos = spatial_desc+ pos_encx + pos_ency
+        
+        spatial_with_pos = tf.concat([spatial_desc,pos_encx,pos_ency],axis=-1)
+        #spatial_with_pos = self.desc_merger(spatial_with_pos)
+        #spatial_with_pos = tf.reshape(spatial_with_pos,shape=(B,(Kd//2)**2,self.rank))
         # Input the energy-based spatial descriptor (energy tile,pos encoding) to the Spatial Attention heads  
         #energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
         #stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
@@ -392,13 +446,13 @@ class SpatialAttentionMechanism(Layer):
         stacked_outs = self.ln(stacked_outs) # (B,K,K,self.head_num)
 
         # Enforce orthogonality between heads
-        head_outs_flatten = tf.reshape(tf.transpose(stacked_outs, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
-        heads_norm = tf.math.l2_normalize(head_outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
-        gram = tf.matmul(heads_norm, heads_norm, transpose_b=True)  # (B, H, H)
-        eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
-        off_diag = gram - eye
-        orthogonality_reg = tf.reduce_mean(tf.square(off_diag))
-        self.add_loss(1e-4 * orthogonality_reg)
+        #head_outs_flatten = tf.reshape(tf.transpose(stacked_outs, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
+        #heads_norm = tf.math.l2_normalize(head_outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
+        #gram = tf.matmul(heads_norm, heads_norm, transpose_b=True)  # (B, H, H)
+        #eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
+        #off_diag = gram - eye
+        #orthogonality_reg = tf.reduce_mean(tf.square(off_diag))
+        #self.add_loss(1e-5 * orthogonality_reg)
 
         # Raw scores generation 
         scores_raw = self.score_gen(stacked_outs)

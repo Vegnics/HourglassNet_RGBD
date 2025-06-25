@@ -28,3 +28,4 @@ reports/*.xml
 reports/*.txt
 data/*
 bed_action_recognition/data/*
+config/train_rgbd_gen.yaml

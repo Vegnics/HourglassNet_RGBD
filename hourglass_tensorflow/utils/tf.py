@@ -169,25 +169,6 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
     rcoords = tf.concat([rcoords,vis],axis=1) #vis
     return tf.cast(rcoords,tf.dtypes.float32)
 
-def tf_rotate_norm_coords(coordinates: tf.Tensor, angle: tf.Tensor,scale: tf.Tensor) -> tf.Tensor:
-    # Compute the rotation matrix and translation vector
-    #coordinates = tf.cast(coordinates,dtype=tf.float64)
-    scale = tf.cast(scale,dtype=tf.float64)
-    center = tf.constant([1/2,1/2],dtype=tf.float64)
-    angle = tf.cast(angle,dtype=tf.float64)*np.pi/180.0
-    alpha = scale*tf.math.cos(-angle)
-    beta = scale*tf.math.sin(-angle)
-    t = tf.convert_to_tensor([[1.0-alpha,-beta],[beta,1.0-alpha]])@tf.reshape(center,shape=(-1,1))
-    R = tf.convert_to_tensor([[alpha,beta],[-beta,alpha]])
-
-    # Compute the rotated coordinates
-    _coordinates = tf.transpose(coordinates,perm=[1,0])
-    rcoordinates = R@tf.cast(_coordinates,dtype=tf.dtypes.float64)+t
-    rcoordinates = tf.cast(tf.clip_by_value(rcoordinates,0.0,1.0),dtype=tf.float64)
-    return tf.transpose(rcoordinates,perm=[1,0])
-
-
-
 @tf.function
 def tf_compute_padding_from_bbox(bbox: tf.Tensor) -> tf.Tensor:
     """Given a bounding box tensor compute the padding needed to make a square bbox
@@ -337,6 +318,12 @@ def tf_expand_bbox(
 def tf_3Uint8_to_float32(
     tensor: tf.Tensor
 ) -> tf.Tensor:
+    """ Convert a depth image in RGB format (3 channels) to Float32 (1 channel).
+    Args:
+        tensor (tf.Tensor): Depth image in RGB format.
+    Returns:
+        out_tensor (tf.Tensor): Depth map as a float32 tensor.
+    """
     _tensor = tf.cast(tensor,dtype=tf.float32)
     out_tensor = tf.zeros(tf.shape(tensor)[0:2],dtype=tf.float32)
     out_tensor += _tensor[:,:,2]*(256**2)+_tensor[:,:,1]*256.0+_tensor[:,:,0]
@@ -369,34 +356,23 @@ def tf_bivariate_normal_pdf(
                 start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
             ),
         )
-        
         mean = tf.clip_by_value(tf.round(mean),0,63)
         mean = tf.clip_by_value(mean,0,63)
-        
-        #R = tf.sqrt(tf.math.square((X - mean[0])) + tf.math.square((Y - mean[1])))/stddev[0]
-        #R = tf.sqrt(((X - mean[0]) ** 2 / (stddev[0])) + ((Y - mean[1]) ** 2 / (stddev[1])))
-        #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
-
-        #R1 = tf.math.square((X - mean[0])/stddev[0]) + tf.math.square((Y - mean[1])/stddev[1])
         R1 = tf.math.square((X - mean[0])/stddev) + tf.math.square((Y - mean[1])/stddev)
-        #R1 = tf.math.maximum(tf.math.square((X - mean[0])/stddev),tf.math.square((Y - mean[1])/stddev))
-        #R1 = tf.abs((X - mean[0])/stddev)+tf.abs((Y - mean[1])/stddev)
         Z = tf.exp(-0.5*R1)#-0.000001 #+ 0.00001#- 0.0001
     else:
-        Z = 0.00000000000000000001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)#-0.001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
-    #R2 = tf.math.square((X - mean[0])/(4.0*stddev[0])) + tf.math.square((Y - mean[1])/(4.0*stddev[1]))
-    #R3 = tf.math.square((X - mean[0])/(16.0*stddev[0])) + tf.math.square((Y - mean[1])/(16.0*stddev[1]))
-    #factor = tf.cast(1.0 / (2.0 * m.pi * tf.reduce_prod(stddev)), precision)
-    #Z = factor * tf.exp(-0.5 * R)
-    #Z1 = 0.75*tf.exp(-0.5*R1)
-    #Z2 = 0.16*tf.exp(-0.5*R2)
-    #Z3 = 0.09*tf.exp(-0.5*R3)
-    #Z = tf.cast(tf.math.floor(255.0*tf.exp(-0.5*R)),dtype=tf.dtypes.uint8)
-    #Z = tf.cast(tf.math.floor(255.0*(Z1+Z2+Z3)),dtype=tf.dtypes.uint8)
+        Z = 0.00000000000000000001*tf.ones(tf.cast(shape, dtype=tf.dtypes.int32), dtype=precision)
     return Z
 
 @tf.function
 def tf_generate_segment(idx0, idx1,joints):
+    """ Generate body segments (limbs) locations according to their indexes and the body joint scheme.
+    Args:
+        idx0,idx1 (int): Body joint indexes.
+        joints (tf.Tensor): Body joint locations including visibility.   
+    Returns:
+        segment (tf.Tensor): Tensor containg a body segment's location data.    
+    """
     pnt0 = tf.reshape(joints[idx0,0:2],(1,2))
     pnt1 = tf.reshape(joints[idx1,0:2],(1,2))
     vis0 = joints[idx0,2]
@@ -409,12 +385,12 @@ def tf_generate_segment(idx0, idx1,joints):
 @tf.function
 def tf_bivariate_segment_normal_pdf(
     points: tf.Tensor,vis: tf.Tensor , stddev: tf.Tensor, shape: tf.Tensor, precision=tf.dtypes.float32
-) -> tf.Tensor:
-    """Produce a heatmap given a Bivariate normal propability density function
+) -> tf.Tensor: ## REVISE HOW THESE HEATMAPS ARE GENERATED.
+    """Produce a 2-joint heatmap from a body limb's location data.   
 
     Args:
-        mean (tf.Tensor): Mean Tensor(tf.dtype.float*) as [m_x, m_y]
-        stddev (tf.Tensor): Standard Deviation Tensor(tf.dtype.float*) as [stdd_x, stdd_y]
+        points (tf.Tensor): 2D locations of the body joints.  
+        stddev (tf.Tensor): Standard Deviation used for 2-joint Heatmaps.
         shape (tf.Tensor): Heatmap shape Tensor(tf.dtype.float*) as [width, height]
         precision (tf.dtypes, optional): Precision of the output tensor. Defaults to tf.dtypes.float32.
 
@@ -445,7 +421,7 @@ def tf_bivariate_segment_normal_pdf(
         RDS = tf.math.square((D1+D2-DS)/2.0)/(tf.square(stddev))
         ZDS = tf.exp(-0.8*RDS)
         Z = 0.7*(0.5*Z0+0.5*Z1)+0.3*ZDS
-        Zmax = tf.reduce_max(Z)
+        Zmax = tf.reduce_max(Z) ##
         Z = tf.math.divide_no_nan(Z,Zmax)
     elif vis[0]==1 and vis[1]==0 and signs[0]==1 and signs[1]==-1 and False:
         Z = tf_bivariate_normal_pdf(mean=means[0],vis=vis[0] , stddev=stddev, shape=shape, precision=precision)
@@ -476,13 +452,12 @@ def tf_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
 
 @tf.function
 def tf_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
-    """Apply a 2D argmax to a tensor
+    """Compute body joint locations by applying SoftArgmax to a group of computed heatmaps (to be used at the loss).   
 
     Args:
-        tensor (tf.Tensor): 3D Tensor with data format HWC
-
+        tensor (tf.Tensor): Heatmap representing a body location's probability value. 
     Returns:
-        tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
+        tf.Tensor: tf.dtypes.float32 Tensor of dimension Cx2 containing the (x,y) location for each heatmap. 
     """
     #_tensor = tf.nn.relu(tensor)
     #_tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
@@ -514,7 +489,7 @@ def tf_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
 
 @tf.function
 def tf_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
-    """Apply 2D argmax along multiple stages
+    """Apply 2D argmax along multiple stages.
 
     Args:
         tensor (tf.Tensor): 4D Tensor with data format SHWC
@@ -528,13 +503,13 @@ def tf_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
 
 @tf.function
 def tf_batch_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
-    """Apply 2D argmax along a batch
+    """Apply 2D argmax along a batch and multiple stages (to be used for a loss)    
 
     Args:
-        tensor (tf.Tensor): 4D Tensor with data format SHWC
+        tensor (tf.Tensor): 4D Tensor with data format NxSxHxWxC
 
     Returns:
-        tf.Tensor: tf.dtypes.int32 Tensor of dimension NxSxCx2
+        tf.Tensor: tf.dtypes.float32 Tensor of dimension NxSxCx2
     """
     return tf.map_fn(
         fn=tf_multistage_matrix_softargmax_loss, elems=tensor, fn_output_signature=tf.dtypes.float32
@@ -542,13 +517,13 @@ def tf_batch_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
 
 @tf.function
 def tf_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
-    """Apply a 2D argmax to a tensor
+    """Apply a 2D argmax to a tensor (to be used for a metric)
 
     Args:
-        tensor (tf.Tensor): 3D Tensor with data format HWC
+        tensor (tf.Tensor): 3D Tensor with data format HxWxC
 
     Returns:
-        tf.Tensor: tf.dtypes.int32 Tensor of dimension Cx2
+        tf.Tensor: tf.dtypes.float32 Tensor of dimension Cx2
     """
     _tens_min = tf.reduce_min(tensor,axis=[0,1],keepdims=True)
     _tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
@@ -580,10 +555,10 @@ def tf_batch_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
     """Apply 2D argmax along a batch
 
     Args:
-        tensor (tf.Tensor): 4D Tensor with data format NHWC
+        tensor (tf.Tensor): 4D Tensor with data format NxHxWxC
 
     Returns:
-        tf.Tensor: tf.dtypes.int32 Tensor of dimension NxCx2
+        tf.Tensor: tf.dtypes.float32 Tensor of dimension NxCx2
     """
     return tf.map_fn(
         fn=tf_matrix_argmax, elems=tensor, fn_output_signature=tf.dtypes.int32
@@ -591,10 +566,10 @@ def tf_batch_matrix_argmax(tensor: tf.Tensor) -> tf.Tensor:
 
 @tf.function
 def tf_batch_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
-    """Apply 2D argmax along a batch
+    """Apply 2D argmax along a batch (to be used for a metric).
 
     Args:
-        tensor (tf.Tensor): 4D Tensor with data format NHWC
+        tensor (tf.Tensor): 4D Tensor with data format NxHxWxC
 
     Returns:
         tf.Tensor: tf.dtypes.int32 Tensor of dimension NxCx2
@@ -606,14 +581,23 @@ def tf_batch_matrix_softargmax(tensor: tf.Tensor) -> tf.Tensor:
 
 @tf.function
 def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
+    """Apply normalization (2-step) neglecting invalid or background pixels. 
+        The resulting tensor is shifted to contain only positive entries. 
+    Args:
+        tensor (tf.Tensor): Input 1-Channel Tensor (depth map).
+        thresh_val (float): Threshold employed to spot invalid pixels.
+    Returns:
+        tf.Tensor: Normalized tensor  
     """
-    Apply normalization disregarding the zero entries
-    """
+    #Compute a mask depicting valid pixels
     mask = tf.where(tensor<=thresh_val,0.0,1.0)
-    numpx = tf.reduce_sum(mask)
+    numpx = tf.reduce_sum(mask) # Number of valid pixels
+    # 1st normalization step
     mean = tf.reduce_sum(tensor*mask)/numpx
     stddev = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean)*mask))/numpx+0.000000001)
     _tensor = (tensor-mean)/stddev
+
+    # 2nd normalization step ( reduce the effect of background )
     mask_bg = tf.where(_tensor>=1.7,0.0,1.0)
     mask_full = mask*mask_bg
     numpx_full = tf.reduce_sum(mask_full)
@@ -621,13 +605,16 @@ def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
     stddev2 = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean2)*mask_full))/numpx_full+0.000000001)
     _tensor_full = (tensor-mean2)/stddev2
     _tensor_full = tf.clip_by_value(_tensor_full,-3.3,2.0)+3.5
-    return _tensor_full*mask#tf.clip_by_value(_tensor,-3.2,2.7) #tf.clip_by_value(1.5*(_tensor+3.5)+1.5,0.0,800.0)*mask
+    return _tensor_full*mask
 
 @tf.function
 def tf_depth_parameterized_noise(tensor:tf.Tensor,shape: tf.Tensor,thresh_val: float) -> tf.Tensor:
     precision = tf.dtypes.float32
     """
-    Apply normalization disregarding the zero entries
+    Apply noise to depth maps representing inclinations or tilting
+    Args:
+        tensor (tf.Tensor):  
+    Returns: 
     """
     mask = tf.where(tensor<=thresh_val,0.0,1.0)
     X, Y = tf.meshgrid(

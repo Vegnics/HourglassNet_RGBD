@@ -1,0 +1,1852 @@
+import tensorflow as tf
+from typing import List,Tuple
+
+from hourglass_tensorflow.utils.tf import tf_stack
+from hourglass_tensorflow.utils.tf import tf_load_image
+from hourglass_tensorflow.utils.tf import tf_expand_bbox
+from hourglass_tensorflow.utils.tf import tf_compute_bbox
+from hourglass_tensorflow.utils.tf import tf_reshape_slice
+from hourglass_tensorflow.utils.tf import tf_resize_tensor
+from hourglass_tensorflow.utils.tf import tf_bivariate_normal_pdf
+from hourglass_tensorflow.utils.tf import tf_generate_padding_tensor
+from hourglass_tensorflow.utils.tf import tf_compute_padding_from_bbox
+from hourglass_tensorflow.utils.tf import tf_rotate_tensor,tf_rotate_coords
+from hourglass_tensorflow.utils.tf import tf_3Uint8_to_float32,tf_generate_segment, tf_bivariate_segment_normal_pdf
+from hourglass_tensorflow.utils.tf import tf_normalize_tensor,tf_depth_parameterized_noise, tf_rotate_tensor_masked
+
+
+@tf.function
+def tf_train_map_build_slice_RGB(filename: tf.Tensor, coordinates: tf.Tensor) -> tf.Tensor:
+    """First step loader for tf.data.Dataset mapper
+
+    This mapper is used on Training phase only to load images and shape coordinates.
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        filename (tf.Tensor): string tensor containing the image path to read
+        coordinates (tf.Tensor): _description_
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    # Load Image
+    _fname = tf.squeeze(filename)
+    image_rgb = tf_load_image(_fname)
+    rgb_shape = tf.shape(image_rgb)
+    depthmap = tf.zeros(shape=(rgb_shape[0],rgb_shape[1],1),dtype=tf.float32)
+    # Shape coordinates
+    joints = tf_reshape_slice(coordinates, shape=3)
+    # Extract coordinates and visibility from joints
+    coordinates = joints[:, :2]
+    visibility = joints[:, 2]
+    concat_image = tf.concat([depthmap,tf.cast(image_rgb,dtype=tf.float32)/255.0],axis=-1)
+    img_shape = tf.shape(concat_image)
+    return (concat_image, coordinates, visibility,img_shape)
+
+@tf.function
+def tf_load_Depth_squared(filename_depth: tf.Tensor):
+    _fnamedepth = tf.squeeze(filename_depth)
+    imagedepth = tf_load_image(_fnamedepth)
+    depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=-1)
+    depthmap = tf_normalize_tensor(depthmap,20)
+    depthmap.set_shape([None, None, 1])  
+    depth_resized = tf.image.resize(depthmap,size=[256,256],method="nearest")
+    depth_resized.set_shape([256, 256, 1]) 
+    concat = tf.concat([depth_resized,tf.zeros(shape=(256,256,3),dtype=tf.float32)],axis=-1)
+    return concat
+
+@tf.function
+def tf_check_samples(filenames_depth: tf.Tensor, action_encoded: tf.Tensor):
+    #tf.print("PPPPPPP",filenames_depth[0])
+    return filenames_depth,action_encoded
+
+@tf.function
+def tf_train_map_build_sequence_Depth(filenames_depth: tf.Tensor, action_encoded: tf.Tensor):
+    
+    _map = tf.map_fn(tf_load_Depth_squared,
+                     elems=tf.expand_dims(filenames_depth,axis=-1),
+                     fn_output_signature=tf.TensorSpec(shape=(256, 256, 4), dtype=tf.float32),
+                     parallel_iterations=10)
+    return _map,tf.squeeze(action_encoded)
+
+@tf.function
+def tf_train_map_build_slice_RGBD(filename_rgb: tf.Tensor, filename_depth: tf.Tensor, coordinates: tf.Tensor) -> tf.Tensor:
+    """First step loader for tf.data.Dataset mapper
+
+    This mapper is used on Training phase only to load images and shape coordinates.
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        filename (tf.Tensor): string tensor containing the image path to read
+        coordinates (tf.Tensor): _description_
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    # Load Image
+    _fnamergb = tf.squeeze(filename_rgb)
+    _fnamergbD = tf.squeeze(filename_depth)
+
+    image_rgb = tf_load_image(_fnamergb)
+    imagedepth = tf_load_image(_fnamergbD)
+
+    depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=-1)
+    #meandepth = tf.reduce_mean(depthmap,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(depthmap-meandepth),axis=[0,1,2])+0.0000001)
+    
+    #depthmap = 127.0+(127.0*(depthmap-meandepth)/stddevdepth)
+    concat_image = tf.concat([depthmap,tf.cast(image_rgb,dtype=tf.float32)/255.0],axis=-1)
+    #RGBD_image = depthmap
+    img_shape = tf.shape(concat_image)
+    # Shape coordinates
+    joints = tf_reshape_slice(coordinates, shape=3)
+    # Extract coordinates and visibility from joints
+    coordinates = joints[:, :2]
+    visibility = joints[:, 2]
+    return (concat_image, coordinates, visibility,img_shape)
+
+@tf.function
+def tf_train_map_build_slice_Depth(filename_depth: tf.Tensor, coordinates: tf.Tensor) -> tf.Tensor:
+    """First step loader for tf.data.Dataset mapper
+
+    This mapper is used on Training phase only to load images and shape coordinates.
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        filename (tf.Tensor): string tensor containing the image path to read
+        coordinates (tf.Tensor): _description_
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    # Load Image
+    #_fnamergb = tf.squeeze(filename_rgb)
+    _fnamergbD = tf.squeeze(filename_depth)
+    #imagergb = tf_load_image(_fnamergb)
+    imagedepth = tf_load_image(_fnamergbD)
+    depthmap = tf.expand_dims(tf_3Uint8_to_float32(imagedepth),axis=-1)
+    #RGBD_image = tf.concat([depthmap,tf.cast(imagergb,dtype=tf.float32)/255.0],axis=-1)
+    #RGBD_image = depthmap
+    depth_shape = tf.shape(depthmap)
+    image_rgb = tf.zeros(shape = (depth_shape[0],depth_shape[1],3), dtype = tf.float32)
+    concat_image = tf.concat([depthmap,tf.cast(image_rgb,dtype=tf.float32)/255.0],axis=-1)
+    img_shape = tf.shape(concat_image)
+    # Shape coordinates
+    joints = tf_reshape_slice(coordinates, shape=3)
+    # Extract coordinates and visibility from joints
+    coordinates = joints[:, :2]
+    visibility = joints[:, 2]
+    #tf.print(img_shape)
+    return (concat_image, coordinates, visibility,img_shape)
+
+@tf.function
+def tf_train_map_affine_augmentation_RGB(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2]
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    affines = tf.constant([[-20,1.0],
+                           [-18,1.0],
+                           [-16,1.0],
+                            [-12.0,1.0],
+                            [-10.0,1.0],
+                            [-8.0,1.0],
+                           [0,1.0],
+                           [0,1.0],
+                           [0,1.0],
+                           [8.0,1.0],
+                            [10.0,1.0],
+                            [12.0,1.0],
+                           [16,1.0],
+                           [18,1.0],
+                           [20,1.0]],dtype=tf.float32)
+    
+    affines = tf.constant([[-20,1.0],
+                            [-20,1.0],
+                            [-16,1.0],
+                            [-16,1.0],
+                            [-12.0,1.0],
+                            [-12.0,1.0],
+                            [-8.0,1.0],
+                            [-8.0,1.0],
+                            [0,1.0],
+                            [0,1.0],
+                            [8.0,1.0],
+                            [8.0,1.0],
+                            [12.0,1.0],
+                            [12.0,1.0],
+                            [16,1.0],
+                            [16,1.0],
+                            [20,1.0],
+                            [20,1.0]],dtype=tf.float32)
+
+
+    # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    
+    #Bbox center
+    center = tf.reduce_mean(tf.cast(tf_compute_bbox(coordinates),tf.float32),axis=0)
+    center = tf.reshape(center,shape=(2,))
+    
+    image = tf.cast(image,dtype=tf.float32)
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor(image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+            )
+        ),
+        elems=affines,
+        #dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+
+    _coordinates_map = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1]
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    _visibilities  = _coordinates_map[:,:,2]
+    _coordinates = _coordinates_map[:,:,0:2]
+    
+    
+    _bboxf = tf.constant([1.24,1.14,1.24,1.14,1.24,1.14,1.24,1.14,1.24,1.14,1.24,1.14,1.24,1.14,1.24,1.14,1.24,1.14],
+                         dtype=tf.float32)
+    
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               _bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.uint8),[18,input_size,input_size,3])
+    _coords = tf.reshape(_zipped[1],[18,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
+    
+    return (_images,_coords,_visibilities)
+
+@tf.function#(experimental_compile=False)
+def tf_train_map_affine_augmentation(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2],
+    affine_axis_mask: tf.Tensor = None
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    _affine_err = 3.0*2.0*(tf.random.uniform(shape=(36,1),dtype=tf.float32)-0.5)
+    _zeroaffine = tf.zeros(shape=(36,1),dtype=tf.float32)
+    affine_rand = tf.concat([_affine_err,_zeroaffine],axis=1)    
+    _affines = tf.constant([[-20,1.0],
+                            [-20,1.0],
+                            [-16,1.0],
+                            [-16,1.0],
+                            [-12.0,1.0],
+                            [-12.0,1.0],
+                            [-8.0,1.0],
+                            [0.0,1.0],
+                            [0,1.0],
+                            [0,1.0],
+                            [0.0,1.0],
+                            [8.0,1.0],
+                            [12.0,1.0],
+                            [12.0,1.0],
+                            [16,1.0],
+                            [16,1.0],
+                            [20,1.0],
+                            [20,1.0],
+                            
+                            [-30,1.0],
+                            [-30,1.0],
+                            [-15,1.0],
+                            [-15,1.0],
+                            [-10.0,1.0],
+                            [-10.0,1.0],
+                            [-5.0,1.0],
+                            [-2.0,1.0],
+                            [0,1.0],
+                            [0.0,1.0],
+                            [2.0,1.0],
+                            [5.0,1.0],
+                            [10.0,1.0],
+                            [10.0,1.0],
+                            [15,1.0],
+                            [15,1.0],
+                            [30,1.0],
+                            [30,1.0]],dtype=tf.float32)
+
+    affines = _affines+affine_rand
+
+
+    # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    annotated = tf.cast(tf.reduce_min(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<=-700,0.0,1.0)
+    """
+    tf.print(annotated[0],annotated[1],annotated[2],
+             annotated[3],annotated[4],annotated[5],
+             annotated[6],annotated[7],annotated[8],
+             annotated[9],annotated[10],annotated[11],
+             annotated[12],annotated[13],annotated[14],
+             annotated[15],annotated[16],annotated[17])
+    """
+    #Bbox center
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #tf.print("ANNOT JOINTS",tf.reduce_sum(annotated))
+    #tf.print("Coords")
+    #tf.print(tf.reduce_min(coordinates[:,0]),tf.reduce_max(coordinates[:,0]),tf.reduce_min(coordinates[:,1]),tf.reduce_max(coordinates[:,1]))
+    _image = tf.cast(image,dtype=tf.float32)
+    #_image_batch = tf.repeat(tf.expand_dims(_image, axis=0), repeats=36, axis=0)
+    #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=36, axis=0)
+    #_visibilities_batch = tf.repeat(tf.expand_dims(visibility,axis=0),repeats=36,axis=0)
+    
+    """
+    _images = tf.vectorized_map(fn=(
+            lambda databatch: tf_rotate_tensor_masked(databatch[0],
+                                            img_shape,
+                                            databatch[1][0],
+                                            databatch[1][1],
+                                            center,
+                                            affine_axis_mask,
+            )
+        ),
+        elems=(_image_batch,
+               affines
+               )
+        )
+    """
+    #"""
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor_masked(_image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            affine_axis_mask,
+            )
+        ),
+        elems=affines,
+        parallel_iterations=10,
+    )
+    #"""
+    """
+    _coordinates_map = tf.vectorized_map(
+        fn=(
+            lambda databatch: tf_rotate_coords(databatch[0],
+                                            img_shape,
+                                            center,
+                                            databatch[1],
+                                            databatch[2][0],
+                                            databatch[2][1],
+            )
+        ),
+        elems=(_coords_batch,
+               _visibilities_batch,
+               affines)
+    )
+    """
+    #"""
+    _coordinates_map = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    #"""
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2]#*0.0+1.0 #mask0+mask1
+    #_visibilities  = _coordinates_map[:,:,2]
+    _coordinates = _coordinates_map[:,:,0:2]
+
+    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13,  1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
+                         dtype=tf.float32)
+    bbox_dev = 0.02*2.0*(tf.random.uniform(shape=(36,),dtype=tf.float32)-0.5)
+    bboxf = _bboxf + bbox_dev
+    """
+    _zipped = tf_train_map_squarify_batch(tf.cast(_images,dtype=tf.float32),
+                                          _shapes_batch,
+                                          tf.cast(_coordinates,dtype=tf.float32),
+                                          _visibilities,
+                                          _annotated_batch,
+                                          bboxf)
+    """
+    
+    #"""
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     annotated,
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               bboxf),
+        parallel_iterations=10,
+    )
+    #"""
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+    #_images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[36,input_size,input_size,1])
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[36,input_size,input_size,4])
+    _coords = tf.reshape(_zipped[1],[36,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[36,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
+    #_visibilities = tf.ones((18,njoints),dtype=tf.int32)# tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
+    return (_images,_coords,_visibilities)
+
+
+@tf.function#(experimental_compile=False)
+def tf_train_map_affine_augmentation_RGBD(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2]
+    
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    affines = tf.constant([[-12,1.0],
+                            [-10.0,1.0],
+                            [-8.0,1.0],
+                            [0,1.0],
+                            [0,1.0],
+                            [0,1.0],
+                            [8.0,1.0],
+                            [10.0,1.0],
+                            [12.0,1.0]],dtype=tf.float32)
+    
+    _affine_err = 3.0*2.0*(tf.random.uniform(shape=(36,1),dtype=tf.float32)-0.5)
+    _zeroaffine = tf.zeros(shape=(36,1),dtype=tf.float32)
+    affine_rand = tf.concat([_affine_err,_zeroaffine],axis=1)
+    _affines = tf.constant([[-20,1.0],
+                            [-20,1.0],
+                            [-16,1.0],
+                            [-16,1.0],
+                            [-12.0,1.0],
+                            [-12.0,1.0],
+                            [-8.0,1.0],
+                            [0.0,1.0],
+                            [0,1.0],
+                            [0,1.0],
+                            [0.0,1.0],
+                            [8.0,1.0],
+                            [12.0,1.0],
+                            [12.0,1.0],
+                            [16,1.0],
+                            [16,1.0],
+                            [20,1.0],
+                            [20,1.0]],dtype=tf.float32)
+    
+    _affines = tf.constant([[-20,1.0],
+                            [-20,1.0],
+                            [-16,1.0],
+                            [-16,1.0],
+                            [-12.0,1.0],
+                            [-12.0,1.0],
+                            [-8.0,1.0],
+                            [0.0,1.0],
+                            [0,1.0],
+                            [0,1.0],
+                            [0.0,1.0],
+                            [8.0,1.0],
+                            [12.0,1.0],
+                            [12.0,1.0],
+                            [16,1.0],
+                            [16,1.0],
+                            [20,1.0],
+                            [20,1.0],
+                            
+                            [-30,1.0],
+                            [-30,1.0],
+                            [-15,1.0],
+                            [-15,1.0],
+                            [-10.0,1.0],
+                            [-10.0,1.0],
+                            [-5.0,1.0],
+                            [-2.0,1.0],
+                            [0,1.0],
+                            [0.0,1.0],
+                            [2.0,1.0],
+                            [5.0,1.0],
+                            [10.0,1.0],
+                            [10.0,1.0],
+                            [15,1.0],
+                            [15,1.0],
+                            [30,1.0],
+                            [30,1.0]],dtype=tf.float32)
+
+    affines = _affines+affine_rand
+
+
+    # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
+    #Bbox center
+    
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    
+    #nbbox,_ = tf_expand_bbox(bbox,img_shape,1.3)
+    #cropped = image[nbbox[0,1]:nbbox[1,1],nbbox[0,0]:nbbox[1,0],:] 
+    #meandepth = tf.reduce_mean(cropped ,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(cropped -meandepth),axis=[0,1,2])+0.0000001)
+    
+    _image = tf.cast(image,dtype=tf.float32)
+    #_image = tf.clip_by_value(1.5*((image-meandepth)/stddevdepth+3.5)+1.5,0.0,800.0)
+    
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor(_image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+            )
+        ),
+        elems=affines,
+        #dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+
+    #max_val = tf.reduce_max(_images,axis=[1,2])
+    #max_val = tf.expand_dims(max_val,axis=-1)
+    #max_val = tf.expand_dims(max_val,axis=-1)
+    #min_val = tf.reduce_min(_images,axis=[1,2])
+    #_images = 1000.0*_images/max_val
+    _coordinates_map = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2]*0.0+1.0 #mask0+mask1
+    #_visibilities  = _coordinates_map[:,:,2]
+    _coordinates = _coordinates_map[:,:,0:2]
+
+    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13,  1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
+                         dtype=tf.float32)
+    bbox_dev = 0.02*2.0*(tf.random.uniform(shape=(36,),dtype=tf.float32)-0.5)
+    bboxf = _bboxf + bbox_dev
+
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     annotated,
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+    #_images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[36,input_size,input_size,1])
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[36,input_size,input_size,4])
+    
+    #masked = tf.where(_images<=0.00000001,1.0,0.0)
+    #_images = (1.0-masked)*_images#+11.0*masked
+    
+    _coords = tf.reshape(_zipped[1],[36,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[36,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
+    #_visibilities = tf.ones((18,njoints),dtype=tf.int32)# tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[18,njoints])
+    return (_images,_coords,_visibilities)
+
+
+@tf.function
+def tf_train_map_affine_woaugment_RGB(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2],
+    task_mode: str = "train"
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    #angles = tf.constant([-30,-15,0,15,30])
+    #affines = tf.constant([[-15.0,1.0],[0.0,1.0],[15.0,1.0]],dtype=tf.float32)
+    affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
+
+    # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    center = tf.reduce_mean(tf.cast(tf_compute_bbox(coordinates),tf.float32),axis=0)
+
+    image = tf.cast(image,dtype=tf.float32)
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor(image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            #input_size=input_size,
+            )
+        ),
+        elems=affines,
+        #dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+
+    _coordinates_map = tf.map_fn(
+        fn=(
+            #lambda affine: tf_rotate_norm_coords(coordinates,
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        #dtype=tf.dtypes.float64,
+        parallel_iterations=10,
+    )
+
+    _visibilities  = _coordinates_map[:,:,2]
+    _coordinates = _coordinates_map[:,:,0:2]
+  
+    _bboxf = tf.constant([1.20],dtype=tf.float32) 
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               _bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.uint8),[1,input_size,input_size,3])
+    _coords = tf.reshape(_zipped[1],[1,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])
+    if task_mode=="train":
+        return (_images,_coords,_visibilities)
+    elif task_mode=="test":
+        return (_images,coordinates,_visibilities)
+
+@tf.function
+def tf_validation_map_affine(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2],
+    affine_axis_mask: tf.Tensor = None
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+
+    _affines = tf.constant([[0.0,1.0],
+                            [0.0,1.0],
+                            [0.0,1.0],
+                            [13,1.0],
+                            [15.0,1.0],
+                            [17.0,1.0]],dtype=tf.float32)
+    
+    _affines = tf.reshape(tf.constant([0.0,0.0,0.0,13.0,15.0,17.0],dtype=tf.float32),shape=(6,1))
+    _signaffines = tf.math.sign(tf.random.uniform(shape=(6,1),dtype=tf.float32)-0.5)
+    _affines = _affines*_signaffines
+    onesaffines = tf.ones(shape=(6,1),dtype=tf.float32)
+    affines = tf.concat([_affines,onesaffines],axis=1)
+
+    saffines = tf.gather(affines, tf.random.shuffle(tf.range(6))[:3])
+
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
+
+    _image = tf.cast(image,dtype=tf.float32)
+   # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #_image_batch = tf.repeat(tf.expand_dims(_image,axis=0),repeats=6,axis=0)
+    #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=6, axis=0)
+
+    """
+    _images = tf.vectorized_map(
+            fn=(
+                lambda affinebatch: tf_rotate_tensor_masked(affinebatch[0],
+                                                img_shape,
+                                                affinebatch[1][0],
+                                                affinebatch[1][1],
+                                                center,
+                                                affine_axis_mask
+                                                #input_size=input_size,
+                )
+            ),
+            elems=(_image_batch,affines)
+        )
+    """
+    
+    #"""
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor_masked(_image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            affine_axis_mask
+                                            #input_size=input_size,
+            )
+        ),
+        elems=saffines,
+        parallel_iterations=10,
+    )
+    #"""
+
+    """
+    _coordinates_map = tf.vectorized_map(
+        fn=(
+            #lambda affine: tf_rotate_norm_coords(coordinates,
+            lambda affinebatch: tf_rotate_coords(affinebatch[0],
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affinebatch[1][0],
+                                            affinebatch[1][1],
+            )
+        ),
+        elems=(_coords_batch,affines)
+    )
+    """
+    #"""
+    _coordinates_map = tf.map_fn(
+        fn=(
+            #lambda affine: tf_rotate_norm_coords(coordinates,
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=saffines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    #"""
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2] #*0.0+1.0 #*mask0+mask1
+    _coordinates = _coordinates_map[:,:,0:2]
+
+    #if task_mode=="train":
+    _bboxf = tf.constant([1.12,1.18,1.23,1.13,1.2,1.15],dtype=tf.float32)
+    bboxf = 0.02*2.0*(tf.random.uniform(shape=(6,))-0.5)+_bboxf
+    sbboxf = tf.gather(bboxf,tf.random.shuffle(tf.range(6))[:3])
+    
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_train_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     annotated,
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               sbboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[3,input_size,input_size,4])
+    _coords = tf.reshape(_zipped[1],[3,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
+    return (_images,_coords,_visibilities)
+    #if task_mode=="train":
+    #    return (_images,_coords,_visibilities)
+    #elif task_mode=="test":
+    #    return (_images,coordinates,_bboxes,_visibilities)
+
+@tf.function
+def tf_test_map_affine(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    hip: Tuple[int,int] = [3,2],
+    affine_axis_mask: tf.Tensor = None,
+    enable_vis: float = None
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    annotated = tf.where(annotated<0.0,0.0,1.0)
+
+    _image = tf.cast(image,dtype=tf.float32)
+   # Hip center
+    #center = 0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32))
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    #_image_batch = tf.repeat(tf.expand_dims(_image,axis=0),repeats=6,axis=0)
+    #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=6, axis=0)
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor_masked(_image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            affine_axis_mask
+            )
+        ),
+        elems=affines,
+        parallel_iterations=10,
+    )
+    _coordinates_map = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    
+    #"""
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    #mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
+    _coordinates = _coordinates_map[:,:,0:2]
+
+    bboxf = tf.constant([1.18],dtype=tf.float32) #1.24
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_test_map_standard_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     annotated,
+                                                     True,
+                                                     imgncoords[3])
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    """
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,input_size,input_size,4])
+    _coords = tf.reshape(_zipped[1],[1,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
+    return (_images,_coords,_visibilities)
+
+@tf.function
+def tf_test_map_affine_woaugment_RGBD(
+    image: tf.Tensor,
+    img_shape: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    input_size: int = 64,
+    njoints: int = 16,
+    affine_axis_mask: tf.Tensor = None,
+    hip: Tuple[int,int] = [3,2],
+    task_mode: str = "train"
+    )-> tf.Tensor:
+    """
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+    """
+
+    # Generate one image for each rotation angle in rotation_angles (Input: image)
+    # Generate one coordinate Tensor for each rotation (Input: coordinates)
+    """
+    if task_mode=="train":
+        affines = tf.constant([[0.0,1.0],
+                            [0.0,1.0],
+                            [0.0,1.0]],dtype=tf.float32)
+    elif task_mode=="test":
+        affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
+    """
+    affines = tf.constant([[0.0,1.0]],dtype=tf.float32)
+
+    annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
+    
+    annotated = tf.where(annotated<0.0,0.0,1.0)
+    _image = tf.cast(image,dtype=tf.float32)
+   # Hip center
+    #center = tf.floor(0.5*(tf.cast(coordinates[hip[0]]+coordinates[hip[1]],dtype=tf.float32)))
+    bbox = tf.cast(tf_compute_bbox(coordinates,annotated),tf.int32)
+    center = tf.reduce_mean(tf.cast(bbox,tf.float32),axis=0)
+    
+    _images = tf.map_fn(
+        fn=(
+            lambda affine: tf_rotate_tensor_masked(_image,
+                                            img_shape,
+                                            affine[0],
+                                            affine[1],
+                                            center,
+                                            affine_axis_mask
+                                            #input_size=input_size,
+            )
+        ),
+        elems=affines,
+        #dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+    #_images = tf.clip_by_value(1.5*((_images-meandepth)/stddevdepth+3.5)+1.5,0.0,800.0)
+    #max_vals = tf.reduce_max(_images,axis=[1,2],keepdims=True)
+    #min_vals = tf.reduce_min(_images,axis=[1,2],keepdims=True)
+    #_images = 255.0*(_images - min_vals)/(max_vals-min_vals)
+
+    _coordinates_map = tf.map_fn(
+        fn=(
+
+            lambda affine: tf_rotate_coords(coordinates,
+                                            img_shape,
+                                            center,
+                                            visibility,
+                                            affine[0],
+                                            affine[1],
+            )
+        ),
+        elems=affines,
+        dtype=tf.dtypes.float32,
+        parallel_iterations=10,
+    )
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    #_visibilities  = _coordinates_map[:,:,2]*0.0+1.0#*mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]
+    _coordinates = _coordinates_map[:,:,0:2]
+    tf.print(_coordinates)
+    """
+    if task_mode=="train":
+        _bboxf = tf.constant([1.12,1.16,1.20],dtype=tf.float32) 
+    elif task_mode=="test":
+        _bboxf = tf.constant([1.18],dtype=tf.float32)
+    """
+    _bboxf = tf.constant([1.14],dtype=tf.float32)
+    
+    _zipped = tf.map_fn(
+        fn=(
+            lambda imgncoords: tf_evaluate_map_squarify(imgncoords[0],
+                                                     imgncoords[1],
+                                                     imgncoords[2],
+                                                     annotated,
+                                                     True,
+                                                     imgncoords[3],)
+        ),
+        elems=(tf.cast(_images,dtype=tf.float32),
+               tf.cast(_coordinates,dtype=tf.float32),
+               tf.cast(_visibilities,dtype=tf.float32),
+               _bboxf),
+        parallel_iterations=10,
+    )
+
+    """
+    _images: a Tensor (R,H,W,3) of several images.
+    _coordinates: a Tensor (R,C,2) of coordinates for several rotations
+    _visibilities: a Tensor (R,C), just copy the visibility values
+    
+    if task_mode == "train":
+        _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[3,256,256,4])
+        _coords = tf.reshape(_zipped[1],[3,njoints,2])
+        _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])
+    elif task_mode == "test":
+        _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,256,256,4])
+        _coords = tf.reshape(_zipped[1],[1,njoints,2])
+        _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])
+        _bboxes = tf.reshape(tf.cast(_zipped[3],dtype=tf.float32),[1,3,2])
+    
+    if task_mode=="train":
+        return (_images,_coords,_visibilities)
+    elif task_mode=="test":
+        return (_images,coordinates,_bboxes,_visibilities)
+    """
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[1,256,256,1])
+    #masked = tf.where(_images<=0.00000001,1.0,0.0)
+    #_images = (1.0-masked)*_images#+11.0*masked
+
+    _coords = tf.reshape(_zipped[1],[1,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[1,njoints])
+
+    _bboxes = tf.reshape(tf.cast(_zipped[3],dtype=tf.float32),[1,3,2])
+    # CHANGE THIS FOR BENCHMARKING
+    #return (_images,_coords,_bboxes,_visibilities)  
+    return (_images,tf.expand_dims(coordinates,axis=0),_bboxes,_visibilities)
+    
+
+@tf.function
+def tf_train_map_squarify(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    annotated: tf.Tensor,
+    bbox_enabled=True,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    _image_shape = tf.shape(image)[0:2]#image_shape
+    if bbox_enabled:
+        # Compute Bounding Box
+        bbox = tf_expand_bbox(
+            tf_compute_bbox(coordinates,annotated),
+            _image_shape,#image_shape,
+            bbox_factor=bbox_factor,
+            randomw = 1.0,
+        )
+    else:
+        # Simulate a Bbox being the whole image
+        shape = _image_shape#image_shape
+        bbox = tf.cast([[0, 0], [shape[1] - 1, shape[0] - 1]],tf.int32)
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    bbox = tf.cast(bbox,dtype=tf.float32)
+    ww = bbox[1,0]-bbox[0,0]
+    hh = bbox[1,1]-bbox[0,1]
+    bbox_dev_x = tf.random.uniform(shape=[2],minval=-0.08*tf.cast(ww,dtype=tf.float32),maxval=0.08*tf.cast(ww,dtype=tf.float32)) 
+    bbox_dev_y = tf.random.uniform(shape=[2],minval=-0.08*tf.cast(hh,dtype=tf.float32),maxval=0.08*tf.cast(hh,dtype=tf.float32))
+    bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev_x,0,tf.cast(_image_shape[1]-1,dtype=tf.float32)),shape=(2,1))
+    bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev_y,0,tf.cast(_image_shape[0]-1,dtype=tf.float32)),shape=(2,1))
+    bbox_mod = tf.concat((bbox_mod_x,bbox_mod_y),axis=1)
+    bboxD = tf.cast(1.0*bbox_mod,dtype=tf.int32)
+    #y0 = tf.minimum(bboxD[0, 1], bboxD[1, 1])
+    #y1 = tf.maximum(bboxD[0, 1], bboxD[1, 1])
+    #x0 = tf.minimum(bboxD[0, 0], bboxD[1, 0])
+    #x1 = tf.maximum(bboxD[0, 0], bboxD[1, 0])
+    #y1 = tf.maximum(y1, y0 + 1)
+    #x1 = tf.maximum(x1, x0 + 1)
+    #cropped = image[y0:y1, x0:x1, :]
+    #tf.print("NbbbbSHAPE",tf.shape(cropped),bboxD[0,1],bboxD[1,1],bboxD[0,0],bboxD[1,0])
+    padding = tf_compute_padding_from_bbox(bboxD)
+    cropped = image[bboxD[0, 1] : bboxD[1, 1], bboxD[0, 0] : bboxD[1, 0], :]
+    # Generate Squared Image with Padding
+    padimage = tf.pad(cropped,
+        paddings=tf_generate_padding_tensor(padding),constant_values=0.0
+    )
+
+    nshape = tf.shape(padimage)[0:2]
+    scale = 256.0/(tf.cast(tf.reduce_max(nshape),dtype=tf.dtypes.float64))
+    # Recompute coordinates (shifting and scaling)
+    coordinates = tf.cast(coordinates,dtype=tf.dtypes.float64) - tf.cast(bboxD[0] - padding,dtype=tf.dtypes.float64)
+    coordinates = scale*(coordinates)#((coordinates-_center)*bboxf64)+_center)
+    image_resized = tf_resize_tensor(padimage,256)
+    
+    image_color = image_resized[:,:,1:4]
+    image_depth0 = tf.expand_dims(image_resized[:,:,0],axis=-1)
+    image_depth = tf_depth_parameterized_noise(image_depth0,tf.shape(image_depth0),15)
+    noise = tf.random.uniform(shape=(256,256,1),minval=0.0,maxval=1.0)
+    condition_noise = 1.0-tf.cast(tf.math.less_equal(noise,0.19),dtype=tf.float32)
+    image_depth = image_depth*condition_noise
+    _img_depth = tf_normalize_tensor(image_depth,15)
+    #tf.print("NSHAPE",tf.shape(_img_depth),tf.shape(image_color))
+    img_drgb = tf.concat([_img_depth,image_color],axis=-1)
+    img_drgb = tf.image.resize(img_drgb, [256, 256])
+    img_drgb.set_shape([256, 256, 4]) 
+    return (
+        img_drgb, #_img_depth, #image_depth,
+        tf.cast(coordinates,dtype=tf.dtypes.float32),
+        visibility,
+        tf.cast(tf.concat([bboxD,tf.reshape(padding,(1,-1))],axis=0),tf.float32)
+    )
+
+@tf.function
+def tf_train_map_squarify_batch(
+    images: tf.Tensor,
+    img_shapes: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibilities: tf.Tensor,
+    annotateds: tf.Tensor,
+    bbox_factors=tf.Tensor,
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    tf.print("Before map squarify",tf.shape(images),tf.shape(img_shapes),tf.shape(visibilities),tf.shape(annotateds),tf.shape(bbox_factors))
+    _mapped = tf.vectorized_map(
+        fn= lambda batch_data: tf_train_map_squarify(batch_data[0],
+                                                     tf.shape(images)[1:3],
+                                                     batch_data[2],
+                                                     batch_data[3],
+                                                     batch_data[4],
+                                                     True,
+                                                     batch_data[5],
+        ),
+        elems=(
+            images,
+            img_shapes,
+            coordinates,
+            visibilities,
+            annotateds,
+            bbox_factors,
+        ) 
+    )
+
+    imgs = _mapped[0]
+    coords = _mapped[1]
+    viss = _mapped[2]
+    bbox_pad = _mapped[3]
+    tf.print("after squarify",tf.shape(imgs),tf.shape(coords),tf.shape(viss),tf.shape(bbox_pad))
+    return (
+        imgs,
+        coords,
+        viss,
+        bbox_pad
+    )
+
+@tf.function
+def tf_evaluate_map_squarify(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    annotated: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    if bbox_enabled:
+        # Compute Bounding Box
+        bbox = tf_expand_bbox(
+            tf_compute_bbox(coordinates,annotated),
+            tf.shape(image),
+            bbox_factor=bbox_factor,
+            randomw = 0.0
+        )
+    else:
+        # Simulate a Bbox being the whole image
+        shape = tf.shape(image)
+        bbox = tf.cast([[0, 0], [shape[1] - 1, shape[0] - 1]])
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    padding = tf_compute_padding_from_bbox(bbox)
+    cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
+    mask = tf.where(cropped<=15,0.0,1.0)
+    scalimg = cropped#255.0*tf.clip_by_value((cropped-1000.0)/2000.0,0.0,1.0)*mask #tf_normalize_tensor(cropped,15)
+    max_val = tf.reduce_max(scalimg)
+    # Generate Squared Image with Padding
+    padimage = tf.pad(scalimg,
+        paddings=tf_generate_padding_tensor(padding),constant_values=0.0
+    )
+    nshape = tf.shape(padimage)[0:2]
+    #tf.print("NSHAPE",nshape)
+    #meandepth = tf.reduce_mean(image,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(image-meandepth),axis=[0,1,2])+0.0000001)
+    #image = tf.clip_by_value(127.0*((image-meandepth)/stddevdepth+1.5),-0.5,1500.0)
+
+    scale = 256.0/(tf.cast(tf.reduce_max(nshape),dtype=tf.dtypes.float64))
+    # Recompute coordinates (shifting and scaling)
+    coordinates = tf.cast(coordinates,dtype=tf.dtypes.float64) - tf.cast(bbox[0] - padding,dtype=tf.dtypes.float64)
+    coordinates = scale*(coordinates)#((coordinates-_center)*bboxf64)+_center)
+    #image_depth = tf_resize_tensor(padimage,256)
+    
+    image_resized = tf_resize_tensor(padimage,256)
+    image_color = image_resized[:,:,1:4]/255.0
+    image_depth = tf.expand_dims(image_resized[:,:,0],axis=-1)
+    _img_depth = tf_normalize_tensor(image_depth,15)
+    img_drgb = tf.concat([_img_depth,image_color],axis=-1)
+    return (
+        img_drgb,#_img_depth, #image_depth,
+        tf.cast(coordinates,dtype=tf.dtypes.float32),
+        visibility,
+        tf.cast(tf.concat([bbox,tf.reshape(padding,(1,-1))],axis=0),tf.float32)
+    )
+
+@tf.function
+def tf_test_map_squarify(
+    image: tf.Tensor,
+    _bbox: tf.Tensor
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    bbox = _bbox
+    #bbox = tf_expand_bbox(
+    #        _bbox,
+    #        tf.shape(image),
+    #        bbox_factor=1.0,
+    #        randomw=0.0
+    #    )
+    padding = tf_compute_padding_from_bbox(bbox)
+    cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
+    mask = tf.where(cropped<=15,0.0,1.0)
+    scalimg = cropped#255.0*tf.clip_by_value((cropped-1000.0)/2000.0,0.0,1.0)*mask #tf_normalize_tensor(cropped,15)
+    max_val = tf.reduce_max(scalimg)
+    # Generate Squared Image with Padding
+    image = tf.pad(scalimg,
+        paddings=tf_generate_padding_tensor(padding),constant_values=0.0
+    )
+    #meandepth = tf.reduce_mean(image,axis=[0,1,2])
+    #stddevdepth =  tf.sqrt(tf.reduce_mean(tf.square(image-meandepth),axis=[0,1,2])+0.0000001)
+    #image = tf.clip_by_value(127.0*((image-meandepth)/stddevdepth+1.5),-0.5,1500.0)
+
+    image_resized = tf_resize_tensor(image,256)
+    image_color = image_resized[:,:,1:4]/255.0
+    image_depth = tf.expand_dims(image_resized[:,:,0],axis=-1)
+    _img_depth = tf_normalize_tensor(image_depth,15)
+    img_drgb = tf.concat([_img_depth,image_color],axis=-1)
+    return (
+        img_drgb,#_img_depth, #image_depth,
+        tf.cast(tf.concat([bbox,tf.reshape(padding,(1,-1))],axis=0),tf.float32)
+    )
+
+@tf.function
+def tf_test_map_standard_squarify(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    annotated: tf.Tensor,
+    bbox_enabled=False,
+    bbox_factor=1.0,
+) -> tf.Tensor:
+    """Second step tf.data.Dataset mapper to make squared input images
+
+    This mapper is used on Training phase only to make a squared image.
+    It would not suit Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        bbox_enabled (bool, optional): Crop image to fit bbox . Defaults to False
+        bbox_factor (float, optional): Expanding factor for bbox. Defaults to 1.0
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    _image_shape = tf.shape(image)[0:2]#image_shape
+    if bbox_enabled:
+        # Compute Bounding Box
+        bbox = tf_expand_bbox(
+            tf_compute_bbox(coordinates,annotated),
+            _image_shape,#image_shape,
+            bbox_factor=bbox_factor,
+            randomw = 0.0,
+        )
+    else:
+        # Simulate a Bbox being the whole image
+        shape = _image_shape#image_shape
+        bbox = tf.cast([[0, 0], [shape[1] - 1, shape[0] - 1]],tf.int32)
+    # Get Padding
+    # Once the bbox is computed we compute
+    # how much V/H padding should be applied
+    # Padding is necessary to conserve proportions
+    # when resizing
+    padding = tf_compute_padding_from_bbox(bbox)
+    #bbox = tf.cast(bbox,dtype=tf.float32)
+    cropped = image[bbox[0, 1] : bbox[1, 1], bbox[0, 0] : bbox[1, 0], :]
+    # Generate Squared Image with Padding
+    padimage = tf.pad(cropped,
+        paddings=tf_generate_padding_tensor(padding),constant_values=0.0
+    )
+    nshape = tf.shape(padimage)[0:2]
+    scale = 256.0/(tf.cast(tf.reduce_max(nshape),dtype=tf.dtypes.float64))
+    # Recompute coordinates (shifting and scaling)
+    _coordinates = tf.cast(coordinates,dtype=tf.dtypes.float64) - tf.cast(bbox[0] - padding,dtype=tf.dtypes.float64)
+    _coordinates = scale*(_coordinates)#((coordinates-_center)*bboxf64)+_center)
+    image_resized = tf_resize_tensor(padimage,256)
+    image_color = image_resized[:,:,1:4]/255.0
+    image_depth = tf.expand_dims(image_resized[:,:,0],axis=-1)
+    _img_depth = tf_normalize_tensor(image_depth,15)
+    img_drgb = tf.concat([_img_depth,image_color],axis=-1)
+    return (
+        img_drgb, #_img_depth, #image_depth,
+        tf.cast(_coordinates,dtype=tf.dtypes.float32),
+        visibility,
+        tf.cast(tf.concat([bbox,tf.reshape(padding,(1,-1))],axis=0),tf.float32)
+    )
+
+@tf.function
+def tf_train_map_resize_data(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    bboxes: tf.Tensor,
+    input_size: int = 256,
+    task_mode: str = "train",
+) -> tf.Tensor:
+    """Third step tf.data.Dataset mapper to reshape image
+    and compute relative coordinates.
+
+    This mapper is used on Training phase only.
+    It would suit not Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        input_size (int, optional): Desired size for the input image. Defaults to 256
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    # Reshape Image
+    shape = tf.cast(tf.shape(image), dtype=tf.dtypes.float64)
+    image = tf.cast(image,dtype=tf.dtypes.float32)
+    
+    # We compute the Height and Width reduction factors
+    # We can recompute relative Coordinates between 0-1 as float
+    """
+    coordinates = (
+        tf.cast(coordinates, dtype=tf.dtypes.float64)
+        / (w_factor, h_factor)
+        / input_size
+    )
+    """
+    _coordinates = (
+        tf.cast(coordinates, dtype=tf.dtypes.float64)
+        / (shape[1], shape[0])
+    )
+    if task_mode=="train":
+        return (image, _coordinates, visibility)
+    elif task_mode=="test":
+        return (image,64.0*tf.cast(_coordinates, dtype=tf.dtypes.float32),visibility)  #,bboxes)
+
+@tf.function
+def tf_single_stage_heatmaps(
+    stddev_tensor: tf.Tensor,
+    shape_tensor: tf.Tensor,
+    joints: tf.Tensor,
+    limbs_2j: tf.Tensor,
+):
+    precision = tf.dtypes.float32
+
+    """
+    limbs = tf.constant([[0,1], 
+                         [1,2],
+                         [2,3],
+                         [3,4],
+                         [4,5],
+                         [6,7],
+                         [7,8],
+                         [7,12],
+                         [7,13],
+                         [13,14],
+                         [14,15],
+                         [12,11],
+                         [11,10],
+                         [8,9]])
+    
+    
+    limbs = tf.constant([[0,1], 
+                         [1,2],
+                         [2,3],
+                         [3,4],
+                         [4,5],
+                         [6,7],
+                         [7,8],
+                         [8,12],
+                         [9,12],
+                         [12,13],
+                         [11,10],
+                         [10,9]])
+    """
+    segments = tf.map_fn(
+        fn=(
+            lambda limb: tf_generate_segment(
+                limb[0],limb[1],joints
+            )
+        ),
+        elems = limbs_2j,
+        dtype=precision,
+        parallel_iterations=10
+    )
+
+    heatmaps = tf.map_fn(
+        fn=(
+            lambda joint: tf_bivariate_normal_pdf(
+                joint[:2],joint[2], stddev_tensor, shape_tensor, precision=precision
+            )
+        ),
+        elems=joints,
+        dtype=precision,
+        #dtype=tf.dtypes.uint8,
+        parallel_iterations=10,
+    )
+    heatmaps = tf.transpose(heatmaps, [1, 2, 0])
+    
+    #"""
+    limb_hms = tf.map_fn(
+        fn=(
+            lambda segment: tf_bivariate_segment_normal_pdf(
+                segment[0:2,:],segment[2,:],stddev_tensor,shape_tensor, precision=precision
+            )
+        ),
+        elems=segments,
+        dtype=precision,
+        parallel_iterations=10,
+    )
+    
+    limb_hms = tf.transpose(limb_hms,[1,2,0])
+
+    hms = tf.concat([heatmaps,limb_hms],axis=-1)
+    #"""
+
+    return hms #heatmaps
+    #return heatmaps
+
+@tf.function
+def tf_train_map_heatmaps(
+    image: tf.Tensor,
+    coordinates: tf.Tensor,
+    visibility: tf.Tensor,
+    limbs_2j: tf.Tensor,
+    output_size: int = 64,
+    stddev: float = 10.0,
+    stacks: int = 3,
+    scale_factor: float = 2.0,
+    enable_vis: float = None
+) -> tf.Tensor:
+    """Fourth step tf.data.Dataset mapper to generate heatmaps.
+
+    This mapper is used on Training phase only.
+    It would suit not Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        coordinates (tf.Tensor): 2D Coordinate tensor(tf.dtypes.int32)
+        visibility (tf.Tensor): 1D Visibility tensor(tf.dtypes.int32)
+        output_size (int, optional): Heatmap shape. Defaults to 64
+        stddev (float, optional): Standard deviation for Bivariate normal PDF.
+            Defaults to 10.
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    stack_tensor = tf.cast(tf.constant(stacks-1)-tf.range(0,stacks),dtype=tf.float32)
+    bases = tf.cast(tf.convert_to_tensor([scale_factor]*stacks),dtype=tf.float32)
+    stddev_tensor = tf.cast(tf.constant(stddev),dtype=tf.float32)*tf.pow(bases,stack_tensor)
+
+    precision = tf.dtypes.float32
+    # We move from relative coordinates to absolute ones by
+    # multiplying the current coordinates [0-1] by the output_size
+    new_coordinates = tf.cast(coordinates * tf.cast(output_size, dtype=tf.float64),precision)
+    new_coordinates = tf.cast(new_coordinates,dtype=precision)
+    visibility = tf.cast(tf.reshape(visibility, (-1, 1)), dtype=precision)*tf.cast(enable_vis,tf.float32)+(1.0-tf.cast(enable_vis,tf.float32))
+
+    # First we concat joint coordinate and visibility
+    # to have a [NUN_JOINTS, 3] tensor
+    # 0: X coordinate
+    # 1: Y coordinate
+    # 2: Visibility boolean as numeric
+    joints = tf.concat([new_coordinates, visibility], axis=1)
+    # We compute intermediate tensors
+    shape_tensor = tf.cast([output_size, output_size], dtype=precision)
+    
+    #stddev_tensor = tf.cast([stddev, stddev], dtype=precision)
+    # We generate joint's heatmaps
+    # tf_bivariate_normal_pdf
+    # tf_hm_distance
+
+    ms_heatmaps = tf.map_fn(
+        fn=lambda _stddev: tf_single_stage_heatmaps(_stddev,shape_tensor,joints,limbs_2j),
+        elems=stddev_tensor,
+        dtype=precision,
+        parallel_iterations=10
+    )
+    
+    return (image, ms_heatmaps,visibility)
+
+@tf.function
+def tf_train_map_normalize(
+    image: tf.Tensor, heatmaps: tf.Tensor, vis: tf.Tensor, normalization: str = None
+) -> tf.Tensor:
+    """Fifth step tf.data.Dataset mapper to normalize data.
+
+    This mapper is used on Training phase only.
+    It would suit not Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Notes:
+        The normalization methods are the following:
+        - `ByMax`: Will constraint the Value between 0-1 by dividing by the global maximum
+        - `L2`: Will constraint the Value by dividing by the L2 Norm on each channel
+        - `Normal`: Will apply (X - Mean) / StdDev**2 to follow normal distribution on each channel
+
+        Additional methodology involve:
+        - `FromZero`: Origin is set to 0 maximum is 1 on each channel
+        - `AroundZero`: Values are constrained between -1 and 1
+
+    Additional Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        heatmaps (tf.Tensor): 3D Heatmap tensor(tf.dtypes.int32)
+        normalization (str, optional): Normalization method. Defaults to None
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    precision = tf.dtypes.float32
+    #precision = tf.dtypes.int16
+
+    image = tf.cast(image, dtype=precision)
+    heatmaps = tf.cast(heatmaps, dtype=tf.float32)
+
+    if normalization is None:
+        pass
+    if "Idem" in normalization:
+        image = tf.cast(image,dtype=tf.float32)
+        image = tf.cast(tf.math.divide_no_nan(
+            image,1),dtype=tf.float32)
+        heatmaps = tf.cast(tf.math.divide_no_nan(
+            heatmaps,1),dtype=tf.float32)
+    if "Normal" in normalization:
+        #image = tf.math.divide_no_nan(
+        #    image - tf.reduce_mean(image, axis=[0, 1]),
+        #    tf.math.reduce_variance(image, axis=[0, 1]),
+        #)
+        image = tf.math.divide_no_nan(
+            image - tf.reshape(tf.reduce_mean(image, axis=[0, 1]),[1,1,-1]),
+            tf.reshape(tf.math.reduce_variance(image, axis=[0, 1]),[1,1,-1])
+        )
+        #heatmaps = tf.math.divide_no_nan(
+        #    heatmaps - tf.reduce_mean(heatmaps, axis=[0, 1]),
+        #    tf.math.reduce_variance(heatmaps, axis=[0, 1]),
+        #)
+    if "ByMax" in normalization:
+        image = tf.math.divide_no_nan(
+            image,
+            255.0,
+        )
+        heatmaps = 1.0*tf.cast(heatmaps,dtype=tf.float32)
+        #heatmaps = tf.math.divide_no_nan(
+        #    heatmaps,
+        #    tf.reduce_max(heatmaps),
+        #)
+    if "L2" in normalization:
+        image = tf.linalg.l2_normalize(image, axis=[0, 1])
+        heatmaps = tf.linalg.l2_normalize(heatmaps, axis=[0, 1])
+    if "FromZero" in normalization:
+        image = tf.math.divide_no_nan(
+            image - tf.reduce_min(image, axis=[0, 1]),
+            tf.reduce_max(image, axis=[0, 1]),
+        )
+        heatmaps = tf.math.divide_no_nan(
+            heatmaps - tf.reduce_min(heatmaps, axis=[0, 1]),
+            tf.reduce_max(heatmaps, axis=[0, 1]),
+        )
+    if "AroundZero" in normalization:
+        #div = tf.constant(1/255.0)
+        image = 2*tf.math.scalar_mul(1/255.0,image)-1.0
+        heatmaps = 1.0*tf.cast(heatmaps,dtype=tf.float32)
+        #tf.cast(tf.math.divide_no_nan(
+        #    heatmaps,1),dtype=tf.float32)
+        #heatmaps = 2 * (
+        #    tf.math.divide_no_nan(
+        #        heatmaps - tf.reduce_min(heatmaps, axis=[0, 1]),
+        #        tf.reduce_max(heatmaps, axis=[0, 1]),
+        #    )
+        #    - 0.5
+        #)
+    return (image, heatmaps)#,tf.reshape(vis,(1,-1)))
+
+@tf.function
+def tf_train_map_stacks(image: tf.Tensor, heatmaps: tf.Tensor, stacks: int = 1):
+    """Sixth step tf.data.Dataset mapper to generate stacked hourglass.
+
+    This mapper is used on Training phase only.
+    It would suit not Preditction phase since you need to have prior
+    knowledge of the person position
+
+    Additional Notes:
+        This function is build in compliance with `HTFDatasetHandler`.
+        On a custom DatasetHandler this function might not suit your needs.
+        See Dataset Documentation for more details
+
+    Args:
+        image (tf.Tensor): 3D Image tensor(tf.dtypes.int32)
+        heatmaps (tf.Tensor): 3D Heatmap tensor(tf.dtypes.int32)
+        stacks (int, optional): Number of heatmap replication . Defaults to 1
+
+    Returns:
+        tf.Tensor: _description_
+    """
+    # We apply the stacking
+    heatmaps = tf_stack(heatmaps, stacks)
+    return (image, heatmaps)

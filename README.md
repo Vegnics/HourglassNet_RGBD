@@ -44,6 +44,52 @@ The models can be trained on:
 
 Currrently, the framework for training in-bed pose estimation models regard **RGB**, **depth**, and **RGB-D** modalities. 
 
+### Organization
+
+```
+.
+.
+├──📁bed_action_recognition
+│   ├──📁data
+│   ├──📁handlers
+│   ├──📁layers
+│   ├──📁models
+│   ├──📁scripts
+│   └──📁tests
+├── CHANGELOG.ignore.md
+├── ci
+├── cli
+├── config
+├── data
+├── Deprecated
+├── docs
+├── hourglass_tensorflow
+│   ├──📁callbacks
+│   ├──📁handlers      
+│   ├──📁layers
+│   ├──📁losses
+│   ├──📁metrics
+│   ├──📁models
+│   ├──📁schedulers
+│   ├──📁types
+│   └──📁utils
+├── LICENCE
+├── logs
+├── MyTests
+├── notebooks
+├── poetry.lock
+├── pyproject.ignore.toml
+├── README.md
+├── reports
+├── requirements.dev.txt
+├── requirements.txt
+├── scripts
+│   ├── config_generation
+│   └── rgbd_version
+├── Taskfile.ignore.yml
+└── tests
+```
+
 ### Getting started 
 ------------------------
 1. Customize the training configuration file:

@@ -204,8 +204,9 @@ class FeatureAttentionMechanism(Layer):
         # Mean Energy tensor computation 
         _shape = tf.shape(inputs)
         _inputs =self.in_bn(inputs,training=training) # Batch normalization to the raw inputs
-        #_inputs = tf.clip_by_value(inputs,-1e6,1e6) # Clip the input feats to avoid numerical instability
-        energy_tensor = tf.math.sqrt(tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])+1e-6)# per-channel mean energy 
+        _inputs = tf.clip_by_value(_inputs,-1e4,1e4) # Clip the input feats to avoid numerical instability
+        #energy_tensor = tf.math.sqrt(tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])+1e-6)# per-channel mean energy
+        energy_tensor = tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])# per-channel mean energy  
 
         # Input the Mean Energy Tensor to the Feature Attention heads 
         head_outs = []

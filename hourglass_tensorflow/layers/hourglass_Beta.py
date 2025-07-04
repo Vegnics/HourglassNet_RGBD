@@ -4,12 +4,10 @@ from keras.layers import Layer
 from keras.saving import register_keras_serializable
 
 
-from hourglass_tensorflow.layers.residual import ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual_exp import ResidualLayer,ResidualLayerIn
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer
 from hourglass_tensorflow.layers.linear_projection import LinearProjection
 #from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
-from hourglass_tensorflow.layers.residual_with_attention import ResidualLayerAttention
-from hourglass_tensorflow.layers.residual_with_attention_spatial import ResidualLayerAttentionSpatial
 
 @register_keras_serializable(package="lHourglass")
 def generate_residual_layer(layer_type: str ,
@@ -276,7 +274,7 @@ class HourglassLayer(Layer):
                                                            trainable=trainable,
                                                            kernel_reg=self.use_kernel_reg,
                                                            freeze_attention=self.freeze_attention,
-                                                           feat_size = 2**(i+2))
+                                                           feat_size = 2**(i+3)) 
             self.__setattr__(f"dstep_{i}_up_1", _downsampl["up_1"])
             
             _downsampl["low_"] = layers.MaxPool2D(
@@ -287,7 +285,7 @@ class HourglassLayer(Layer):
             )
             self.__setattr__(f"dstep_{i}_low_", _downsampl["low_"])
 
-            _downsampl["low_1"] = generate_residual_layer(layer_type=self.s2f_att,
+            _downsampl["low_1"] = generate_residual_layer(layer_type=self.s2f_att if i!=0 else "NoAM",
                                                             feature_filters=self.feature_filters,
                                                             nblocks=self.residual_nblocks,
                                                             name=f"Step{i}_ResidualLow1",
@@ -323,7 +321,7 @@ class HourglassLayer(Layer):
                                                             kernel_reg=self.use_kernel_reg,
                                                            freeze_attention=self.freeze_attention)
             """
-            _downsampl["low_3"] = generate_residual_layer(layer_type=self.f2s_att,
+            _downsampl["low_3"] = generate_residual_layer(layer_type=self.f2s_att if i!=0 else "NoAM",
                                                             feature_filters=self.feature_filters,
                                                             nblocks=self.residual_nblocks,
                                                             name=f"Step{i}_ResidualLow3",

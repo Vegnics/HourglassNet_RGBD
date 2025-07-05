@@ -471,12 +471,14 @@ class SpatialAttentionMechanism(Layer):
         H_comp = self.score_gen(concat_out_h)
         V_comp = tf.transpose(V_comp,perm=[0,2,1])
         scores_raw = tf.expand_dims(tf.matmul(V_comp, H_comp),axis=-1)
+        scores = tf.clip_by_value(scores_raw,-2.2,2.2)
+        scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
         # Enforce higher variance at the scores
         #scores_mean = tf.reduce_mean(scores_raw,axis=[1,2],keepdims=True)
         #scores_var = tf.reduce_mean(tf.square(scores_raw-scores_mean),axis=[1,2])
         #var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.1))
         #self.add_loss(1e-4*var_reg)
-        return scores_raw # (B,K,K,1)=(B,H,W,1)
+        return scores #scores_raw # (B,K,K,1)=(B,H,W,1)
     
     def build(self, input_shape):
         super().build(input_shape)

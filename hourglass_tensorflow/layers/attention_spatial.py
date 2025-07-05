@@ -456,8 +456,6 @@ class SpatialAttentionMechanism(Layer):
 
         # Raw scores generation 
         scores_raw = self.score_gen(stacked_outs)
-        #scores = tf.clip_by_value(scores_raw,-2.2,2.2)
-        #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
 
         # Enforce higher variance at the scores
         #scores_mean = tf.reduce_mean(scores_raw,axis=[1,2],keepdims=True)

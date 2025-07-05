@@ -230,13 +230,13 @@ class FeatureAttentionMechanism(Layer):
         scores_raw = tf.expand_dims(scores_raw,axis=1)
         scores_raw = tf.expand_dims(scores_raw,axis=1)
 
-        #scores = tf.clip_by_value(scores_raw,-2.2,2.2)
-        #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
+        scores = tf.clip_by_value(scores_raw,-2.2,2.2)
+        scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
 
-        #scores_mean = tf.reduce_mean(scores,axis=-1,keepdims=True)
-        #scores_var = tf.reduce_mean(tf.square(scores-scores_mean),axis=-1)
-        #var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.01))
-        #self.add_loss(1e-5*var_reg)
-        return scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
+        scores_mean = tf.reduce_mean(scores,axis=-1,keepdims=True)
+        scores_var = tf.reduce_mean(tf.square(scores-scores_mean),axis=-1)
+        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.001))
+        self.add_loss(1e-5*var_reg)
+        return scores #scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
     def build(self, input_shape):
         super().build(input_shape)

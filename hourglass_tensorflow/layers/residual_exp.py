@@ -35,22 +35,17 @@ class ResidualBlock(Layer):
         self.use_last_relu = use_last_relu
         self.attention_type = attentionType
         self.feat_size = feat_size
-        self.alpha_mask = tf.constant(1.0,dtype=tf.float32)
-        #self.ff_alpha = layers.Dense(1,activation="sigmoid",
-        #                             kernel_initializer="zeros",
-        #                             name="ff_alpha",
-        #                             bias_initializer=tf.constant_initializer(-2.5))
+
         # Convolutional block
         self.attention_block = None
         if self.attention_type == "NoAM":
-            self.attention_block = quasiConstantLayer(self.output_filters,name="AttentionBlock",value=0.0)
+            self.attention_block = quasiConstantLayer(self.output_filters,name="AttentionBlock",value=1.0)
             self.alpha = self.add_weight(
                 shape=[1,],
                 name="att_alpha",
                 initializer=tf.constant_initializer(0.5),
                 trainable=False,
             )
-            self.alpha_mask = 0.0*self.alpha_mask
         
         elif self.attention_type == "SAM":
             self.attention_block = SpatialAttentionMechanism(
@@ -65,7 +60,7 @@ class ResidualBlock(Layer):
                 shape=[1,],
                 name="att_alpha",
                 initializer=tf.constant_initializer(0.5),
-                constraint=constraints.min_max_norm(min_value=0.35,max_value=0.8),
+                constraint=constraints.min_max_norm(min_value=0.2,max_value=0.8),
                 trainable=self.trainable,
             )
             
@@ -81,7 +76,7 @@ class ResidualBlock(Layer):
                 shape=[1,],
                 name="att_alpha",
                 initializer=tf.constant_initializer(0.5),
-                constraint=constraints.min_max_norm(min_value=0.35,max_value=0.8),
+                constraint=constraints.min_max_norm(min_value=0.2,max_value=0.8),
                 trainable=self.trainable,
             )
         else:
@@ -124,7 +119,7 @@ class ResidualBlock(Layer):
         #alpha = tf.expand_dims(alpha,axis=1)
         
         # alpha_gen is the weight given to the attention scores 
-        alpha_gen = tf.reduce_sum(self.alpha) #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
+        alpha_gen = self.alpha[0] #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
         out_conv = self.conv_block(inputs, training=training)
         _sum = self.add(
             [  

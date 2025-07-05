@@ -111,8 +111,10 @@ class ResidualBlock(Layer):
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         B = tf.shape(inputs)[0]
-        scores = tf.clip_by_value(self.attention_block(inputs,training=training),-2.2,2.2)
-        scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
+        #scores = tf.clip_by_value(self.attention_block(inputs,training=training),-2.2,2.2)
+        #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
+        scores = self.attention_block(inputs,training=training)
+        
         #entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
         #numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
         #entropy = entropy / numel

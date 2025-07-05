@@ -43,7 +43,7 @@ class ResidualBlock(Layer):
         # Convolutional block
         self.attention_block = None
         if self.attention_type == "NoAM":
-            self.attention_block = quasiConstantLayer(self.output_filters,name="AttentionBlock",value=-2.0)
+            self.attention_block = quasiConstantLayer(self.output_filters,name="AttentionBlock",value=-2.2)
             self.alpha = self.add_weight(
                 shape=[1,],
                 name="att_alpha",
@@ -113,6 +113,8 @@ class ResidualBlock(Layer):
         B = tf.shape(inputs)[0]
         scores = tf.clip_by_value(self.attention_block(inputs,training=training),-2.2,2.2)
         scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
+        #scores = self.attention_block(inputs,training=training)
+
         #entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
         #numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
         #entropy = entropy / numel
@@ -126,6 +128,7 @@ class ResidualBlock(Layer):
         out_conv = self.conv_block(inputs, training=training)
         _sum = self.add(
             [  
+                #out_conv*((1-alpha_gen) + alpha_gen*scores),
                 out_conv*((1-alpha_gen) + alpha_gen*scores),
                 inputs,
             ])

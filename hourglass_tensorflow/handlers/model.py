@@ -240,6 +240,7 @@ class HTFModelHandler(_HTFModelHandler):
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
                                 val["low_1"].trainable = True # Train S2F
                                 val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                val["low_1"].residual_blocks[0].alpha.trainable = False # Freeze the ConvBlock
                                 val["low_3"].trainable = False # Freeze F2S
                                 print("Freezing {}/{}".format(main_name,val["low_3"].name))
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
@@ -280,6 +281,7 @@ class HTFModelHandler(_HTFModelHandler):
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))
                                 val["low_3"].trainable = True # Train F2S layers
                                 val["low_3"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                val["low_3"].residual_blocks[0].alpha.trainable = False
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
                             layer.residual_brc.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
@@ -314,6 +316,7 @@ class HTFModelHandler(_HTFModelHandler):
                             for _,val in layer.layer_list.items():
                                 val["up_1"].trainable = True # Train Skip layers
                                 val["up_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                val["up_1"].residual_blocks[0].alpha.trainable = False
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
                                 val["low_1"].trainable = False # Freeze S2F layers
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))

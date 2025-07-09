@@ -40,12 +40,6 @@ class ResidualBlock(Layer):
         self.attention_block = None
         if self.attention_type == "NoAM":
             self.attention_block = quasiConstantLayer(self.output_filters,name="AttentionBlock",value=1.0)
-            self.alpha = self.add_weight(
-                shape=[1,],
-                name="att_alpha",
-                initializer=tf.constant_initializer(0.5),
-                trainable=False,
-            )
         
         elif self.attention_type == "SAM":
             self.attention_block = SpatialAttentionMechanism(

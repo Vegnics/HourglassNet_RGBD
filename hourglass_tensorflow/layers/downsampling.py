@@ -6,7 +6,7 @@ from keras import layers
 from keras.layers import Layer
 from keras.saving import register_keras_serializable
 
-from hourglass_tensorflow.layers.residual_exp import ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer,ResidualLayerIn
 #from hourglass_tensorflow.layers.residual_2 import ResidualLayerSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 

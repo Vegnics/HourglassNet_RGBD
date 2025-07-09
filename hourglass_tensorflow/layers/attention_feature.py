@@ -172,7 +172,7 @@ class FeatureAttentionMechanism(Layer):
                 layers.Dense(self.filters,
                             activation=None,
                             use_bias=True,
-                            bias_initializer=initializers.Constant(value=0.0),
+                            bias_initializer="zeros",
                             kernel_initializer="glorot_normal",#initializers.Constant(value=1/float(self.filters)),
                             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
                             name = "lasproj_dense_B"

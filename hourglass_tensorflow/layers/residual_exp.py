@@ -61,7 +61,7 @@ class ResidualBlock(Layer):
                 name="att_alpha",
                 initializer=tf.constant_initializer(0.5),
                 constraint=constraints.min_max_norm(min_value=0.2,max_value=0.8),
-                trainable=self.trainable,
+                trainable=False,#self.trainable,
             )
             
         elif self.attention_type == "FAM":
@@ -77,7 +77,7 @@ class ResidualBlock(Layer):
                 name="att_alpha",
                 initializer=tf.constant_initializer(0.5),
                 constraint=constraints.min_max_norm(min_value=0.2,max_value=0.8),
-                trainable=self.trainable,
+                trainable= False,#self.trainable,
             )
         else:
             raise Exception(f"[{self.name}]:INVALID ATTENTION MECHANISM")
@@ -108,7 +108,6 @@ class ResidualBlock(Layer):
         B = tf.shape(inputs)[0]
         #scores = tf.clip_by_value(self.attention_block(inputs,training=training),-2.2,2.2)
         #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
-        scores = self.attention_block(inputs,training=training)
 
         #entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
         #numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
@@ -121,6 +120,7 @@ class ResidualBlock(Layer):
         # alpha_gen is the weight given to the attention scores 
         alpha_gen = self.alpha[0] #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
         out_conv = self.conv_block(inputs, training=training)
+        scores = self.attention_block(out_conv,training=training)
         _sum = self.add(
             [  
                 #out_conv*((1-alpha_gen) + alpha_gen*scores),

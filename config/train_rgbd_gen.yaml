@@ -182,7 +182,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_d4.keras
+      filepath: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att77_1B_Depth4C_d4.keras_11:12:53.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att77_1B_Depth4C.keras_16:26:28.csv
 test: null

@@ -7,7 +7,7 @@ class SequentialLayer(Layer):
     def __init__(self, layer_list, name=None,trainable=None,**kwargs):
         super().__init__(name=name,trainable=trainable,**kwargs)
         #self.layer_list = layer_list
-        self.modelc = keras.Sequential(layer_list)
+        self.modelc = keras.Sequential(layer_list,name=name)
         for i, layer in enumerate(self.modelc.layers):
             self.__setattr__(f"layer_{i}", layer) 
 

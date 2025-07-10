@@ -122,16 +122,16 @@ model:
     channels_2joint: 12
     name: HourglassSample
     intermediate_supervision: true
-    skip_AM: SAM
+    skip_AM: NoAM
     s2f_AM: FAM
-    f2s_AM: NoAM
+    f2s_AM: SAM
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: /home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d4.keras
-  loading_style: Partial_Train_Skip
+  model_path: /home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d5.keras
+  loading_style: Partial_Train_F2S
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att77_1B_Depth4C_d4.keras_10:51:02.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att77_1B_Depth4C_d4.keras_11:12:53.csv
 test: null

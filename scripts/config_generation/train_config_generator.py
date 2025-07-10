@@ -42,14 +42,14 @@ learning_rate = 2.5e-5
 
 # Related to loading pre-trained models
 load_model = True
-pt_model_name = "/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d4.keras" #"data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_d4.keras" # #"data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_d32_S1.keras" #"/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d3.keras" # #"/home/quinoa/Downloads/SLP_Colab_BL_Depth4C_d2.keras" # # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # ## S1 # #  # ## # # # ## "data/model_t/myModel_WS_BL_WithAtt777_Depth4C.keras"#  #"myModel_SLP_WS_BL_WithAtt_Depth4C_FT2.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras" #"/home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" # # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #
+pt_model_name = "/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d5.keras" #"data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_d4.keras" # #"data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_d32_S1.keras" #"/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d3.keras" # #"/home/quinoa/Downloads/SLP_Colab_BL_Depth4C_d2.keras" # # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # ## S1 # #  # ## # # # ## "data/model_t/myModel_WS_BL_WithAtt777_Depth4C.keras"#  #"myModel_SLP_WS_BL_WithAtt_Depth4C_FT2.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras" #"/home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" # # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #
 #pt_model_name = "data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_d4.keras"
-loading_mode =  "Partial_Train_Skip" #"Partial_Train_Attention" #"Partial_Train_S2F" # #"Full_Train" # #"Partial_Downsampling_frozen" # # # # # # # # # # # #  # # ## #  # #"Partial_Train_Attention" ###  # ## # # # # # # # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
+loading_mode =  "Partial_Train_F2S" #"Partial_Train_Attention" #"Partial_Train_S2F" # #"Full_Train" # #"Partial_Downsampling_frozen" # # # # # # # # # # # #  # # ## #  # #"Partial_Train_Attention" ###  # ## # # # # # # # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
-skip_AM = "SAM"    
+skip_AM = "NoAM"    
 s2f_AM =  "FAM" 
-f2s_AM = "NoAM" 
+f2s_AM = "SAM" 
 
 #Related to the loss
 W_1jnts = 1.0

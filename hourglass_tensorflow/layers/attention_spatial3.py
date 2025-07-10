@@ -289,20 +289,20 @@ class SpatialAttentionMechanism(Layer):
             self.__setattr__(f"sam_{k}", layer)
 
         # Conv layer for combining the spatial heads' outputs.
-        """
+        #"""
         self.score_gen = layers.Conv2D(
             filters=1,
-            kernel_size=(3,3),
+            kernel_size=(1,1),
             strides=(1,1),
             padding="same",
             name="AttConv2D_scores",
             activation=None,
             kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= "glorot_uniform", #initializers.RandomNormal(mean=0.0, stddev=0.01),
+            kernel_initializer= initializers.RandomNormal(mean=0.0, stddev=0.001),
             bias_initializer=tf.constant_initializer(0.0),
             use_bias=True,
         )
-        """
+        #"""
 
         # 2D positional encodings 
         self.pos_encoding_x = layers.Embedding(input_dim=self.feat_size, output_dim=8,name="pos_encoding_x")
@@ -313,6 +313,7 @@ class SpatialAttentionMechanism(Layer):
         self.score_gen_h = layers.Dense( units=self.kernel_size,
                                             kernel_initializer="glorot_uniform",
                                             trainable=self.trainable)
+        
     def get_config(self):
         return {
             **super().get_config(),
@@ -378,27 +379,34 @@ class SpatialAttentionMechanism(Layer):
         #energy_descriptor = tf.reshape(tf.concat([energy_tile,pos_encoding],axis=-1),(B,16,3))
         #stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         
+        # Outputs from attention heads
+        heads_outs = [self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)] 
+        heads_v = [self.score_gen_v(hout[0]) for hout in heads_outs]
+        heads_h = [self.score_gen_h(hout[1]) for hout in heads_outs]
+        stacked_outs = tf.stack([tf.matmul(heads_v[u],heads_h[u],transpose_a=True) for u in range(self.head_num)],axis=-1)
         #stacked_outs = tf.stack([self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)],axis=-1)
-        #stacked_outs = self.ln(stacked_outs) # (B,K,K,self.head_num)
-        concat_out_v = tf.concat([self.spatial_heads[u](spatial_with_pos,training=training)[0] for u in range(self.head_num)],axis=-1)
-        concat_out_h = tf.concat([self.spatial_heads[u](spatial_with_pos,training=training)[1] for u in range(self.head_num)],axis=-1)
+        stacked_outs = self.ln(stacked_outs) # (B,K,K,self.head_num)
+        
+        #concat_out_v = tf.concat([self.spatial_heads[u](spatial_with_pos,training=training)[0] for u in range(self.head_num)],axis=-1)
+        #concat_out_h = tf.concat([self.spatial_heads[u](spatial_with_pos,training=training)[1] for u in range(self.head_num)],axis=-1)
         
         # Enforce orthogonality between heads
-        #head_outs_flatten = tf.reshape(tf.transpose(stacked_outs, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
-        #heads_norm = tf.math.l2_normalize(head_outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
-        #gram = tf.matmul(heads_norm, heads_norm, transpose_b=True)  # (B, H, H)
-        #eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
-        #off_diag = gram - eye
-        #orthogonality_reg = tf.reduce_mean(tf.square(off_diag))
-        #self.add_loss(1e-5 * orthogonality_reg)
+        head_outs_flatten = tf.reshape(tf.transpose(stacked_outs, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
+        heads_norm = tf.math.l2_normalize(head_outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
+        gram = tf.matmul(heads_norm, heads_norm, transpose_b=True)  # (B, H, H)
+        eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
+        off_diag = gram - eye
+        orthogonality_reg = tf.reduce_mean(tf.square(off_diag))
+        self.add_loss(1e-5 * orthogonality_reg)
         # Raw scores generation 
         #scores_raw = self.score_gen(stacked_outs)
 
-        V_comp = self.score_gen_v(concat_out_v)
-        H_comp = self.score_gen_h(concat_out_h)
-        V_comp = tf.transpose(V_comp,perm=[0,2,1])
-        scores_raw = tf.expand_dims(tf.matmul(V_comp, H_comp),axis=-1)
-        scores = 1.0 + 0.9*tf.nn.tanh(scores_raw)
+        #V_comp = self.score_gen_v(concat_out_v)
+        #H_comp = self.score_gen_h(concat_out_h)
+        #V_comp = tf.transpose(V_comp,perm=[0,2,1])
+        #scores_raw = tf.expand_dims(tf.matmul(V_comp, H_comp),axis=-1)
+        scores_raw = self.score_gen(stacked_outs)
+        scores = 1.0 + 0.5*tf.nn.tanh(scores_raw)
         #scores = tf.clip_by_value(scores_raw,-2.2,2.2)
         #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
         

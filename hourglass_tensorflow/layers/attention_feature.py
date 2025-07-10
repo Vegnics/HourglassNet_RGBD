@@ -173,7 +173,7 @@ class FeatureAttentionMechanism(Layer):
                             activation=None,
                             use_bias=True,
                             bias_initializer="zeros",
-                            kernel_initializer="glorot_normal",#initializers.Constant(value=1/float(self.filters)),
+                            kernel_initializer= initializers.RandomNormal(mean=0.0, stddev=0.001), #"glorot_normal",#initializers.Constant(value=1/float(self.filters)),
                             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
                             name = "lasproj_dense_B"
                         )
@@ -229,15 +229,15 @@ class FeatureAttentionMechanism(Layer):
         scores_raw = self.last_projection(_head_out)
         scores_raw = tf.expand_dims(scores_raw,axis=1)
         scores_raw = tf.expand_dims(scores_raw,axis=1)
-        scores = 1.0 + 0.9*tf.nn.tanh(scores_raw)
+        scores = 1.0 + 0.5*tf.nn.tanh(scores_raw)
 
         #scores = tf.clip_by_value(scores_raw,-2.2,2.2)
         #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
 
-        scores_mean = tf.reduce_mean(scores,axis=-1,keepdims=True)
-        scores_var = tf.reduce_mean(tf.square(scores-scores_mean),axis=-1)
-        var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.001))
-        self.add_loss(1e-6*var_reg)
+        #scores_mean = tf.reduce_mean(scores,axis=-1,keepdims=True)
+        #scores_var = tf.reduce_mean(tf.square(scores-scores_mean),axis=-1)
+        #var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.001))
+        #self.add_loss(1e-6*var_reg)
         return scores #scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
     def build(self, input_shape):
         super().build(input_shape)

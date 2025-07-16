@@ -9,6 +9,7 @@ from keras import constraints
 from keras import initializers
 import keras
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
+from positional_encodings.tf_encodings import TFPositionalEncoding2D 
 
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialEnergyHead(Layer):
@@ -43,7 +44,7 @@ class SpatialEnergyHead(Layer):
         self.merger = SequentialLayer(
             [
                 layers.Conv2D(
-                filters=4,
+                filters=8,
                 kernel_size=(3,3),
                 strides=(1,1),
                 padding="same",
@@ -77,7 +78,7 @@ class SpatialEnergyHead(Layer):
 
         # FC for the vertical components (row vectors)
         self.Vgen1 = layers.Dense(
-                units=self.K_size//2,
+                units=self.K_size,
                 activation= None,
                 use_bias=True,
                 bias_initializer="zeros",
@@ -88,7 +89,7 @@ class SpatialEnergyHead(Layer):
                 )
         
         # FC for the horizontal components (column vectors)
-        self.Hgen1 = layers.Dense(self.K_size//2,
+        self.Hgen1 = layers.Dense(self.K_size,
                 activation=None,
                 use_bias=True,
                 bias_initializer="zeros",
@@ -96,14 +97,15 @@ class SpatialEnergyHead(Layer):
                 name = "Hgen_FC1",
                 trainable=self.trainable,
                 )
+    
         
         # Dropout applied to the vertical comp.
         self.dropout_v = layers.Dropout(0.1,name="dpout_v")
-        self.ln_v = layers.LayerNormalization(axis=-1,name="ln_v")
+        self.ln_v = layers.LayerNormalization(axis=1,name="ln_v")
 
         # Dropout applied to the horizontal comp.
         self.dropout_h = layers.Dropout(0.1,name="dpout_h")
-        self.ln_h = layers.LayerNormalization(axis=-1,name="ln_h")
+        self.ln_h = layers.LayerNormalization(axis=1,name="ln_h")
         
     def get_config(self):
         return {
@@ -123,18 +125,25 @@ class SpatialEnergyHead(Layer):
         #pos_ency = tf.tile(tf.expand_dims(self.pos_encoding(Y),axis=0),(B,1,1,1))
         #_inputs = self.bn(inputs)
         #_inputs = tf.concat([_inputs,pos_encx,pos_ency],axis=-1)
-        desc = self.merger(inputs)
+        desc = self.merger(inputs) # (B,H,W,R)
+        
+        #desc_v = tf.transpose(tf.reduce_mean(desc,axis=2),perm=[0,2,1]) #(B,H,R)
+        #desc_h = tf.transpose(tf.reduce_mean(desc,axis=2),perm=[0,2,1]) #(B,W,R)
+        
         desc = tf.reshape(desc,shape=(B,(self.K_size//4)**2,self.rank))
         desc_t = tf.transpose(desc,perm=[0,2,1]) # (B,R,Kin)
-        V = self.ln_v(tf.nn.relu(self.Vgen1(desc_t))) # Vertical components : (B,R,K)
-        H = self.ln_h(tf.nn.relu(self.Hgen1(desc_t))) # Horizontal components : (B,R,K)  
+
+        V = self.ln_v(tf.nn.gelu(self.Vgen1(desc_t))) # Vertical components : (B,R,K)
+        H = self.ln_h(tf.nn.gelu(self.Hgen1(desc_t))) # Horizontal components : (B,R,K)  
+        V = self.dropout_v(V,training=training)
+        H = self.dropout_h(H,training=training)
         #V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
         #V0 = tf.nn.relu(self.shared_fc(self.Vgen0(_input)))
         #V = tf.nn.relu(self.Vgen1(V0)) # Vertical components : (B,R,K)
         #H0 = tf.nn.relu(self.shared_fc(self.Hgen0(_input)))
         #H = tf.nn.relu(self.Hgen1(H0)) # Horizontal components : (B,R,K)
         #V = tf.transpose(V,perm=[0,2,1])  # (B,K,R)
-        return self.dropout_v(V,training=training),self.dropout_h(H,training=training)# (B,R,K),(B,R,K)  
+        return tf.matmul(V,H,transpose_a=True)# self.dropout_v(V,training=training),self.dropout_h(H,training=training)# (B,R,K),(B,R,K)  
     def build(self, input_shape):
         super().build(input_shape)
 
@@ -226,7 +235,7 @@ class SpatialAttentionMechanism(Layer):
                             name="summ_conv1",
                             activation= None #"relu"
                             ),
-
+                layers.LayerNormalization(axis=-1)
                 #layers.MaxPooling2D(pool_size=(2,2),
                 #                    strides=(2,2),
                 #                    padding="valid",
@@ -253,22 +262,24 @@ class SpatialAttentionMechanism(Layer):
         
 
         # 2D positional encodings 
-        self.pos_encoding_x = layers.Embedding(input_dim=self.feat_size, output_dim=16,name="pos_encoding_x")
-        self.pos_encoding_y = layers.Embedding(input_dim=self.feat_size, output_dim=16,name="pos_encoding_y")
-        self.pos_encoding_xy = layers.Conv2D(filters=32,
-                                             kernel_size=(1,1),
-                                             kernel_initializer="glorot_uniform",
-                                             activation="gelu")
+        #self.pos_encoding_x = layers.Embedding(input_dim=self.feat_size, output_dim=16,name="pos_encoding_x")
+        #self.pos_encoding_y = layers.Embedding(input_dim=self.feat_size, output_dim=16,name="pos_encoding_y")
+        #self.pos_encoding_xy = layers.Conv2D(filters=32,
+        #                                     kernel_size=(1,1),
+        #                                     kernel_initializer="glorot_uniform",
+        #                                     activation="tanh")
+        
+        self.pos_encoding_xy = TFPositionalEncoding2D(32)
 
         # score generators
         self.score_gen_v = layers.Dense( units=self.kernel_size,
                                             kernel_initializer="glorot_uniform",
                                             trainable=self.trainable,
-                                            activation="tanh")
+                                            activation="gelu")
         self.score_gen_h = layers.Dense( units=self.kernel_size,
                                             kernel_initializer="glorot_uniform",
                                             trainable=self.trainable,
-                                            activation="tanh")
+                                            activation="gelu")
 
         # Conv layer for combining the spatial heads' outputs.
         #"""
@@ -328,21 +339,12 @@ class SpatialAttentionMechanism(Layer):
         #spatial_desc = tf.reshape(spatial_desc,shape=(B,Kd**2,self.rank))
         lin_xy = tf.range(K)
         X,Y = tf.meshgrid(lin_xy,lin_xy)
-        pos_encx = tf.tile(tf.expand_dims(self.pos_encoding_x(X),axis=0),(B,1,1,1))
-        pos_ency = tf.tile(tf.expand_dims(self.pos_encoding_y(Y),axis=0),(B,1,1,1))
-        pos_encxy = self.pos_encoding_xy(tf.concat([pos_encx,pos_ency],axis=-1))
+        #pos_encx = tf.tile(tf.expand_dims(self.pos_encoding_x(X),axis=0),(B,1,1,1))
+        #pos_ency = tf.tile(tf.expand_dims(self.pos_encoding_y(Y),axis=0),(B,1,1,1))
+        
+        pos_encxy = self.pos_encoding_xy(tf.zeros(shape=[B,K,K,32]))#self.pos_encoding_xy(tf.concat([pos_encx,pos_ency],axis=-1))
         
         # Simple 2D positional encoding
-        #pos_encx = tf.reshape(self.pos_encoding_x( tf.range(K)//(K//4)),(4,)) # 4
-        #pos_ency = tf.reshape(self.pos_encoding_y(tf.range(K)),(4,)) # 4
-        
-        #pos_encx = self.pos_encoding_x(tf.range(Kd**2)//Kd) # 4
-        #pos_ency = self.pos_encoding_y(tf.range(Kd**2)%Kd) # 4
-        
-        #X,Y = tf.meshgrid(pos_encx,pos_ency) # 2 4x4
-        #XY = tf.expand_dims(tf.stack([X,Y],axis=-1),axis=0) # 1x4x4x2
-        #pos_encoding = tf.tile(XY,(tf.shape(inputs)[0],1,1,1)) # Nx4x4x2
-
         #spatial_with_pos = spatial_desc+ pos_encx + pos_ency
         
         spatial_with_pos = spatial_desc+pos_encxy #tf.concat([spatial_desc,pos_encx,pos_ency],axis=-1)
@@ -353,10 +355,13 @@ class SpatialAttentionMechanism(Layer):
         #stacked_outs = tf.stack([self.spatial_heads[u](energy_descriptor,training=training) for u in range(self.head_num)],axis=-1)
         
         # Outputs from attention heads
-        heads_outs = [self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)] 
-        heads_v = [self.score_gen_v(hout[0]) for hout in heads_outs]
-        heads_h = [self.score_gen_h(hout[1]) for hout in heads_outs]
-        stacked_outs = tf.stack([tf.matmul(heads_v[u],heads_h[u],transpose_a=True) for u in range(self.head_num)],axis=-1)
+        #heads_outs = [self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)] 
+        #heads_v = [self.score_gen_v(hout[0]) for hout in heads_outs]
+        #heads_h = [self.score_gen_h(hout[1]) for hout in heads_outs]
+        
+        stacked_outs = tf.stack([self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)],axis=-1)
+        
+        #stacked_outs = tf.stack([tf.matmul(heads_v[u],heads_h[u],transpose_a=True) for u in range(self.head_num)],axis=-1)
         #stacked_outs = tf.stack([self.spatial_heads[u](spatial_with_pos,training=training) for u in range(self.head_num)],axis=-1)
         stacked_outs = self.ln(stacked_outs) # (B,K,K,self.head_num)
         
@@ -370,7 +375,7 @@ class SpatialAttentionMechanism(Layer):
         eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
         off_diag = gram - eye
         orthogonality_reg = tf.reduce_mean(tf.square(off_diag))
-        self.add_loss(1e-5 * orthogonality_reg)
+        self.add_loss(1e-6 * orthogonality_reg)
         # Raw scores generation 
         #scores_raw = self.score_gen(stacked_outs)
 

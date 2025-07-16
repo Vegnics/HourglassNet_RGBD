@@ -101,7 +101,7 @@ class ResidualBlock(Layer):
         # alpha_gen = self.alpha[0] #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
         scores = self.attention_block(inputs,training=training)
         out_conv = self.conv_block(inputs, training=training)
-        #scores = self.attention_block(inputs,training=training)
+        #scores = self.attention_block(out_conv,training=training)
         _sum = self.add(
             [  
                 #out_conv*((1-alpha_gen) + alpha_gen*scores),

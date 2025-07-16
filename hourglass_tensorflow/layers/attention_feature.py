@@ -10,72 +10,6 @@ from keras import initializers
 import keras
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
-class _SpatialBasedPooling(Layer):
-    def __init__(
-        self,
-        filters: int,
-        kernel_initializer: str = "glorot_uniform",
-        name: str = None,
-        trainable: bool = True,
-    ) -> None:
-        super().__init__(name=name,trainable=trainable)
-        # Store config
-        self.filters = filters
-        self.kernel_initializer = kernel_initializer
-        # Create layers
-        self.spatial_layers = []
-    def get_config(self):
-        return {
-            **super().get_config(),
-            **{
-                "filters": self.filters,
-                "kernel_initializer": self.kernel_initializer
-            },
-        }
-
-    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        x = tf.cast(inputs,dtype=tf.float32)
-        for layer in self.spatial_layers:
-            x = layer(x)
-        return x
-    
-    def build(self, input_shape):
-        self.spatial_layers = [
-        layers.Conv2D(
-            filters=self.filters//8,
-            kernel_size=(3,3),
-            strides=(1,1),
-            padding="same",
-            name="AttConv2D1",
-            activation="gelu",
-            kernel_initializer=self.kernel_initializer,
-        ),
-
-        layers.MaxPooling2D(
-            pool_size=(2, 2),
-            padding="valid",
-            name=f"AttFeaturelMaxPool1",
-        ),
-
-        layers.Conv2D(
-            filters=self.filters,
-            kernel_size=(3,3),
-            strides=(1,1),
-            padding="same",
-            name="AttConv2D2",
-            activation="gelu",
-            kernel_initializer=self.kernel_initializer,
-        ),
-
-        layers.MaxPooling2D(
-            pool_size=(2, 2),
-            padding="valid",
-            name=f"AttFeatureMaxPool2",
-        )
-        ]
-        super().build(input_shape)
-        self.built = True
-
 @register_keras_serializable(package="lattentionFeature") 
 class FeatureAttentionMechanism(Layer):
     """
@@ -126,8 +60,8 @@ class FeatureAttentionMechanism(Layer):
         # Feature Attention heads (FC->FC->LN)
         self.heads = [
                 SequentialLayer(
-                    layer_list = [
-                    layers.Dense(self.filters//16,
+                    layer_list = [    
+                    layers.Dense(self.filters//8,
                         activation= "gelu", #None,
                         use_bias=True,
                         bias_initializer=tf.random_uniform_initializer(minval=-0.01, maxval=0.01),
@@ -143,13 +77,19 @@ class FeatureAttentionMechanism(Layer):
                         kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
                         name = "head_dense_B",
                         ),
-                    layers.LayerNormalization(axis=-1,name="head_LN")
+                    #layers.LayerNormalization(axis=-1,name="head_LN")
                     ],
                 name = "Head_{}".format(i),
                 trainable=self.trainable
                 )
             for i in range(self.head_num)
         ]
+
+        #self.met_ln = layers.LayerNormalization(axis=-1,name="met_ln")
+        #self.met_proj = layers.Dense(units=self.filters//4,
+        #                             activation=None,
+        #                             kernel_regularizer="glorot_uniform",
+        #                             )
 
         # Set all Attention heads as attributes to ensure full serialization.
         for k,layer in enumerate(self.heads):
@@ -161,6 +101,7 @@ class FeatureAttentionMechanism(Layer):
         # Raw score generation layer (aka Last projection)
         self.last_projection = SequentialLayer(
             layer_list=[
+                layers.LayerNormalization(axis=-1,name="LN_lastproj"),
                 layers.Dense(self.filters//4,
                             activation="gelu",
                             use_bias=True,
@@ -176,7 +117,7 @@ class FeatureAttentionMechanism(Layer):
                             kernel_initializer= initializers.RandomNormal(mean=0.0, stddev=0.001), #"glorot_normal",#initializers.Constant(value=1/float(self.filters)),
                             kernel_regularizer=L1(1e-5) if self.kernel_reg else None,
                             name = "lasproj_dense_B"
-                        )
+                        ),
                     ],
             name = "LastProjection",
             trainable=self.trainable
@@ -205,8 +146,8 @@ class FeatureAttentionMechanism(Layer):
         _shape = tf.shape(inputs)
         _inputs =self.in_bn(inputs,training=training) # Batch normalization to the raw inputs
         _inputs = tf.clip_by_value(_inputs,-1e4,1e4) # Clip the input feats to avoid numerical instability
-        #energy_tensor = tf.math.sqrt(tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])+1e-6)# per-channel mean energy
-        energy_tensor = tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])# per-channel mean energy  
+        energy_tensor = tf.reduce_mean(tf.math.square(_inputs),axis=[1,2])# per-channel mean energy
+        #energy_proj = self.met_ln(self.met_proj(energy_tensor))
 
         # Input the Mean Energy Tensor to the Feature Attention heads 
         head_outs = []

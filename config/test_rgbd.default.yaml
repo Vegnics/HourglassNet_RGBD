@@ -150,7 +150,7 @@ model:
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_Colab_BL_2J_Att6_RGBD4C_FT2.keras
   #model_path: /home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d5.keras
   #model_path: data/myModel_SLP_Colab_BL_1B_ATT_Depth4C_d2_FT2.keras
-  model_path: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_S1.keras
+  model_path: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_EXP_S3.keras
   loading_style: Frozen
 
 test:

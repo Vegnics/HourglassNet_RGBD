@@ -6,7 +6,7 @@ from hourglass_tensorflow.metrics.distance import OverallMeanDistance,Softargmax
 from hourglass_tensorflow.losses import MAE_custom
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
-from hourglass_tensorflow.layers.residual_exp import ResidualLayer,ResidualLayerIn,ResidualBlock,ResidualBlockIn
+from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer,ResidualLayerIn,ResidualBlock,ResidualBlockIn
 from hourglass_tensorflow.layers.skip import SkipLayer
 #from hourglass_tensorflow.layers.residual_with_attention import ResidualLayerAttention
 #from hourglass_tensorflow.layers.residual_with_attention_spatial import ResidualLayerAttentionSpatial

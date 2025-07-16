@@ -130,8 +130,8 @@ model:
     freeze_attention_weights: false
     residual_nblocks: 1
   load_model: true
-  model_path: /home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d5.keras
-  loading_style: Partial_Train_F2S
+  model_path: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_EXP_S2.keras
+  loading_style: Partial_Downsampling_frozen
 train:
   object:
     source: hourglass_tensorflow.handlers.train.HTFTrainHandler
@@ -140,7 +140,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 2.5e-05
+  learning_rate: 8.0e-06
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -174,21 +174,21 @@ train:
   callbacks:
   - source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
     params:
-      monitor: val_PCKh@0.5
+      monitor: val_MEDist
       factor: 0.4
       patience: 4
       verbose: 1
       min_lr: 2.0e-09
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
-      mode: max
-      filepath: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C.keras
+      mode: min
+      filepath: data/model_t/SLP_Colab_BL_Att77_1B_Depth4C_EXP_S3.keras
       save_weights_only: false
       save_freq: epoch
-      monitor: val_PCKh@0.5
+      monitor: val_MEDist
       save_best_only: true
       verbose: 1
-      initial_value_threshold: 0.0
+      initial_value_threshold: 1000000.0
   - source: tensorflow.keras.callbacks.TensorBoard
     params:
       log_dir: logs/myModelLogs
@@ -198,5 +198,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att77_1B_Depth4C.keras_16:26:28.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att77_1B_Depth4C_EXP_S3.keras_10:02:39.csv
 test: null

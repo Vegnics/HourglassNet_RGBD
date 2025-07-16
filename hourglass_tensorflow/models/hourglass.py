@@ -6,7 +6,7 @@ from keras.layers import Lambda,Layer
 from typing import List
 from keras import Input as InputTensor
 from hourglass_tensorflow.types.config import HTFModelAsLayers
-from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
+from hourglass_tensorflow.layers.hourglass_Beta2 import HourglassLayer
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
 from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
 from hourglass_tensorflow.types.config.model import ATTENTION_MECHANISMS

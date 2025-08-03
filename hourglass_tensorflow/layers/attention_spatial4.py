@@ -15,13 +15,13 @@ from keras import ops
 
 @register_keras_serializable(package="lattentionSpatial")
 class ConvexComb(keras.constraints.Constraint):
-  def __call__(self, w):
+  def __call__(self, w,**kwargs):
     w= tf.math.abs(w)
     return w/(tf.reduce_sum(w,axis=2,keepdims=True)+1e-7)
   
 @register_keras_serializable(package="lattentionSpatial")
 class ConvexComb1D(keras.constraints.Constraint):
-  def __call__(self, w):
+  def __call__(self, w,**kwargs):
     w= tf.math.abs(w)
     return w/(tf.reduce_sum(w,keepdims=True)+1e-7)
 

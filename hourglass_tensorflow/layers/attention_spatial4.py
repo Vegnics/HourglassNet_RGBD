@@ -15,13 +15,13 @@ from keras import ops
 
 @register_keras_serializable(package="lattentionSpatial")
 class ConvexComb(keras.constraints.Constraint):
-  def __call__(self, w,**kwargs):
+  def __call__(self, w,dtype=None):
     w= tf.math.abs(w)
     return w/(tf.reduce_sum(w,axis=2,keepdims=True)+1e-7)
   
 @register_keras_serializable(package="lattentionSpatial")
 class ConvexComb1D(keras.constraints.Constraint):
-  def __call__(self, w,**kwargs):
+  def __call__(self, w,dtype=None):
     w= tf.math.abs(w)
     return w/(tf.reduce_sum(w,keepdims=True)+1e-7)
 
@@ -97,7 +97,8 @@ class SpatialEnergyHead(Layer):
                 name="head_local_conv_1",
                 activation=None,
                 kernel_regularizer= None,
-                kernel_initializer= ConvexComb(), #initializers.RandomNormal(mean=0.0, stddev=0.01),
+                kernel_initializer = "glorot_uniform",
+                kernel_constraint= ConvexComb(), #initializers.RandomNormal(mean=0.0, stddev=0.01),
                 bias_initializer=tf.constant_initializer(0.0),
                 use_bias=False,
                 trainable = self.trainable),
@@ -186,7 +187,7 @@ class SpatialEnergyHead(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        B = tf.shape(inputs)[0] 
+        #B = tf.shape(inputs)[0] 
         #lin_xy = tf.range(self.K_size)
         #X,Y = tf.meshgrid(lin_xy,lin_xy)
         #pos_encx = tf.tile(tf.expand_dims(self.pos_encoding(X),axis=0),(B,1,1,1))
@@ -197,7 +198,7 @@ class SpatialEnergyHead(Layer):
         #pos_enc = self.pos_encoding_xy(inputs)
         desc_posc = self.extractor(inputs) # (B,H,W,R)
         global_map = self.upsample(desc_posc)
-        return global_map+local_map, tf.reshape(desc_posc,shape=(B,-1)) #0.5+tf.clip_by_value(0.58*tf.nn.tanh(0.7*att_map),-0.5,0.5) #tf.nn.sigmoid(att_map)# self.dropout_v(V,training=training),self.dropout_h(H,training=training)# (B,R,K),(B,R,K)  
+        return global_map+local_map, desc_posc #tf.reshape(,shape=(B,-1)) #0.5+tf.clip_by_value(0.58*tf.nn.tanh(0.7*att_map),-0.5,0.5) #tf.nn.sigmoid(att_map)# self.dropout_v(V,training=training),self.dropout_h(H,training=training)# (B,R,K),(B,R,K)  
     def build(self, input_shape):
         super().build(input_shape)
 
@@ -326,13 +327,15 @@ class SpatialAttentionMechanism(Layer):
         #_inputs = tf.clip_by_value(inputs,-1e4,1e4)
         #projection = self.gap_proj(_inputs)
         #_inputs = self.in_ln(inputs)
-        B = tf.shape(inputs)[0] 
+        #B = tf.shape(inputs)[0] 
         K = self.feat_size # Width or Height
         spatial_desc = self.summarizer(inputs)
+        #print(self.head_mixer_w)
         heads_outs = [self.spatial_heads[u](spatial_desc,training=training) for u in range(self.head_num)]
         #stacked_outs = tf.concat([heads_outs[u][0] for u in range(self.head_num)],axis=-1)
         stacked_outs = tf.stack([heads_outs[u][0] for u in range(self.head_num)],axis=-1) #(B,H,W,D,Heads)
-        stacked_outs_w = self.head_mixer_w*stacked_outs
+        
+        stacked_outs_w = stacked_outs #self.head_mixer_w*
         outs_aggregated = tf.reduce_sum(stacked_outs_w,axis=-1) #(B,H,W,D)
 
         #stacked_latent = tf.stack([heads_outs[u][1] for ua in range(self.head_num)],axis=-1)
@@ -345,6 +348,7 @@ class SpatialAttentionMechanism(Layer):
         latent_var = tf.reduce_mean(tf.square(stacked_outs-latent_mean),axis=-1)
         var_reg = tf.reduce_mean(1/tf.maximum(latent_var,0.001))
         self.add_loss(1e-6*var_reg)
+        
         return scores #scores_raw # (B,K,K,1)=(B,H,W,1)
     
     def build(self, input_shape):

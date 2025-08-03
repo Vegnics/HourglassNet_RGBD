@@ -23,7 +23,7 @@ from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
 from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
-from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayer
+from hourglass_tensorflow.layers.hourglass_Beta2 import HourglassLayer
 
 # region Abstract Class
 

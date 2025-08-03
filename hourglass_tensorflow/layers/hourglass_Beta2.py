@@ -375,7 +375,8 @@ class HourglassLayer(Layer):
         #    out = step_layers["low_out"](out,training=training)
         return out
 
-    def call(self, inputs, training=False):
+    def call(self, inputs, training=False,**kwargs):
+        #print(inputs)
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )

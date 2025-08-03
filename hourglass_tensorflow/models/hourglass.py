@@ -151,6 +151,7 @@ class HourglassModel(Model):
         """
         for hglayer in self.hourglasses:
             x, y = hglayer(x) # x is the output features, y is the intermediate output heatmaps
+            print(x,y)
             outputs_list.append(y)
         
         outputs = self.stacker(outputs_list)

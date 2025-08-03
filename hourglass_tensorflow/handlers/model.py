@@ -21,10 +21,9 @@ from hourglass_tensorflow.metrics.correct_keypoints import PercentageOfCorrectKe
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
-import hourglass_tensorflow.layers
 from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
 from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
-from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
+from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayer
 
 # region Abstract Class
 
@@ -190,11 +189,7 @@ class HTFModelHandler(_HTFModelHandler):
                             print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
                             layer.ln_feats1j.trainable = False 
                 elif self.config.loading_style == "Partial_Train_Attention":
-                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR ATTENTION <<<<<<<<<<<<<<")
-                    for layer in model.layers:
-                        if isinstance(layer,DownSamplingLayer):
-                            print(f"Freezing {layer.name}")
-                            layer.trainable = False
+                    """
                         elif isinstance(layer,HourglassLayer):
                             main_name = layer.name
                             # Train only the main hourglass
@@ -203,20 +198,53 @@ class HTFModelHandler(_HTFModelHandler):
                                     if isinstance(v,Layer):
                                         #print(f"Freezing {main_name}/{v.name}")
                                         v.trainable = True
+                        """
+                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR ATTENTION <<<<<<<<<<<<<<")
+                    for layer in model.layers:
+                        if isinstance(layer,DownSamplingLayer):
+                            print(f"Freezing {layer.name}")
+                            layer.trainable = False
+                        
+
+                        elif isinstance(layer,HourglassLayer):
+                            main_name = layer.name
+                            # Train only the main hourglass
+                            for _,val in layer.layer_list.items():
+                                val["up_1"].trainable = True # Freeze the Skip layers
+                                val["up_1"].residual_blocks[0].conv_block.trainable = False
+                                print("Freezing {}/{}".format(main_name,val["up_1"].name))
+                                val["low_1"].trainable = True # Train S2F
+                                print("Freezing {}/{}".format(main_name,val["low_1"].name))
+                                val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                #val["low_1"].residual_blocks[0].alpha.trainable = False # Freeze the ConvBlock
+                                val["low_3"].trainable = True # Freeze F2S
+                                val["low_3"].residual_blocks[0].conv_block.trainable = False
+                                print("Freezing {}/{}".format(main_name,val["low_3"].name))
+                                try:
+                                    val["low_2"].trainable = True # Freeze F2S
+                                    print("Freezing {}/{}".format(main_name,val["low_2"].name))
+                                    val["low_2"].residual_blocks[0].conv_block.trainable = False
+                                except:
+                                    pass
+
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
                             layer.residual_brc.trainable = False
+                            layer.residual_brc.residual1.residual_blocks[0].conv_block.trainable = False
+                            layer.residual_brc.lora_path.trainable = True
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
-                            layer.ln_inputs.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_main.name}")
-                            layer.ln_main.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
-                            layer.ln_feats1j.trainable = False 
+                            
+                            #print(f"Freezing {main_name}/{layer.ln_inputs.name}")
+                            #layer.ln_inputs.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_main.name}")
+                            #layer.ln_main.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
+                            #layer.ln_feats1j.trainable = False 
                             #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
                             #layer.bn_feats_1j.trainable = False
+                            
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
@@ -249,14 +277,15 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
-                            layer.ln_inputs.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_main.name}")
-                            layer.ln_main.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
-                            layer.ln_feats1j.trainable = False 
+                            #print(f"Freezing {main_name}/{layer.ln_inputs.name}")
+                            #layer.ln_inputs.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_main.name}")
+                            #layer.ln_main.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
+                            #layer.ln_feats1j.trainable = False 
                             #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
                             #layer.bn_feats_1j.trainable = False
+
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
@@ -265,6 +294,8 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.features_hm2.trainable = False
                             print(f"Freezing {main_name}/{layer.residual_2j.name}")
                             layer.residual_2j.trainable = False
+                        #else:
+
                 elif self.config.loading_style == "Partial_Train_F2S":
                     print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR F2S (Top-down) <<<<<<<<<<<<<<")
                     for layer in model.layers:
@@ -280,6 +311,49 @@ class HTFModelHandler(_HTFModelHandler):
                                 val["low_1"].trainable = False # Freeze S2F layers
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))
                                 val["low_3"].trainable = True # Train F2S layers
+                                #val["low_3"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                
+                                #val["low_3"].residual_blocks[0].alpha.trainable = False
+                            print(f"Freezing {main_name}/{layer.residual_brc.name}")
+                            layer.residual_brc.trainable = False
+                            print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
+                            layer.merge_feats_main.trainable = False
+                            print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
+                            layer.merge_feats_1j.trainable = False
+                            
+                            #print(f"Freezing {main_name}/{layer.ln_inputs.name}")
+                            #layer.ln_inputs.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_main.name}")
+                            #layer.ln_main.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
+                            #layer.ln_feats1j.trainable = False 
+                            #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
+                            #layer.bn_feats_1j.trainable = False
+                            
+                            print(f"Freezing {main_name}/{layer.hm1_output.name}")
+                            layer.hm1_output.trainable = False
+                            print(f"Freezing {main_name}/{layer.hm2_output.name}")
+                            layer.hm2_output.trainable = False
+                            print(f"Freezing {main_name}/{layer.features_hm2.name}")
+                            layer.features_hm2.trainable = False
+                            print(f"Freezing {main_name}/{layer.residual_2j.name}")
+                            layer.residual_2j.trainable = False
+                elif self.config.loading_style == "Partial_Train_S2FF2S":
+                    print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR S2F - F2S <<<<<<<<<<<<<<")
+                    for layer in model.layers:
+                        if isinstance(layer,DownSamplingLayer):
+                            print(f"Freezing {layer.name}")
+                            layer.trainable = False
+                        elif isinstance(layer,HourglassLayer):
+                            main_name = layer.name
+                            # Train only the main hourglass
+                            for _,val in layer.layer_list.items():
+                                val["up_1"].trainable = False # Freeze Skip layers
+                                print("Freezing {}/{}".format(main_name,val["up_1"].name))
+                                val["low_1"].trainable = True # Freeze S2F layers
+                                val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                #print("Freezing {}/{}".format(main_name,val["low_1"].name))
+                                val["low_3"].trainable = True # Train F2S layers
                                 val["low_3"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
                                 #val["low_3"].residual_blocks[0].alpha.trainable = False
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
@@ -288,14 +362,7 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
-                            layer.ln_inputs.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_main.name}")
-                            layer.ln_main.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
-                            layer.ln_feats1j.trainable = False 
-                            #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
-                            #layer.bn_feats_1j.trainable = False
+                            
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
@@ -317,24 +384,26 @@ class HTFModelHandler(_HTFModelHandler):
                                 val["up_1"].trainable = True # Train Skip layers
                                 val["up_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
                                 #val["up_1"].residual_blocks[0].alpha.trainable = False
-                                print("Freezing {}/{}".format(main_name,val["up_1"].name))
                                 val["low_1"].trainable = False # Freeze S2F layers
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))
                                 val["low_3"].trainable = False # Freeze F2S layers
+                                print("Freezing {}/{}".format(main_name,val["low_3"].name))
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
                             layer.residual_brc.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
-                            layer.ln_inputs.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_main.name}")
-                            layer.ln_main.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
-                            layer.ln_feats1j.trainable = False 
+                            
+                            #print(f"Freezing {main_name}/{layer.ln_inputs.name}")
+                            #layer.ln_inputs.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_main.name}")
+                            #layer.ln_main.trainable = False
+                            #print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
+                            #layer.ln_feats1j.trainable = False 
                             #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
                             #layer.bn_feats_1j.trainable = False
+                            
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")

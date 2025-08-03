@@ -177,7 +177,7 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
-    #  clipnorm: 4.5
+      clipnorm: 5.0
     #  rho: 0.9
     #  momentum: 0.00000001
     #  centered: true
@@ -214,7 +214,7 @@ train:
     -
       source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
       params:
-        monitor: val_MEDist  #val_PCKh@0.5        # Metric to monitor (could also be 'loss' or 'accuracy')
+        monitor: val_PCKh@0.5  #val_MEDist  #       # Metric to monitor (could also be 'loss' or 'accuracy')
         factor: 0.4                # Factor to reduce the learning rate, e.g., new_lr = lr * 0.5
         patience: 4                # Number of epochs with no improvement before reducing
         verbose: 1                 # Print updates
@@ -224,14 +224,14 @@ train:
       params:
         #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
         #filepath: "data/model_t/myModel.{epoch:02d}"
-        mode: min
+        mode: max
         filepath: "data/model_t/myModel_SLP_fAB6_2j"
         save_weights_only: false
         save_freq: epoch
-        monitor: val_MEDist #val_PCKh@0.5 #val_CorrectKpts@6px #
+        monitor: val_PCKh@0.5 #val_MEDist # #val_CorrectKpts@6px #
         save_best_only: true
         verbose: 1
-        initial_value_threshold: 1000000.0
+        initial_value_threshold: 0.0 #1000000.0
     -
       source: "tensorflow.keras.callbacks.TensorBoard"
       params:

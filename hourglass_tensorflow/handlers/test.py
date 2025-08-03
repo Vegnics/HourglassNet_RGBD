@@ -265,15 +265,17 @@ class HTFTestHandler(_HTFTestHandler):
             #print(predcoords,"\n",gtcoords)
 
 
-            error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32))/(64*0.14), dtype=tf.dtypes.float32)
+            #error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32))/(64*0.14), dtype=tf.dtypes.float32)
+            error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32)), dtype=tf.dtypes.float32)
             distance = tf.norm(error, ord=2, axis=-1) #NxC
             #distance = _distance+(1-visibility)*64.0
             # We compute the norm of the reference limb from the ground truth
             reference_limb_error = tf.cast(
-                gtcoords[:, 13, :]/64.0
-                - gtcoords[:, 12, :]/64.0,
+                gtcoords[:, 13, :]
+                - gtcoords[:, 12, :],
                 dtype=tf.float32,
             )# Nx2
+            refer_dist = tf.expand_dims(tf.norm(reference_limb_error,ord=2,axis=-1),axis=-1)
             # Compute the reference distance (It could be the head distance, or torso distance)
             
             #mask_tensor = 2.0*(1.0-vis)*tf.constant(32.0)
@@ -288,7 +290,7 @@ class HTFTestHandler(_HTFTestHandler):
 
                 # Compute PCKh at each threshold
                 correctkpnts = [
-                    tf.reduce_sum(tf.cast(tf.math.less(distance, t), dtype=tf.float32) * mod_vis * joint_mask)
+                    tf.reduce_sum(tf.cast(tf.math.less(distance, tf.maximum(t*refer_dist,t*6.4)), dtype=tf.float32) * mod_vis * joint_mask)
                     for t in thresholds
                 ]
 

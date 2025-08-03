@@ -363,22 +363,6 @@ def tf_train_map_affine_augmentation(
     #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=36, axis=0)
     #_visibilities_batch = tf.repeat(tf.expand_dims(visibility,axis=0),repeats=36,axis=0)
     
-    """
-    _images = tf.vectorized_map(fn=(
-            lambda databatch: tf_rotate_tensor_masked(databatch[0],
-                                            img_shape,
-                                            databatch[1][0],
-                                            databatch[1][1],
-                                            center,
-                                            affine_axis_mask,
-            )
-        ),
-        elems=(_image_batch,
-               affines
-               )
-        )
-    """
-    #"""
     _images = tf.map_fn(
         fn=(
             lambda affine: tf_rotate_tensor_masked(_image,
@@ -392,24 +376,7 @@ def tf_train_map_affine_augmentation(
         elems=affines,
         parallel_iterations=10,
     )
-    #"""
-    """
-    _coordinates_map = tf.vectorized_map(
-        fn=(
-            lambda databatch: tf_rotate_coords(databatch[0],
-                                            img_shape,
-                                            center,
-                                            databatch[1],
-                                            databatch[2][0],
-                                            databatch[2][1],
-            )
-        ),
-        elems=(_coords_batch,
-               _visibilities_batch,
-               affines)
-    )
-    """
-    #"""
+
     _coordinates_map = tf.map_fn(
         fn=(
             lambda affine: tf_rotate_coords(coordinates,
@@ -424,7 +391,7 @@ def tf_train_map_affine_augmentation(
         dtype=tf.dtypes.float32,
         parallel_iterations=10,
     )
-    #"""
+
     mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
     mask0 = tf.expand_dims(mask0,axis=0)
     #mask0 = tf.expand_dims(mask0,axis=0)
@@ -433,20 +400,11 @@ def tf_train_map_affine_augmentation(
     #_visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
 
-    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13,  1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
+    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.12, 1.13,1.20,1.13,1.20,1.13,1.20,1.13,  1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.12, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
                          dtype=tf.float32)
-    bbox_dev = 0.02*2.0*(tf.random.uniform(shape=(36,),dtype=tf.float32)-0.5)
+    bbox_dev = 0.018*2.0*(tf.random.uniform(shape=(36,),dtype=tf.float32)-0.5)
     bboxf = _bboxf + bbox_dev
-    """
-    _zipped = tf_train_map_squarify_batch(tf.cast(_images,dtype=tf.float32),
-                                          _shapes_batch,
-                                          tf.cast(_coordinates,dtype=tf.float32),
-                                          _visibilities,
-                                          _annotated_batch,
-                                          bboxf)
-    """
-    
-    #"""
+
     _zipped = tf.map_fn(
         fn=(
             lambda imgncoords: tf_train_map_squarify(imgncoords[0],
@@ -805,23 +763,6 @@ def tf_validation_map_affine(
     #_image_batch = tf.repeat(tf.expand_dims(_image,axis=0),repeats=6,axis=0)
     #_coords_batch = tf.repeat(tf.expand_dims(coordinates, axis=0), repeats=6, axis=0)
 
-    """
-    _images = tf.vectorized_map(
-            fn=(
-                lambda affinebatch: tf_rotate_tensor_masked(affinebatch[0],
-                                                img_shape,
-                                                affinebatch[1][0],
-                                                affinebatch[1][1],
-                                                center,
-                                                affine_axis_mask
-                                                #input_size=input_size,
-                )
-            ),
-            elems=(_image_batch,affines)
-        )
-    """
-    
-    #"""
     _images = tf.map_fn(
         fn=(
             lambda affine: tf_rotate_tensor_masked(_image,
@@ -836,27 +777,9 @@ def tf_validation_map_affine(
         elems=saffines,
         parallel_iterations=10,
     )
-    #"""
 
-    """
-    _coordinates_map = tf.vectorized_map(
-        fn=(
-            #lambda affine: tf_rotate_norm_coords(coordinates,
-            lambda affinebatch: tf_rotate_coords(affinebatch[0],
-                                            img_shape,
-                                            center,
-                                            visibility,
-                                            affinebatch[1][0],
-                                            affinebatch[1][1],
-            )
-        ),
-        elems=(_coords_batch,affines)
-    )
-    """
-    #"""
     _coordinates_map = tf.map_fn(
         fn=(
-            #lambda affine: tf_rotate_norm_coords(coordinates,
             lambda affine: tf_rotate_coords(coordinates,
                                             img_shape,
                                             center,
@@ -869,17 +792,16 @@ def tf_validation_map_affine(
         dtype=tf.dtypes.float32,
         parallel_iterations=10,
     )
-    #"""
+
     mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
     mask0 = tf.expand_dims(mask0,axis=0)
-    #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     _visibilities  = _coordinates_map[:,:,2] #*0.0+1.0 #*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     #if task_mode=="train":
-    _bboxf = tf.constant([1.12,1.18,1.23,1.13,1.2,1.15],dtype=tf.float32)
-    bboxf = 0.02*2.0*(tf.random.uniform(shape=(6,))-0.5)+_bboxf
+    _bboxf = tf.constant([1.14,1.15,1.16,1.18,1.2,1.22],dtype=tf.float32)
+    bboxf = 0.018*2.0*(tf.random.uniform(shape=(6,))-0.5)+_bboxf
     sbboxf = tf.gather(bboxf,tf.random.shuffle(tf.range(6))[:3])
     
     _zipped = tf.map_fn(
@@ -978,6 +900,7 @@ def tf_test_map_affine(
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
+    _visibilities = _visibilities * mask0 + mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     bboxf = tf.constant([1.18],dtype=tf.float32) #1.24
@@ -1195,11 +1118,14 @@ def tf_train_map_squarify(
     # how much V/H padding should be applied
     # Padding is necessary to conserve proportions
     # when resizing
+    devf = 0.08
     bbox = tf.cast(bbox,dtype=tf.float32)
     ww = bbox[1,0]-bbox[0,0]
     hh = bbox[1,1]-bbox[0,1]
-    bbox_dev_x = tf.random.uniform(shape=[2],minval=-0.08*tf.cast(ww,dtype=tf.float32),maxval=0.08*tf.cast(ww,dtype=tf.float32)) 
-    bbox_dev_y = tf.random.uniform(shape=[2],minval=-0.08*tf.cast(hh,dtype=tf.float32),maxval=0.08*tf.cast(hh,dtype=tf.float32))
+    n = tf.minimum(ww,hh)
+
+    bbox_dev_x = tf.random.uniform(shape=[2],minval=-devf*tf.cast(n,dtype=tf.float32),maxval=devf*tf.cast(n,dtype=tf.float32)) 
+    bbox_dev_y = tf.random.uniform(shape=[2],minval=-devf*tf.cast(n,dtype=tf.float32),maxval=devf*tf.cast(n,dtype=tf.float32))
     bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev_x,0,tf.cast(_image_shape[1]-1,dtype=tf.float32)),shape=(2,1))
     bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev_y,0,tf.cast(_image_shape[0]-1,dtype=tf.float32)),shape=(2,1))
     bbox_mod = tf.concat((bbox_mod_x,bbox_mod_y),axis=1)

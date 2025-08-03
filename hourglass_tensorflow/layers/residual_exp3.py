@@ -5,6 +5,7 @@ from keras.layers import Layer
 from keras.saving import register_keras_serializable
 from keras import constraints
 
+from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 from hourglass_tensorflow.layers.skip import SkipLayer
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
@@ -68,8 +69,47 @@ class ResidualBlock(Layer):
             momentum=self.momentum,
             epsilon=self.epsilon,
             name="ConvBlock",
-            trainable=trainable,
+            trainable=self.trainable,
         )
+
+        self.lora_path = SequentialLayer(
+                        [
+                            layers.Conv2D(filters=16,
+                                    kernel_size=(1,1),
+                                    kernel_initializer="glorot_normal",
+                                    name="lora_a",
+                                    use_bias=False),
+                            
+                            layers.LayerNormalization(
+                                axis=-1,
+                                name="lora_ln"
+                            ),
+                            
+                            layers.Conv2D(filters=32,
+                                    kernel_size=(3,3),
+                                    padding = "same",
+                                    activation="gelu",
+                                    kernel_initializer="glorot_uniform",
+                                    name="lora_i0"),
+                            
+                            layers.Conv2D(filters=8,
+                                    kernel_size=(3,3),
+                                    padding = "same",
+                                    activation="gelu",
+                                    kernel_initializer="glorot_uniform",
+                                    name="lora_i1"),
+
+                            layers.Conv2D(filters=self.output_filters,
+                                    kernel_size=(1,1),
+                                    kernel_initializer="zeros",
+                                    name="lora_b",
+                                    use_bias=False)
+
+                        ],
+                        name="lora_path",
+                        trainable=self.trainable
+                    )
+                
         self.add = layers.Add(name="Add")
         self.relu= layers.ReLU(name="ReLu_identity",)  if self.use_last_relu else IdentityLayer(name="ReLu_identity")
     def get_config(self):
@@ -101,7 +141,7 @@ class ResidualBlock(Layer):
         # alpha_gen = self.alpha[0] #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
         #scores = self.attention_block(inputs,training=training)
         
-        out_conv = self.conv_block(inputs, training=training)
+        out_conv = self.conv_block(inputs, training=training) + self.lora_path(inputs)
         scores = self.attention_block(out_conv,training=training)
         _sum = self.add(
             [  

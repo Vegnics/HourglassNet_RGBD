@@ -10,6 +10,7 @@ from keras.callbacks import Callback
 import keras.models
 import json
 
+"""
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.hourglass_Beta import HourglassLayer
 from hourglass_tensorflow.layers.residual import ResidualLayer,ResidualLayerIn,ResidualBlock,ResidualBlockIn
@@ -24,7 +25,7 @@ from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.linear_projection import LinearProjection
 from hourglass_tensorflow.utils.loaders.weight_loader import recursive_weight_transfer
 from hourglass_tensorflow.utils.loaders.model_loader import load_basemodel_weights
-
+"""
 
 class DummyCallback(Callback):
     def __init__(self, x_val=None):

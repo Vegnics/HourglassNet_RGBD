@@ -197,7 +197,7 @@ class HourglassLayer(Layer):
             filters=self.joint_filters_1J, #output_filters
             kernel_size=1,
             name="HeatmapOutput",
-            trainable=trainable,
+            trainable=self.trainable,
             outmax=None,
         )
 
@@ -206,7 +206,7 @@ class HourglassLayer(Layer):
             filters=self.joint_filters_2J,#14,
             kernel_size=1,
             name="Heatmap2Output",
-            trainable=trainable,
+            trainable=self.trainable,
             outmax=None,
         ) if self.use_2jointHM else zeroLayer(self.joint_filters_2J,name="Heatmap2Output")
 
@@ -222,7 +222,7 @@ class HourglassLayer(Layer):
         self.residual_2j = ResidualLayer(output_filters=self.feature_filters,
                                            nblocks=self.residual_nblocks,
                                             name="Transit_Output",
-                                            trainable=trainable,
+                                            trainable=self.trainable,
                                             epsilon=0.001,
                                             momentum=0.97,
                                             attentionType="NoAM",
@@ -232,31 +232,20 @@ class HourglassLayer(Layer):
         self.merge_feats_main = LinearProjection(filters=self.feature_filters,
                                             kernel_size=1,
                                             name="Merge_Feats_main",
-                                            trainable=trainable,
+                                            trainable=self.trainable,
         )
 
         self.merge_feats_1j = LinearProjection(filters=self.feature_filters,
                                             kernel_size=1,
                                             name="Merge_Feats_1J",
-                                            trainable=trainable,
+                                            trainable=self.trainable,
         )
-
-        """
-        self.bn_feats_1j = layers.BatchNormalization(
-            axis=-1,
-            momentum=0.989,
-            #epsilon=0.001,
-            epsilon=0.0001,
-            trainable=trainable,
-            name="BN_Feats_1J",
-        )
-        """
 
         self.residual_brc = ResidualWithBNRC(
                     output_filters=self.feature_filters,
                     nblocks=self.residual_nblocks,
                     name=f"ResidualWithBNRC",
-                    trainable=trainable,
+                    trainable=self.trainable,
                     attention= "NoAM"
                 )
         
@@ -391,26 +380,20 @@ class HourglassLayer(Layer):
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
         _x = self.residual_brc(_x,training=training) # Output of the Hourglass module
-        main_feats = self.merge_feats_main(_x)
-        intermediate_2jhms = self.hm2_output(_x,training=training)
-        features_2jhms = self.features_hm2(intermediate_2jhms) 
-        transit_2jhms = self.residual_2j(features_2jhms, training=training)
+        main_feats = self.merge_feats_main(_x) # Linear Projection Main Feats
+        intermediate_2jhms = self.hm2_output(_x) # Linear Projection 2-Joint
+        features_2jhms = self.features_hm2(intermediate_2jhms) # Linear Projection Features 2-Joint
+        transit_2jhms = self.residual_2j(features_2jhms, training=training) # Residual 2-Joint
 
-        intermediate_1jhms = self.hm1_output(tf.add_n([_x,transit_2jhms]), training=training)
-        #bpart_feats = self.body_part_residual(intermediate_2jhms,training=training)
-        #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
-        #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training)
-        feats1j = self.merge_feats_1j(intermediate_1jhms)
-        #feats1j_norm = self.bn_feats_1j(feats1j,training=training)
-        #_out = self._last_residual(_x,training=training)
+        intermediate_1jhms = self.hm1_output(tf.add_n([_x,transit_2jhms]), training=training) # Linear Projection to 1-Joint
+        feats1j = self.merge_feats_1j(intermediate_1jhms) # Linear projection from 1-Joint
 
         out_tensor = tf.add_n(
             [inputs, main_feats, feats1j], #_out
             name=f"{self.name}_OutputAdd",
         )
-        #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
-        
         return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
+    
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         #print("CONFIG: ", self.get_config())

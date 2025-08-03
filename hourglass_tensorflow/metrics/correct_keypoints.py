@@ -204,6 +204,8 @@ class PercentageOfCorrectKeypoints(Metric):
         
     def check_visibility(self,tensor,thresh):
         _tensor = 1.0*tensor[:,-1,:,:,:]
+        _zeros = tf.zeros_like(_tensor)
+        _tensor = tf.where(tf.logical_and(_tensor>0.0001,_tensor<2.5),_tensor,_zeros)
         sum = tf.reduce_max(_tensor,axis=[1,2])# NC
         vis0 = tf.zeros_like(sum)
         vis1 = tf.ones_like(sum)
@@ -213,7 +215,7 @@ class PercentageOfCorrectKeypoints(Metric):
     def _internal_update(self, y_true, y_pred):
         #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
         vis_true = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints],0.8)
-        vis_pred = self.check_visibility(y_pred[:,:,:,:,0:self.num_1joints],0.001)
+        vis_pred = self.check_visibility(y_pred[:,:,:,:,0:self.num_1joints],0.01)
         vis = vis_true*vis_pred
         N = tf.ones_like(vis,dtype=tf.float32)
         N = tf.reduce_sum(N)/14.0
@@ -256,6 +258,7 @@ class PercentageOfCorrectKeypoints(Metric):
         #condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
         #                        dtype=tf.float32)
         condition = tf.cast(tf.math.less(distance,self.ratio),dtype=tf.float32) #NC
+        #condition = tf.cast(tf.math.less(distance,tf.maximum(self.ratio*reference_distance,1.8)),dtype=tf.float32) #NC
         correct_keypoints = tf.reduce_sum(condition*vis)
         
         """    

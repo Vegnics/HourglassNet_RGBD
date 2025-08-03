@@ -15,7 +15,7 @@ class MetricReduceLROnPlateau(Callback):
         self.min_lr = min_lr  # Minimum learning rate allowed
         self.verbose = verbose  # Verbosity mode
         self.wait = 0  # Wait counter
-        self.best = np.float32(+float('inf'))  # Best value of the monitored metric
+        self.best = np.float32(-float('inf'))  # Best value of the monitored metric
         self.lr_reduced = False  # Flag to track if LR was reduced
     
     def on_epoch_end(self, epoch, logs=None):
@@ -84,8 +84,8 @@ class MetricReduceLROnPlateau(Callback):
             self.model.optimizer.learning_rate.assign(0.5e-5)
         """
         # Check if the metric has improved
-        #if current > self.best:
-        if current < self.best:
+        if current > self.best:
+        #if current < self.best:
             if self.verbose > 0:
                 print(f"\nThe value of {self.monitor} has improved.")
             self.best = current
@@ -116,6 +116,6 @@ class MetricReduceLROnPlateau(Callback):
 
     def on_train_begin(self, logs=None):
         # Initialization of the best metric value
-        self.best = np.float32(+float('inf'))
+        self.best = np.float32(-float('inf'))
         self.wait = 0
         self.lr_reduced = False

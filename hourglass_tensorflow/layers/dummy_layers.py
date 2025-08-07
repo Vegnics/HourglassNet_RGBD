@@ -85,7 +85,8 @@ class  quasiConstantLayer(Layer):
         batch_size = tf.shape(inputs)[0]
         height = tf.shape(inputs)[1]
         width = tf.shape(inputs)[2]
-        outs = tf.random.uniform(shape=[batch_size, height, width, self.output_channels],minval=self.value_out,maxval=self.value_out+0.005, dtype=inputs.dtype)
+        outs = tf.ones(shape=[batch_size, height, width, self.output_channels], dtype=inputs.dtype)
+        #outs = tf.random.uniform(shape=[batch_size, height, width, self.output_channels],minval=self.value_out,maxval=self.value_out+0.005, dtype=inputs.dtype)
         #outs = tf.random.normal(shape=[batch_size, height, width, self.output_channels],mean=self.value_out,stddev=0.2, dtype=inputs.dtype)
         return outs #tf.nn.sigmoid(outs) #self.value_out*outs #tf.ones([batch_size, height, width, self.output_channels], dtype=inputs.dtype)
 

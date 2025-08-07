@@ -10,8 +10,10 @@ from hourglass_tensorflow.utils.loaders.weight_loader import print_layers_recurs
 
 
 from hourglass_tensorflow.utils import BadConfigurationError
-from hourglass_tensorflow.models import HourglassModel,build_hourglassModel
-from hourglass_tensorflow.models import model_as_layers
+from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora,build_hourglassModelLora,model_as_layers_lora
+#from hourglass_tensorflow.models.hourglass_lora import model_as_layers
+from hourglass_tensorflow.models.hourglass import HourglassModel,build_hourglassModel,model_as_layers
+
 from hourglass_tensorflow.types.config import HTFModelConfig
 from hourglass_tensorflow.types.config import HTFModelParams
 from hourglass_tensorflow.types.config import HTFModelHandlerReturnObject
@@ -22,8 +24,8 @@ from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
 from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
-from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
-from hourglass_tensorflow.layers.hourglass_Beta2 import HourglassLayer
+from hourglass_tensorflow.layers.downsampling2 import DownSamplingLayerLora
+from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora
 
 # region Abstract Class
 
@@ -107,8 +109,8 @@ class HTFModelHandler(_HTFModelHandler):
             raise BadConfigurationError("The only supported data format is NHWC so far")
         return self._input
 
-    def _build_model_as_model(self, *args, **kwargs) -> HourglassModel:
-        hgmodel = HourglassModel(**self.params.model_dump())
+    def _build_model_as_model(self, *args, **kwargs) -> HourglassModelLora:
+        hgmodel = HourglassModelLora(**self.params.model_dump())
         self._model = hgmodel.wrap_model()
         #self._dummy_model = HourglassModel(**self.params.model_dump())
         self._layered_model = {}
@@ -157,9 +159,9 @@ class HTFModelHandler(_HTFModelHandler):
                                             "OverallMeanDistance":OverallMeanDistance,
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
                 """
-                print(model.get_config())
+                #print(model.get_config())
                 #print(model.compile())
-                print(model.__dir__())
+                #print(model.__dir__())
                 #print(model.stages,model.channels_1J,model.channels_2J)
                 #FREEZING SOME LAYERS
                 if self.config.loading_style == "Partial_Train_Joints":
@@ -201,36 +203,36 @@ class HTFModelHandler(_HTFModelHandler):
                         """
                     print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR ATTENTION <<<<<<<<<<<<<<")
                     for layer in model.layers:
-                        if isinstance(layer,DownSamplingLayer):
+                        if isinstance(layer,DownSamplingLayerLora):
                             print(f"Freezing {layer.name}")
                             layer.trainable = False
                         
 
-                        elif isinstance(layer,HourglassLayer):
+                        elif isinstance(layer,HourglassLayerLora):
                             main_name = layer.name
                             # Train only the main hourglass
                             for _,val in layer.layer_list.items():
                                 val["up_1"].trainable = True # Freeze the Skip layers
-                                val["up_1"].residual_blocks[0].conv_block.trainable = False
+                                #val["up_1"].residual_blocks[0].conv_block.trainable = False
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
                                 val["low_1"].trainable = True # Train S2F
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))
-                                val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
+                                #val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
                                 #val["low_1"].residual_blocks[0].alpha.trainable = False # Freeze the ConvBlock
                                 val["low_3"].trainable = True # Freeze F2S
-                                val["low_3"].residual_blocks[0].conv_block.trainable = False
+                                #val["low_3"].residual_blocks[0].conv_block.trainable = False
                                 print("Freezing {}/{}".format(main_name,val["low_3"].name))
                                 try:
                                     val["low_2"].trainable = True # Freeze F2S
                                     print("Freezing {}/{}".format(main_name,val["low_2"].name))
-                                    val["low_2"].residual_blocks[0].conv_block.trainable = False
+                                    #val["low_2"].residual_blocks[0].conv_block.trainable = False
                                 except:
                                     pass
 
-                            print(f"Freezing {main_name}/{layer.residual_brc.name}")
-                            layer.residual_brc.trainable = False
-                            layer.residual_brc.residual1.residual_blocks[0].conv_block.trainable = False
-                            layer.residual_brc.lora_path.trainable = True
+                            print(f"Training {main_name}/{layer.residual_brc.name}")
+                            layer.residual_brc.trainable = True
+                            #layer.residual_brc.residual1.residual_blocks[0].conv_block.trainable = False
+                            #layer.residual_brc.lora_path.trainable = True
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")

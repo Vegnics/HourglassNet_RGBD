@@ -137,7 +137,8 @@ model:
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
-    residual_nblocks: 2 
+    residual_nblocks: 2
+    activate_lora: false 
   load_model: true
   model_path: "data/model_t/myModel_SLP_fAB4_2j"
   loading_style: ""
@@ -177,7 +178,7 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 0.00000001 #0.00000001 #0.000000005 #0.0000001 #0.00001
-      clipnorm: 5.0
+      #clipnorm: 5.0
     #  rho: 0.9
     #  momentum: 0.00000001
     #  centered: true

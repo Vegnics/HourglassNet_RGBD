@@ -93,7 +93,7 @@ def print_layers_recursive(layer, indent=0, path=""):
     for sub_layer in sublayers_iter:
         print_layers_recursive(sub_layer, indent + 1, current_name)
 
-
+"""
 def recursive_weight_transfer(source_layer, target_layer, verbose=True, path=""):
     matched, skipped = 0, 0
     current_name = f"{path}/{target_layer.name}" if path else target_layer.name
@@ -236,4 +236,96 @@ def recursive_weight_transfer(source_layer, target_layer, verbose=True, path="")
                 print(f"[!] Missing sublayer in source for: {current_name}/{name}")
             skipped += 1
 
+    return matched, skipped
+    """
+
+def recursive_weight_transfer(source_layer, target_layer, verbose=True, strict_order_fallback=True, path=""):
+    """
+    Recursively transfer weights from source_layer to target_layer,
+    matching first by variable name suffix, then (if enabled) by order and shape.
+    """
+    matched, skipped = 0, 0
+    current_name = f"{path}/{target_layer.name}" if path else target_layer.name
+
+    src_vars = list(source_layer.variables)
+    tgt_vars = list(target_layer.variables)
+    src_vars_map = {v.name: v for v in src_vars}
+
+    values_to_set = []
+    unmatched_target_vars = []
+    used_src_indices = set()
+    for i, tgt_var in enumerate(tgt_vars):
+        # Try name-based match first
+        tgt_var_suffix = tgt_var.name.split(target_layer.name + '/')[-1]
+        found = False
+        for j, src_var in enumerate(src_vars):
+            if src_var.name.endswith(tgt_var_suffix) and src_var.shape == tgt_var.shape and j not in used_src_indices:
+                values_to_set.append(src_var.numpy())
+                used_src_indices.add(j)
+                found = True
+                break
+        if not found:
+            unmatched_target_vars.append((i, tgt_var))
+    
+    # Fallback: order-based if enabled and counts/shapes match
+    if unmatched_target_vars and strict_order_fallback:
+        # Only fallback if all shapes and counts are identical
+        fallback_ok = (len(src_vars) == len(tgt_vars)) and all(
+            src.shape == tgt.shape for src, tgt in zip(src_vars, tgt_vars)
+        )
+        if fallback_ok:
+            values_to_set = [src_var.numpy() for src_var in src_vars]
+            unmatched_target_vars = []
+            if verbose:
+                print(f"[!] Name-based match failed for {current_name}, fallback to order-based transfer.")
+
+    if not unmatched_target_vars and values_to_set and len(values_to_set) == len(tgt_vars):
+        try:
+            target_layer.set_weights(values_to_set)
+            matched += 1
+            if verbose:
+                print(f"[✓] Transferred weights for: {current_name}")
+        except Exception as e:
+            skipped += 1
+            if verbose:
+                print(f"[!] Error setting weights for {current_name}: {e}")
+    else:
+        skipped += 1
+        if verbose:
+            print(f"[!] Failed to transfer weights for: {current_name}")
+            for idx, tgt_var in unmatched_target_vars:
+                print(f"    Unmatched target variable: {tgt_var.name}, shape={tgt_var.shape}")
+            print(f"    Source variables: {[v.name for v in src_vars]}")
+            print(f"    Target variables: {[v.name for v in tgt_vars]}")
+
+    # Recursively transfer for sublayers (handles Sequential/Model and custom attributes)
+    def get_sublayers(layer):
+        # Try Keras' .layers attribute first
+        if hasattr(layer, "layers") and isinstance(layer.layers, (list, tuple)):
+            return [l for l in layer.layers if isinstance(l, Layer)]
+        # Fallback: look for Layer attributes directly
+        return [v for v in vars(layer).values() if isinstance(v, Layer)]
+
+    src_sublayers = get_sublayers(source_layer)
+    tgt_sublayers = get_sublayers(target_layer)
+    # Attempt to match sublayers by name (if available), else by order
+    if hasattr(target_layer, 'layers') and isinstance(target_layer.layers, (list, tuple)):
+        for src_sub, tgt_sub in zip(src_sublayers, tgt_sublayers):
+            m, s = recursive_weight_transfer(src_sub, tgt_sub, verbose, strict_order_fallback, path=current_name)
+            matched += m
+            skipped += s
+    else:
+        # Fallback to attribute name match for custom Layer containers
+        src_dict = {k: v for k, v in vars(source_layer).items() if isinstance(v, Layer)}
+        tgt_dict = {k: v for k, v in vars(target_layer).items() if isinstance(v, Layer)}
+        for name, tgt_sub in tgt_dict.items():
+            src_sub = src_dict.get(name)
+            if src_sub:
+                m, s = recursive_weight_transfer(src_sub, tgt_sub, verbose, strict_order_fallback, path=current_name)
+                matched += m
+                skipped += s
+            else:
+                skipped += 1
+                if verbose:
+                    print(f"[!] No source sublayer for target sublayer: {current_name}/{name}")
     return matched, skipped

@@ -7,14 +7,14 @@ from keras import constraints
 
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 from hourglass_tensorflow.layers.skip import SkipLayer
-from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
+from hourglass_tensorflow.layers.conv_block2 import ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer, quasiConstantLayer
 from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 
 
-@register_keras_serializable(package="lResiduals")
+@register_keras_serializable(package="lResidualsLoRa")
 class ResidualBlock(Layer):
     def __init__(
         self,
@@ -25,7 +25,8 @@ class ResidualBlock(Layer):
         trainable: bool = True,
         use_last_relu: bool = False,
         attentionType: str = None,
-        feat_size: int = None, 
+        feat_size: int = None,
+        activate_lora: bool = None, 
         **kwargs
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -36,6 +37,7 @@ class ResidualBlock(Layer):
         self.use_last_relu = use_last_relu
         self.attention_type = attentionType
         self.feat_size = feat_size
+        self.activate_lora = activate_lora
 
         # Convolutional block
         self.attention_block = None
@@ -49,7 +51,7 @@ class ResidualBlock(Layer):
                 kernel_size = 1,
                 kernel_reg = False,
                 trainable = self.trainable,
-                feat_size = self.feat_size
+                feat_size = self.feat_size,
             )
             
         elif self.attention_type == "FAM":
@@ -68,10 +70,11 @@ class ResidualBlock(Layer):
             output_filters=self.output_filters,
             momentum=self.momentum,
             epsilon=self.epsilon,
-            name="ConvBlock",
+            name=f"ConvBlock",
             trainable=self.trainable,
+            activate_lora = self.activate_lora
         )
-
+        """
         self.lora_path = SequentialLayer(
                         [
                             layers.Conv2D(filters=16,
@@ -109,7 +112,7 @@ class ResidualBlock(Layer):
                         name="lora_path",
                         trainable=self.trainable
                     )
-                
+        """
         self.add = layers.Add(name="Add")
         self.relu= layers.ReLU(name="ReLu_identity",)  if self.use_last_relu else IdentityLayer(name="ReLu_identity")
     def get_config(self):
@@ -125,32 +128,18 @@ class ResidualBlock(Layer):
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
-        B = tf.shape(inputs)[0]
-        #scores = tf.clip_by_value(self.attention_block(inputs,training=training),-2.2,2.2)
-        #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
-
-        #entropy = -1.0*tf.reduce_sum(scores*tf.math.log(tf.math.maximum(scores,1e-5)),axis=[1,2,3])
-        #numel = tf.cast(tf.reduce_prod(tf.shape(scores)[1:]), tf.float32)
-        #entropy = entropy / numel
-        #r_alpha = self.alpha*tf.ones_like(entropy)
-        #in_ffalpha = tf.stack([entropy,r_alpha],axis=1)
-        #alpha = tf.expand_dims(self.alpha_mask*self.ff_alpha(in_ffalpha),axis=1)
-        #alpha = tf.expand_dims(alpha,axis=1)
+        #print(f"DEBUG_CALL: ResidualBlock '{self.name}' call method entered. Input shape: {inputs.shape}")
+        B = tf.shape(inputs)[0]        
+        out_conv = self.conv_block(inputs, training=training)
         
-        # alpha_gen is the weight given to the attention scores 
-        # alpha_gen = self.alpha[0] #tf.reshape(self.alpha_mask*tf.nn.sigmoid(self.alpha),[1, 1, 1, 1])
-        #scores = self.attention_block(inputs,training=training)
-        
-        out_conv = self.conv_block(inputs, training=training) + self.lora_path(inputs)
-        scores = self.attention_block(out_conv,training=training)
         _sum = self.add(
             [  
                 #out_conv*((1-alpha_gen) + alpha_gen*scores),
-                out_conv*scores,
+                out_conv,
                 inputs,
             ])
-        
-        return self.relu(_sum)
+        scores = self.attention_block(_sum,training=training)
+        return self.relu(_sum*scores),scores
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
@@ -165,7 +154,7 @@ class ResidualBlock(Layer):
         return instance
     """
 
-@register_keras_serializable(package="lResiduals")
+@register_keras_serializable(package="lResidualsLoRa")
 class ResidualLayer(Layer):
     def __init__(
         self,
@@ -178,6 +167,7 @@ class ResidualLayer(Layer):
         use_last_relu: bool = False,
         attentionType: str = None,
         feat_size: int = None,
+        activate_lora: bool = None,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -189,6 +179,7 @@ class ResidualLayer(Layer):
         self.nblocks = nblocks
         self.attention_type = attentionType
         self.feat_size = feat_size
+        self.activate_lora = activate_lora
         #self.residual_blocks = []
 
         self.residual_blocks = [ResidualBlock(output_filters= self.output_filters,
@@ -196,7 +187,8 @@ class ResidualLayer(Layer):
                                             use_last_relu = self.use_last_relu,
                                             trainable=self.trainable,
                                             attentionType=self.attention_type,
-                                            feat_size=self.feat_size) for k in range(self.nblocks)]
+                                            feat_size=self.feat_size,
+                                            activate_lora=self.activate_lora) for k in range(self.nblocks)]
         for k,layer in enumerate(self.residual_blocks):
             self.__setattr__(f"residual_{k}", layer)
     def get_config(self):
@@ -209,14 +201,18 @@ class ResidualLayer(Layer):
                 "use_last_relu": self.use_last_relu,
                 "nblocks": self.nblocks,
                 "attentionType": self.attention_type,
-                "feat_size":self.feat_size
+                "feat_size":self.feat_size,
+                "activate_lora": self.activate_lora
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
+        #print(f"DEBUG_CALL: ResidualLayer '{self.name}' call method entered. Input shape: {inputs.shape}")
         x = 1.0*inputs
+        scores = []
         for layer in self.residual_blocks:
-            x = layer(x,training=training)
-        return x
+            x,s = layer(x,training=training)
+            scores.append(s)
+        return x,tf.stack(scores,axis=-1)
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
@@ -229,7 +225,7 @@ class ResidualLayer(Layer):
         return instance
     """
     
-@register_keras_serializable(package="lResiduals")
+@register_keras_serializable(package="lResidualsLoRa")
 class ResidualBlockIn(Layer):
     def __init__(
         self,
@@ -239,6 +235,7 @@ class ResidualBlockIn(Layer):
         name: str = None,
         trainable: bool = True,
         use_last_relu: bool = False,
+        activate_lora: bool = None,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -247,6 +244,7 @@ class ResidualBlockIn(Layer):
         self.momentum = momentum
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
+        self.activate_lora = activate_lora
         # Input layer (used just to match the dimensionality)
         
         #self.match_layer =  None
@@ -265,7 +263,7 @@ class ResidualBlockIn(Layer):
             output_filters=self.output_filters,
             momentum=self.momentum,
             epsilon=self.epsilon,
-            name="ConvBlock",
+            name=f"ConvBlock",
             trainable=trainable,
         )
 
@@ -303,7 +301,7 @@ class ResidualBlockIn(Layer):
         return instance
     """
 
-@register_keras_serializable(package="lResiduals")    
+@register_keras_serializable(package="lResidualsLoRa")    
 class ResidualLayerIn(Layer):
     def __init__(
         self,
@@ -314,6 +312,7 @@ class ResidualLayerIn(Layer):
         name: str = None,
         trainable: bool = True,
         use_last_relu: bool = False,
+        activate_lora: bool = None,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -323,13 +322,15 @@ class ResidualLayerIn(Layer):
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
         self.nblocks = nblocks
+        self.activate_lora = activate_lora
 
         self.residual_blocks = []
         self.residual_blocks.append(
             ResidualBlockIn(output_filters= self.output_filters,
                     name=f"{name}_IN",
                     use_last_relu = self.use_last_relu,
-                    trainable=trainable)
+                    trainable=trainable,
+                    activate_lora=self.activate_lora)
                     )
         
         for k in range(self.nblocks-1):
@@ -338,7 +339,8 @@ class ResidualLayerIn(Layer):
                     name=f"{name}_block{k}",
                     use_last_relu = self.use_last_relu,
                     trainable=trainable,
-                    attentionType="NoAM")
+                    attentionType="NoAM",
+                    activate_lora=self.activate_lora)
                 )
         for k,layer in enumerate(self.residual_blocks):
             self.__setattr__(f"residual_{k}", layer)
@@ -350,7 +352,8 @@ class ResidualLayerIn(Layer):
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
                 "use_last_relu": self.use_last_relu,
-                "nblocks": self.nblocks
+                "nblocks": self.nblocks,
+                "activate_lora":self.activate_lora
             },
         }
     

@@ -5,30 +5,11 @@ from keras.saving import register_keras_serializable
 
 
 from hourglass_tensorflow.layers.residual_exp3 import ResidualLayer,ResidualLayerIn
-from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer as ResidualLayerFrozen
-from hourglass_tensorflow.layers.dummy_layers import zeroLayer
+#from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer as ResidualLayerFrozen
+from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 from hourglass_tensorflow.layers.linear_projection import LinearProjection
 #from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
-
-
-@register_keras_serializable(package="lHourglass")
-def generate_residual_layer_frozen(layer_type: str ,
-                            feature_filters: int ,
-                            nblocks: int,
-                            name: str = None ,
-                            trainable = True,
-                            kernel_reg = False,
-                            freeze_attention=False,
-                            feat_size = None):
-        return  ResidualLayerFrozen(
-                output_filters= feature_filters,
-                nblocks = nblocks,
-                name=name,
-                trainable=trainable,
-                use_last_relu=False,
-                attentionType=layer_type,
-                feat_size = feat_size)
 
 
 @register_keras_serializable(package="lHourglass")
@@ -37,8 +18,7 @@ def generate_residual_layer(layer_type: str ,
                             nblocks: int,
                             name: str = None ,
                             trainable = True,
-                            kernel_reg = False,
-                            freeze_attention=False,
+                            activate_lora = None,
                             feat_size = None):
         return  ResidualLayer(
                 output_filters= feature_filters,
@@ -47,7 +27,8 @@ def generate_residual_layer(layer_type: str ,
                 trainable=trainable,
                 use_last_relu=False,
                 attentionType=layer_type,
-                feat_size = feat_size)
+                feat_size = feat_size,
+                activate_lora = activate_lora)
         """
         #print("Feature filters",feature_filters)
         if layer_type == "NoAM":
@@ -89,6 +70,8 @@ class ResidualWithBNRC(Layer):
         name: str = None,
         trainable: bool = True,
         attention: str = None,
+        feat_size: int = None,
+        activate_lora: bool = None,
         **kwargs
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -99,7 +82,8 @@ class ResidualWithBNRC(Layer):
         self.kernel_initializer = kernel_initializer
         self.momentum = momentum
         self.epsilon = epsilon
-
+        self.feat_size = feat_size
+        self.activate_lora = activate_lora
         #self.conv = None
         #self.batch_norm = None
         #self.relu = None
@@ -126,12 +110,15 @@ class ResidualWithBNRC(Layer):
         self.relu = layers.ReLU(
             name="ReLU",
         )
-        self.residual1 =  generate_residual_layer_frozen(layer_type=self.attention,
+        self.residual1 =  generate_residual_layer(layer_type=self.attention,
                                                 feature_filters=self.feature_filters,
                                                 nblocks = self.nblocks,
                                                 name="Residual",
-                                                trainable=trainable,)
+                                                trainable=self.trainable,
+                                                feat_size=self.feat_size,
+                                                activate_lora=self.activate_lora)
         
+        """
         self.lora_path = SequentialLayer(
                         [
 
@@ -171,6 +158,7 @@ class ResidualWithBNRC(Layer):
                         name="lora_path",
                         trainable=self.trainable
                     )
+        """
     
     def get_config(self):
         return {
@@ -181,19 +169,24 @@ class ResidualWithBNRC(Layer):
                 "attention": self.attention,
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
-                "kernel_initializer": self.kernel_initializer
+                "kernel_initializer": self.kernel_initializer,
+                "feat_size": self.feat_size,
+                "activate_lora": self.activate_lora
             },
         }
     
     def call(self,inputs, training=True):
-        x = self.residual1(inputs, training=training)
+        x,s = self.residual1(inputs, training=training)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
         x = self.conv(x)
-        return x+self.lora_path(inputs)
+        return x,s #self.lora_path(inputs)
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
+        if self.activate_lora:
+            self.batch_norm.trainable = False
+            self.conv.trainable = False
         super().build(input_shape)
     
     """
@@ -203,8 +196,8 @@ class ResidualWithBNRC(Layer):
         return instance
     """
 
-@register_keras_serializable(package="lHourglass") 
-class HourglassLayer(Layer):
+@register_keras_serializable(package="lHourglasslora") 
+class HourglassLayerLora(Layer):
     def __init__(
         self,
         feature_filters: int = 256,# Number of feature maps
@@ -221,6 +214,7 @@ class HourglassLayer(Layer):
         use_kernel_regularization: bool = False,
         residual_nblocks: int = None,
         freeze_attention: bool = False,
+        activate_lora: bool = None,
         **kwargs
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -236,22 +230,9 @@ class HourglassLayer(Layer):
         self.use_2jointHM = use_2jointHM
         self.freeze_attention = freeze_attention
         self.residual_nblocks = residual_nblocks
-        #self.in_feature_size = in_feature_size
-        # Store Config
-        #print("Hourglass filters",self.feature_filters)
-        # Init parameters
-        """
-        self.layer_list = [{} for i in range(self.downsamplings)]
-        self.hm1_output = None
-        self.hm2_output = None
-        self.features_hm2 = None
-        self.residual_2j = None
-        self.merge_feats_main = None
-        self.merge_feats_1j = None
-        self.residual_brc = None
-        """
+        self.capture = None
+        self.activate_lora = activate_lora
         
-        #self.layer_list = [{} for i in range(self.downsamplings)]
         # Create Layers
         #ConvBatchNormReluLayer
         self.hm1_output = LinearProjection(
@@ -288,6 +269,7 @@ class HourglassLayer(Layer):
                                             epsilon=0.001,
                                             momentum=0.97,
                                             attentionType="NoAM",
+                                            activate_lora = self.activate_lora,
         ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Transit_Output")
         
         #self.in_feature_size = in_feature_size
@@ -319,20 +301,21 @@ class HourglassLayer(Layer):
                     nblocks=self.residual_nblocks,
                     name=f"ResidualWithBNRC",
                     trainable=trainable,
-                    attention= "NoAM"
+                    attention= self.f2s_att, #"NoAM"
+                    feat_size = 64,
+                    activate_lora = self.activate_lora,
                 )
         
         self.layer_list = {}
         for i in range(self.downsamplings):
             _downsampl = {}
-            _downsampl["up_1"] = generate_residual_layer(layer_type=self.skip_att,
+            _downsampl["up_1"] = generate_residual_layer(layer_type= self.skip_att if i!=0 else "NoAM",
                                                            feature_filters=self.feature_filters,
                                                            nblocks=self.residual_nblocks,
                                                            name=f"Step{i}_ResidualUp1",
                                                            trainable=trainable,
-                                                           kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention,
-                                                           feat_size = 2**(i+3)) 
+                                                           feat_size = 2**(i+3),
+                                                           activate_lora = self.activate_lora,) 
             self.__setattr__(f"dstep_{i}_up_1", _downsampl["up_1"])
             
             _downsampl["low_"] = layers.MaxPool2D(
@@ -343,25 +326,23 @@ class HourglassLayer(Layer):
             )
             self.__setattr__(f"dstep_{i}_low_", _downsampl["low_"])
 
-            _downsampl["low_1"] = generate_residual_layer(layer_type=self.s2f_att if i!=0 else "NoAM",
+            _downsampl["low_1"] = generate_residual_layer(layer_type= self.s2f_att if i!=0 else "NoAM",
                                                             feature_filters=self.feature_filters,
                                                             nblocks=self.residual_nblocks,
                                                             name=f"Step{i}_ResidualLow1",
                                                             trainable=trainable,
-                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention,
-                                                           feat_size = 2**(i+2))
+                                                           feat_size = 2**(i+2),
+                                                           activate_lora = self.activate_lora,)
             self.__setattr__(f"dstep_{i}_low_1", _downsampl["low_1"])
 
             if i == 0:
-                _downsampl["low_2"] = generate_residual_layer(layer_type= "NoAM", #self.s2f_att,
+                _downsampl["low_2"] = generate_residual_layer(layer_type= "NoAM",
                                                                 feature_filters=self.feature_filters,
                                                                 nblocks=self.residual_nblocks,
                                                                 name=f"Step{i}_ResidualLow2",
                                                                 trainable=trainable,
-                                                                kernel_reg=self.use_kernel_reg,
-                                                                freeze_attention=self.freeze_attention,
-                                                                feat_size = 2**(i+2))
+                                                                feat_size = 2**(i+2),
+                                                                activate_lora = self.activate_lora,)
                 self.__setattr__(f"dstep_{i}_low_2", _downsampl["low_2"])
             """
             elif i == 3:
@@ -379,14 +360,13 @@ class HourglassLayer(Layer):
                                                             kernel_reg=self.use_kernel_reg,
                                                            freeze_attention=self.freeze_attention)
             """
-            _downsampl["low_3"] = generate_residual_layer(layer_type=self.f2s_att if i!=0 else "NoAM",
+            _downsampl["low_3"] = generate_residual_layer(layer_type= self.f2s_att if i>1 else "NoAM",
                                                             feature_filters=self.feature_filters,
                                                             nblocks=self.residual_nblocks,
                                                             name=f"Step{i}_ResidualLow3",
                                                             trainable=trainable,
-                                                            kernel_reg=self.use_kernel_reg,
-                                                           freeze_attention=self.freeze_attention,
-                                                           feat_size = 2**(i+2))
+                                                           feat_size = 2**(i+2),
+                                                           activate_lora = self.activate_lora,)
             self.__setattr__(f"dstep_{i}_low_3", _downsampl["low_3"])
 
             _downsampl["up_2"] = layers.UpSampling2D(
@@ -425,34 +405,50 @@ class HourglassLayer(Layer):
                 "freeze_attention":self.freeze_attention,
                 "use_2jointHM": self.use_2jointHM,
                 "residual_nblocks":self.residual_nblocks,
+                "activate_lora":self.activate_lora
             },
         }
         
     def _recursive_call(self, input_tensor, step, training=True):
+        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' recursive call ENTERED for step {step}. Input shape: {input_tensor.shape}")
         step_layers = self.layer_list[f"STEP_{step}"]#self.layer_list[step]
         _input = input_tensor
         #_input = step_layers["low_in"](_input, training=training) if step == 3 else input_tensor
         #if step == 3:
         #    _input = step_layers["low_in"](_input, training=training)
-        up_1 = step_layers["up_1"](_input, training=training) #Skip
+        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: About to call 'up_1' layer ('{step_layers['up_1'].name}') with input shape {input_tensor.shape}")
+        up_1,_ = step_layers["up_1"](_input, training=training) #Skip
+        #print(self.intermediate_up1_layers)
+        
+
+        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: 'up_1' layer ('{step_layers['up_1'].name}') called. Output shape: {up_1.shape}")
         low_ = step_layers["low_"](_input, training=training) #MaxPool
-        low_1 = step_layers["low_1"](low_, training=training) #S2F
+        low_1,_ = step_layers["low_1"](low_, training=training) #S2F
+        
         if step == 0:
-            low_2 = step_layers["low_2"](low_1, training=training) # Dont apply any attention mechanism
+            low_2,_ = step_layers["low_2"](low_1, training=training) # Dont apply any attention mechanism
         else:
+            #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: Making recursive call for step {step-1}. Input to recursive call: {low_1.shape}")
             low_2 = self._recursive_call(low_1, step=(step - 1), training=training)
-        low_3 = step_layers["low_3"](low_2, training=training) # F2S
-        up_2 = step_layers["up_2"](low_3, training=training) # Upsampling
+            #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: Recursive call for step {step-1} returned with shape: {low_2.shape}")
+        low_3,s = step_layers["low_3"](low_2, training=training) # F2S
+        if step == 3:
+            self.capture = 1.0*s
+        up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
         out = step_layers["out"]([up_1, up_2], training=training) # Add  
         #if step == 3:
         #    out = step_layers["low_out"](out,training=training)
+        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' recursive call EXITED for step {step}. Final output shape: {out.shape}")
         return out
 
     def call(self, inputs, training=False):
+        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' main call ENTERED. Input shape: {inputs.shape}")
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        _x = self.residual_brc(_x,training=training) # Output of the Hourglass module
+        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' main call EXITED from recursive part. Recursive output shape: {_x.shape}")
+        _x,s = self.residual_brc(_x,training=training) # Output of the Hourglass module
+        #self.capture = 1.0*s
         main_feats = self.merge_feats_main(_x)
         intermediate_2jhms = self.hm2_output(_x,training=training)
         features_2jhms = self.features_hm2(intermediate_2jhms) 
@@ -471,8 +467,7 @@ class HourglassLayer(Layer):
             name=f"{self.name}_OutputAdd",
         )
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
-        
-        return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1)
+        return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1),self.capture
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         #print("CONFIG: ", self.get_config())

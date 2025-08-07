@@ -67,6 +67,7 @@ class HTFModelParams(HTFConfigField):
     use_kernel_regularization: bool = False
     freeze_attention_weights: bool = False
     residual_nblocks: int = None
+    activate_lora: bool = None
 
 
 class HTFModelConfig(HTFConfigField):

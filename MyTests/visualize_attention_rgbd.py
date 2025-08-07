@@ -13,7 +13,13 @@ from hourglass_tensorflow.losses.mae_custom import *
 from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
-from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model
+from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
+from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora as HourglassLayer
+from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
+from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
+from hourglass_tensorflow.layers.residual_exp3 import ResidualBlock,ResidualLayer,ResidualLayerIn
+
+from keras.models import Model
 
 def read_landmark_data(csv_path: str):
     with open(csv_path,"r") as csv_file:
@@ -147,9 +153,23 @@ def draw_pose(img,hm,obbox,pad):
     return _img
     
 #Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
-Model = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras",compile=False) 
+Model_pose = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras",compile=False)
+#print(Model_pose_base.get_config())
+#Model_pose = HourglassModel.from_config(Model_pose_base.get_config())
+#load_basemodel_weights(Model_pose,"data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras")
+dummy_out = Model_pose.predict(tf.random.normal(shape=(1,256,256,4))) 
+print(dummy_out.shape)
+plt.imshow(dummy_out[0,1,:,:,2])
+plt.show()
+Model_pose.summary()
+intermediate_layer_model = Model(inputs=Model_pose.input,
+                                 outputs=Model_pose.get_layer('Hourglass2').output)
 
-Model.trainable = False
+#intermediate_layer_model = Model(inputs=Model_pose.input,
+#                                 outputs=Model_pose.exposed.output)
+
+
+Model_pose.trainable = False
 
 
 
@@ -204,7 +224,19 @@ squared_rgb = tensor[0,:,:,1:4]
 #print()
 #"""
 #img_bgr = np.uint8(tensor[0,:,:,0:3].numpy())
-hms = Model.predict(tf.expand_dims(tensor[:,:,:,:],axis=-1))
+#hms = Model_pose.predict(tf.expand_dims(tensor[:,:,:,:],axis=-1))
+
+intermediate = intermediate_layer_model.predict(tensor)
+mapp = tf.squeeze(intermediate[2])
+plt.imshow(tensor[0,:,:,0])
+plt.colorbar()
+plt.show()
+plt.imshow(mapp,cmap="jet")
+plt.colorbar()
+plt.show()
+
+
+hms = Model_pose.predict(tensor)
 preds = hms[0,1,:,:,:]
 normpreds = tf.linalg.norm(preds,axis=[0,1])
 normpreds = tf.expand_dims(normpreds,axis=0)

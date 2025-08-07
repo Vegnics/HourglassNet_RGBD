@@ -6,12 +6,12 @@ from keras import layers
 from keras.layers import Layer
 from keras.saving import register_keras_serializable
 
-from hourglass_tensorflow.layers.residual3 import ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual_exp3 import ResidualLayer,ResidualLayerIn
 #from hourglass_tensorflow.layers.residual_2 import ResidualLayerSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 
-@register_keras_serializable(package="lDownsampling")
-class DownSamplingLayer(Layer):
+@register_keras_serializable(package="lDownsamplinglora")
+class DownSamplingLayerLora(Layer):
     """
     This is the downsampling layer. The one which receives the input image with a size of 
     256x256 and transform it into 256 features of size 64x64.
@@ -25,6 +25,7 @@ class DownSamplingLayer(Layer):
         name: str = None,
         residual_nblocks: int = None,
         trainable: bool = True,
+        activate_lora: bool = None,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -34,6 +35,7 @@ class DownSamplingLayer(Layer):
         self.kernel_size = kernel_size
         self.output_filters = output_filters
         self.residual_nblocks = residual_nblocks
+        self.activate_lora = activate_lora
         
         # Init Computation
         self.downsamplings = int(math.log2(input_size // output_size) + 1)
@@ -66,6 +68,7 @@ class DownSamplingLayer(Layer):
                         name=f"Residual{i}_last",
                         trainable=trainable,
                         attentionType="NoAM",
+                        activate_lora = self.activate_lora
                     )
                 )
                 self.layer_list.append(
@@ -74,6 +77,7 @@ class DownSamplingLayer(Layer):
                         nblocks=self.residual_nblocks,
                         name=f"Residual{i}_in",
                         trainable=trainable,
+                        activate_lora = self.activate_lora
                     )
                 )
             else:
@@ -83,6 +87,7 @@ class DownSamplingLayer(Layer):
                         nblocks=self.residual_nblocks,
                         name=f"Residual{i}_middle",
                         trainable=trainable,
+                        activate_lora = self.activate_lora
                     )
                 )
                 self.layer_list.append(
@@ -101,6 +106,7 @@ class DownSamplingLayer(Layer):
                 "kernel_size": self.kernel_size,
                 "output_filters": self.output_filters,
                 "residual_nblocks": self.residual_nblocks,
+                "activate_lora": self.activate_lora
             },
         }
 
@@ -108,7 +114,10 @@ class DownSamplingLayer(Layer):
         #x = tf.cast(inputs,dtype=tf.dtypes.float32)
         x = 1.0*inputs
         for layer in self.layer_list:
-            x = layer(x, training=training)
+            if isinstance(layer,ResidualLayer):
+                x,_ = layer(x, training=training)
+            else:
+                x = layer(x, training=training)
         return x
     
     def build(self, input_shape):

@@ -129,7 +129,8 @@ model:
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
-  load_model: false
+    activate_lora: true
+  load_model: true
   model_path: /home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_150e90p.keras
   loading_style: Partial_Train_Attention
 train:
@@ -140,7 +141,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 0.00025
+  learning_rate: 1.0e-05
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -158,7 +159,6 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 1.0e-08
-      clipnorm: 5.0
   metrics:
   - source: hourglass_tensorflow.metrics.OverallMeanDistance
     params:
@@ -183,7 +183,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/SLP_Colab_BL_Att99_1B_Depth4Caaaaa.keras
+      filepath: data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -199,5 +199,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4Caaaaa.keras_11:56:54.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras_10:35:23.csv
 test: null

@@ -1,5 +1,5 @@
 #from hourglass_tensorflow.models.hourglass import HourglassModel
-#from hourglass_tensorflow.models.hourglass_lora import HourglassModel
+#from hourglass_tensorflow.models.hourglass_lora import HourglassModel as HourglassModelLora
 #from hourglass_tensorflow.models.hourglass_lora import model_as_layers
 #from hourglass_tensorflow.models.hourglass_lora import build_hourglassModel
 

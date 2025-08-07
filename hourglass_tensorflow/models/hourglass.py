@@ -136,6 +136,7 @@ class HourglassModel(Model):
 
     def call(self, inputs: tf.Tensor, training=True):
         #x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))
+        print("OLD VERSIONNNNNNN")
         x = self.downsampling(inputs,training=training)
         outputs_list = []
         """
@@ -151,10 +152,10 @@ class HourglassModel(Model):
         """
         for hglayer in self.hourglasses:
             x, y = hglayer(x) # x is the output features, y is the intermediate output heatmaps
-            print(x,y)
             outputs_list.append(y)
         
         outputs = self.stacker(outputs_list)
+        
         #tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
         return outputs #self._outputs
     

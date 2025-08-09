@@ -432,8 +432,8 @@ class HourglassLayerLora(Layer):
             low_2 = self._recursive_call(low_1, step=(step - 1), training=training)
             #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: Recursive call for step {step-1} returned with shape: {low_2.shape}")
         low_3,s = step_layers["low_3"](low_2, training=training) # F2S
-        if step == 3:
-            self.capture = 1.0*s
+        #if step == 3:
+        #    self.capture = 1.0*s
         up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
         out = step_layers["out"]([up_1, up_2], training=training) # Add  
         #if step == 3:
@@ -448,7 +448,7 @@ class HourglassLayerLora(Layer):
         )
         #print(f"DEBUG_CALL: HourglassLayer '{self.name}' main call EXITED from recursive part. Recursive output shape: {_x.shape}")
         _x,s = self.residual_brc(_x,training=training) # Output of the Hourglass module
-        #self.capture = 1.0*s
+        self.capture = 1.0*s
         main_feats = self.merge_feats_main(_x)
         intermediate_2jhms = self.hm2_output(_x,training=training)
         features_2jhms = self.features_hm2(intermediate_2jhms) 

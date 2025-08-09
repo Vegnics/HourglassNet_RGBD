@@ -400,7 +400,7 @@ def tf_train_map_affine_augmentation(
     #_visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
 
-    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.12, 1.13,1.20,1.13,1.20,1.13,1.20,1.13,  1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.12, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
+    _bboxf = tf.constant([1.20,1.18,1.20,1.22,1.20,1.19,1.24,  1.26,1.24,1.22,1.18, 1.16,1.20,1.16,1.20,1.18,1.20,1.18,  1.20,1.19,1.22,1.19,1.24,1.19,1.21,  1.24,1.20,1.20,1.18, 1.18,1.22,1.2,1.22,1.19,1.20,1.18],
                          dtype=tf.float32)
     bbox_dev = 0.018*2.0*(tf.random.uniform(shape=(36,),dtype=tf.float32)-0.5)
     bboxf = _bboxf + bbox_dev
@@ -800,7 +800,7 @@ def tf_validation_map_affine(
     _coordinates = _coordinates_map[:,:,0:2]
 
     #if task_mode=="train":
-    _bboxf = tf.constant([1.14,1.15,1.16,1.18,1.2,1.22],dtype=tf.float32)
+    _bboxf = tf.constant([1.18,1.19,1.17,1.18,1.24,1.22],dtype=tf.float32)
     bboxf = 0.018*2.0*(tf.random.uniform(shape=(6,))-0.5)+_bboxf
     sbboxf = tf.gather(bboxf,tf.random.shuffle(tf.range(6))[:3])
     

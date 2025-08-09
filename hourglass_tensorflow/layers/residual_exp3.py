@@ -14,6 +14,7 @@ from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechan
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 
 
+
 @register_keras_serializable(package="lResidualsLoRa")
 class ResidualBlock(Layer):
     def __init__(
@@ -131,15 +132,23 @@ class ResidualBlock(Layer):
         #print(f"DEBUG_CALL: ResidualBlock '{self.name}' call method entered. Input shape: {inputs.shape}")
         B = tf.shape(inputs)[0]        
         out_conv = self.conv_block(inputs, training=training)
-        
+        if self.attention_type != "NoAM":
+            scores,scores_heads = self.attention_block(out_conv,training=training)
+        else:
+            scores = self.attention_block(out_conv,training=training)
+
         _sum = self.add(
             [  
                 #out_conv*((1-alpha_gen) + alpha_gen*scores),
-                out_conv,
+                out_conv*scores,
                 inputs,
             ])
-        scores = self.attention_block(_sum,training=training)
-        return self.relu(_sum*scores),scores
+        
+        #return self.relu(_sum*scores),scores
+        if self.attention_type != "NoAM":
+            return self.relu(_sum),scores_heads #scores
+        else:
+            return self.relu(_sum),scores
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")

@@ -193,8 +193,8 @@ LM_NAMES = ["00_rAnkle",
 hm_scale = tf.constant(2.1269474)
 
 subject_id = 15  
-cover = "cover1"
-img_num = 25
+cover = "cover2"
+img_num = 21
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))
@@ -228,12 +228,16 @@ squared_rgb = tensor[0,:,:,1:4]
 
 intermediate = intermediate_layer_model.predict(tensor)
 mapp = tf.squeeze(intermediate[2])
-plt.imshow(tensor[0,:,:,0])
-plt.colorbar()
+
+fig,ax = plt.subplots(nrows=1, ncols=5, figsize=(6, 8))
+for i in range(5):
+    ax[i].imshow(mapp[:,:,i],cmap="jet")
+    #ax[i].colorbar()
+#plt.colorbar()
 plt.show()
-plt.imshow(mapp,cmap="jet")
-plt.colorbar()
-plt.show()
+#plt.imshow(mapp,cmap="jet")
+#plt.colorbar()
+#plt.show()
 
 
 hms = Model_pose.predict(tensor)
@@ -264,7 +268,7 @@ plt.imshow(img_bgr)#[:,:,::-1])
 plt.figure()
 plt.imshow(img_gt)
 plt.figure()
-plt.imshow(squared_rgb)
+plt.imshow( tensor[0,:,:,0],cmap="jet")
 #plt.savefig(f"/home/quinoa/sub_{subject_id}-num_{img_num}-{cover}.png", bbox_inches='tight')
 plt.show()
 #"""

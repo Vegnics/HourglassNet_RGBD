@@ -137,6 +137,7 @@ model:
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
+    activate_lora: true
   load_model: true
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras #data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras #myModel_SLP_Colab_BL_1B_2J_Depth4C_FT.keras #/home/quinoa/Documents/models_slp/myModel_SLP_Colab_BL_1B_2J_Att6_3_Depth4C.keras # # # # # #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #/home/quinoa/Downloads/myModel_SLP_fAB7_1j.keras #"data/model_t/myModel_SLP_fAB6_2j"
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG2Depth4C.keras
@@ -150,8 +151,9 @@ model:
   #model_path: /home/quinoa/Documents/models_slp/myModel_SLP_Colab_BL_2J_Att6_RGBD4C_FT2.keras
   #model_path: /home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d7.keras
   #model_path: data/myModel_SLP_Colab_BL_1B_ATT_Depth4C_d2_FT2.keras
-  model_path: data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras
+  model_path: data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras #data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras
   loading_style: Frozen
+
 
 test:
   object:

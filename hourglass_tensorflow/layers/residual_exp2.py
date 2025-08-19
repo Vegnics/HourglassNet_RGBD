@@ -8,9 +8,48 @@ from keras import constraints
 from hourglass_tensorflow.layers.skip import SkipLayer
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
-from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer, quasiConstantLayer
+from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer #, quasiConstantLayer
 from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
+
+@register_keras_serializable(package="lResiduals")
+class  quasiConstantLayer(Layer):
+    def __init__(
+        self,
+        output_channels: int = None,
+        name: str = None,
+        trainable=False,
+        value: float = None,
+        stack_num: int = 4,
+        **kwargs
+    ) -> None:
+        super().__init__(name=name, trainable=trainable,**kwargs)
+        # Store Config
+        self.output_channels = output_channels
+        self.value_out = value 
+        self.stack_num = stack_num
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "output_channels": self.output_channels,
+                "value":self.value_out,
+                "stack_num": self.stack_num
+            },
+        }
+    def call(self,inputs):
+        batch_size = tf.shape(inputs)[0]
+        height = tf.shape(inputs)[1]
+        width = tf.shape(inputs)[2]
+        outs = tf.ones(shape=[batch_size, height, width, self.output_channels], dtype=inputs.dtype)
+        #outs = tf.random.uniform(shape=[batch_size, height, width, self.output_channels],minval=self.value_out,maxval=self.value_out+0.005, dtype=inputs.dtype)
+        #outs = tf.random.normal(shape=[batch_size, height, width, self.output_channels],mean=self.value_out,stddev=0.2, dtype=inputs.dtype)
+        return outs #tf.nn.sigmoid(outs) #self.value_out*outs #tf.ones([batch_size, height, width, self.output_channels], dtype=inputs.dtype)
+
+    def build(self,input_shape):
+        super().build(input_shape)
+        self.built = True
+
 
 
 @register_keras_serializable(package="lResiduals")

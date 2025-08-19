@@ -10,6 +10,8 @@ from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer,ResidualLaye
 #from hourglass_tensorflow.layers.residual_2 import ResidualLayerSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 
+
+
 @register_keras_serializable(package="lDownsampling")
 class DownSamplingLayer(Layer):
     """
@@ -25,6 +27,7 @@ class DownSamplingLayer(Layer):
         name: str = None,
         residual_nblocks: int = None,
         trainable: bool = True,
+        activate_lora: bool = None,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -34,6 +37,7 @@ class DownSamplingLayer(Layer):
         self.kernel_size = kernel_size
         self.output_filters = output_filters
         self.residual_nblocks = residual_nblocks
+        #self.activate_lora = activate_lora
         
         # Init Computation
         self.downsamplings = int(math.log2(input_size // output_size) + 1)
@@ -101,6 +105,7 @@ class DownSamplingLayer(Layer):
                 "kernel_size": self.kernel_size,
                 "output_filters": self.output_filters,
                 "residual_nblocks": self.residual_nblocks,
+                "activate_lora": self.activate_lora,
             },
         }
 

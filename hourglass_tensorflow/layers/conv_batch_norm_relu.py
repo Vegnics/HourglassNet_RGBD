@@ -96,7 +96,7 @@ class ConvBatchNormReluLayer(Layer):
         x = self.conv(inputs)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
-        return x
+        return x #, tf.ones(shape=(1,))  # Return a dummy tensor for compatibility
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")

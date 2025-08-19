@@ -1,6 +1,6 @@
-from hashlib import file_digest
-from matplotlib import axis
-from numpy import dtype, shape
+from turtle import pos
+from annotated_types import T
+from cv2 import repeat
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
@@ -75,13 +75,28 @@ def tf_attention_softargmax(tensor: tf.Tensor, tau: float = 0.01) -> tf.Tensor:
     y = tf.reduce_sum(weights * yg, axis=1)  # (B, C)
     return tf.stack([x, y], axis=-1)  # (B, C, 2)
 
+@register_keras_serializable(package="lattentionSpatial")
+class ChannelSpliterLayer(Layer):
+    """
+    This layer splits the input tensor into two channels.
+    """
+    def __init__(self, name: str = None,split_idx: int = None) -> None:
+        super().__init__(name=name, trainable=False)
+        self.split_idx = split_idx
+
+    def call(self, inputs: tf.Tensor, training: bool = False) -> tf.Tensor:
+        # Split the input tensor into two channels
+        return tf.split(inputs, num_or_size_splits=2, axis=-1)[self.split_idx]
+
+
 @register_keras_serializable(package="lattentionSpatial")    
 class _GlobalPathLayer(Layer):
     def __init__(
             self,
-            name: str = None
+            name: str = None,
+            trainable: bool = None,
     ) -> None:
-        super().__init__(name=name, trainable = False)
+        super().__init__(name=name, trainable=trainable)
         """
         self.downskip_1 = layers.Conv2D(
                 filters= 16,
@@ -194,7 +209,7 @@ class _GlobalPathLayer(Layer):
             padding="same",
             name="global_scores",
             activation="sigmoid",
-            kernel_initializer= "he_normal",#initializers.RandomNormal(mean=0.0, stddev=0.001),
+            kernel_initializer= "glorot_normal",#initializers.RandomNormal(mean=0.0, stddev=0.001),
             bias_initializer=tf.constant_initializer(0.0),
             use_bias=True,
             trainable = self.trainable
@@ -210,7 +225,19 @@ class _GlobalPathLayer(Layer):
         skip2 = self.downskip_2(x)
         x = self.core_2(x)
         x = self.core_2_down(x) + skip2
-        return self.score_gen(tf.concat([self.upsample_deconv(x),_inputs],axis=-1))
+        return self.score_gen(self.upsample_deconv(x))
+
+class AddPosEncodingLayer(Layer):
+    """
+    This layer adds positional encoding to the input tensor.
+    """
+    def __init__(self, name: str = None) -> None:
+        super().__init__(name=name, trainable=False)
+        self.pos_encoding_xy = TFPositionalEncoding2D(16)  # Assuming 16 channels for positional encoding
+
+    def call(self, inputs: tf.Tensor, training: bool = False) -> tf.Tensor:
+        pos_enc = self.pos_encoding_xy(inputs)
+        return inputs + pos_enc
     
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialEnergyHead(Layer):
@@ -234,6 +261,7 @@ class SpatialEnergyHead(Layer):
         
         self.pos_encoding_xy = TFPositionalEncoding2D(16)
 
+
         self.local_path = SequentialLayer(
            [
               layers.Conv2D(
@@ -253,56 +281,17 @@ class SpatialEnergyHead(Layer):
            trainable = self.trainable
         )
 
-        """
-        self.local_path2 = SequentialLayer(
-           [  
-                layers.MaxPool2D(pool_size=(2,2),name="mpool_0"),
-                
-                layers.Conv2D(
-                    filters=16,#8,
-                    kernel_size=(3,3),
-                    strides=(1,1),
-                    padding="same",
-                    name="head_local_conv_2",
-                    activation="gelu",
-                    kernel_initializer = "glorot_uniform",
-                    bias_initializer=tf.constant_initializer(0.0),
-                    use_bias=True,
-                    trainable = self.trainable),
-
-                
-                #layers.LayerNormalization(axis=-1,name="ln_local",trainable=self.trainable),
-
-           ],
-           name="local_extractor2"
-        )
-        """
-
-        self.maxpool1 = layers.MaxPool2D(pool_size=(2,2),name="mpool_1")
-        self.maxpool2 = layers.MaxPool2D(pool_size=(2,2),name="mpool_2")
-
-        self.upsample1 = layers.UpSampling2D(size=(2,2),interpolation="bilinear",name="upsample1")
-        self.upsample2 = layers.UpSampling2D(size=(2,2),interpolation="bilinear",name="upsample2")
-
         self.local_x2 = SequentialLayer(
             [
-                layers.Conv2D(
-                    filters=32,#8,
-                    kernel_size=(3,3),
-                    strides=(1,1),
-                    padding="same",
-                    name="head_local_conv_2",
-                    activation=None,
-                    kernel_initializer = "glorot_uniform",
-                    bias_initializer=tf.constant_initializer(0.0),
-                    use_bias=True,
-                    trainable = self.trainable),
+                
+                layers.MaxPool2D(pool_size=(2,2),name="mpool_1"),
 
-                SpatialSoftMax(name="head_softmax1"),
+                #SpatialSoftMax(name="head_softmax1"),
+                #AddPosEncodingLayer(name="add_pos_encoding_1"),
                 
                 layers.Conv2D(
                     filters=16,#8,
-                    kernel_size=(1,1),
+                    kernel_size=(3,3),
                     strides=(1,1),
                     padding="same",
                     name="head_local_conv_3",
@@ -311,57 +300,37 @@ class SpatialEnergyHead(Layer):
                     bias_initializer=tf.constant_initializer(0.0),
                     use_bias=True,
                     trainable = self.trainable),
+
+                layers.UpSampling2D(size=(2,2),interpolation="bilinear",name="upsample1")
             ],
             name="head_localx2",
             trainable=self.trainable
         )
         
-        
-
-        self.local_x4 = SequentialLayer(
-            [
-                layers.Conv2D(
-                            filters=16,#8,
-                            kernel_size=(3,3),
-                            strides=(1,1),
-                            padding="same",
-                            name="head_local_conv_4",
-                            activation="gelu",
-                            kernel_initializer = "glorot_uniform",
-                            bias_initializer=tf.constant_initializer(0.0),
-                            use_bias=True,
-                            trainable = self.trainable)
-            ],
-            name="head_localx4",
-            trainable=self.trainable
-        )
-
 
         self.score_gen = SequentialLayer(
             [
                 layers.Conv2D(
-                filters=1,
+                filters=8,
                 kernel_size=(1,1),
                 strides=(1,1),
                 padding="same",
                 name="HeadConv2D_scores",
-                activation="sigmoid",
-                kernel_initializer= "glorot_normal",#initializers.RandomNormal(mean=0.0, stddev=0.001),
+                activation="gelu",
+                kernel_initializer= "glorot_uniform",#initializers.RandomNormal(mean=0.0, stddev=0.001),
                 bias_initializer=tf.constant_initializer(0.0),
                 use_bias=True,
                 trainable = self.trainable
-            )
+            ),
+            #    layers.UpSampling2D(size=(2,2),
+            #        interpolation="bilinear",
+            #        name="upsample_scores"
+            #    )
             ],
             name="head_score_gen",
             trainable=self.trainable
         )
-        
-        #self.global_path = _GlobalPathLayer(name="global_path")
 
-        #self.pos_encoding_xy = TFPositionalEncoding2D(4)
-
-        #self.dropout_l = 
-        #self.upsample = layers.UpSampling2D(size=(4,4),interpolation="bilinear",name="head_upsample")
     def get_config(self):
         return {
             **super().get_config(),
@@ -375,30 +344,27 @@ class SpatialEnergyHead(Layer):
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         #projection = self.summarizer(inputs)
         B = tf.shape(inputs)[0]
+        #_inputs = self.linear_proj(inputs) # B,H,W,16
+        #_inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,c
+        #_inputsigns = tf.sign(inputs) #B,H,W,c
+        #_inputsmax = tf.reduce_max(tf.abs(inputs),axis=-1,keepdims=True) #B,H,W,1
+        #_inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
+
         local_map = self.local_path(inputs,training=training)
-        #local_map2 = self.local_path2(inputs,training=training)
-        local_map2 = self.maxpool1(inputs)
-        local_map2 = self.local_x2(local_map2)
-        local_map3 = self.maxpool2(local_map2)
-        pos_enc = self.pos_encoding_xy(local_map3)
-        local_map3 = self.local_x4(local_map3)
-        local_map2 = local_map2 + self.upsample2(local_map3)
-        local_map = local_map + self.upsample1(local_map2)
-        
-        outs_flatten = tf.reshape(tf.transpose(local_map, [0,3,1,2]),shape=(B,16,-1))# B x H x K^2
-        norm = tf.math.l2_normalize(outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
-        gram = tf.abs(tf.matmul(norm, norm, transpose_b=True))  # (B, H, H)
-        eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
-        off_diag = gram - eye
-        orthogonality_reg = tf.reduce_sum(tf.square(off_diag),axis=[1,2])/tf.reduce_sum(1.0-eye,axis=[1,2])
-        attention_loss = (self.K_size/64.0)*1e-7*tf.reduce_mean(orthogonality_reg)
-        #global_map = self.local_path3(local_map2)  
-        #pos_enc = self.pos_encoding_xy(projection)
-        #global_map = self.global_path(projection+pos_enc) # (B,H,W,R)
-        #global_map = self.upsample(desc_posc)
-        #return self.score_gen(global_map+local_map), global_map #desc_posc #tf.reshape(,shape=(B,-1)) #0.5+tf.clip_by_value(0.58*tf.nn.tanh(0.7*att_map),-0.5,0.5) #tf.nn.sigmoid(att_map)# self.dropout_v(V,training=training),self.dropout_h(H,training=training)# (B,R,K),(B,R,K)  
-        #return self.score_gen(local_map2+local_map), local_map
-        return self.score_gen(local_map), tf.minimum(attention_loss,1e-6)
+        local_map2 = self.local_x2(inputs,training=training)
+        #local_map_concat = tf.concat([local_map,local_map2],axis=-1) #local_map + local_map2
+        local_map_concat = local_map + local_map2 #local_map_concat
+
+        weights = tf.ones((1,16))
+        if len(self.score_gen.weights)>0:
+            weights0 = tf.reshape(self.local_path.weights[0],shape=(1,-1))
+            weights0 = weights0/(tf.reduce_sum(tf.abs(weights0),axis=-1,keepdims=True)+1e-6) 
+            weights1 = tf.reshape(self.local_x2.weights[0],shape=(1,-1))
+            weights1 = weights1/(tf.reduce_sum(tf.abs(weights1),axis=-1,keepdims=True)+1e-6) 
+            weights2 = tf.reshape(self.score_gen.weights[0],shape=(1,-1))
+            weights2 = weights2/(tf.reduce_sum(tf.abs(weights2),axis=-1,keepdims=True)+1e-6)
+            weights = tf.concat([weights0,weights1],axis=-1)
+        return self.score_gen(local_map_concat), weights #self.score_gen(local_map), weights #self.score_gen.weights[0] # tf.minimum(attention_loss,1e-6)
     def build(self, input_shape):
         super().build(input_shape)
 
@@ -423,6 +389,7 @@ class SpatialAttentionMechanism(Layer):
         trainable: bool = True,
         kernel_reg: bool = False,
         feat_size: int = None,
+        include_metric: bool = False,
         rank: int = 6,
     ) -> None:
         super().__init__(name=name, trainable=trainable)
@@ -441,98 +408,124 @@ class SpatialAttentionMechanism(Layer):
         self.kernel_reg = kernel_reg
         self.feat_size = feat_size
         self.rank = feat_size//2 #rank
+        self.include_metric = include_metric
         # Create layers
 
-        #self.in_ln = layers.LayerNormalization(axis=-1,trainable=self.trainable, name="in_ln")
+        self.S_mean = SequentialLayer(
+            [
+                layers.AveragePooling2D(
+                    pool_size=(2,2),
+                    name="mean_pooling",
+                ),
 
-        self.head_mixer_w = layers.Conv2D(
-            filters=1,
-            kernel_size=(1,1),
-            strides=(1,1),
-            padding="same",
-            name="Conv2D_scores",
-            activation="sigmoid",
-            kernel_initializer= "glorot_uniform",#initializers.RandomNormal(mean=0.0, stddev=0.001),
-            bias_initializer=tf.constant_initializer(0.0),
-            use_bias=True,
-            trainable = self.trainable
+                layers.Conv2D(
+                filters=8,
+                kernel_size=(1,1),
+                strides=(1,1),
+                padding="same",
+                name="mean_summarizer_conv",
+                kernel_initializer="glorot_uniform",
+                #kernel_constraint=constraints.NonNeg(),
+                activation="gelu",
+                use_bias=True,
+                trainable=self.trainable,
         )
-        
-        """
-        self.add_weight(
-                                    name="hmixerw",
-                                    shape=(1,1,1,self.head_num),
-                                    initializer="glorot_uniform",
-                                    trainable=self.trainable,
-                                    constraint = constraints.NonNeg()
-                                    #constraint=ConvexComb1D()
-                                    )
-        """
-        
-        """
-        self.summarizer = SequentialLayer(
-            [   
-                layers.Conv2D(filters=32,
-                            kernel_size=(1,1),
-                            kernel_initializer="glorot_uniform",
-                            name="summ_conv1",
-                            activation= None, #"relu",
-                            use_bias = False,
-                            trainable = self.trainable 
-                            ),
-                layers.LayerNormalization(axis=-1,
-                                          name="summ_ln",
-                                          trainable=self.trainable),
-                #keras.layers.Activation(activation= "gelu",name="summ_gelu")
             ],
-            name="SAM_summarizer"
+            name="mean_summarizer",
+            trainable=self.trainable,
         )
-        """
 
+        self.S_max = SequentialLayer(
+            [
+                layers.MaxPooling2D(
+                    pool_size=(2,2),
+                    name="max_pooling",
+                ),
+
+                layers.Conv2D(
+                filters=8,
+                kernel_size=(1,1),
+                strides=(1,1),
+                padding="same",
+                name="max_summarizer_conv",
+                kernel_initializer="glorot_uniform",
+                #kernel_constraint=constraints.NonNeg(),
+                activation="gelu",
+                use_bias=True,
+                trainable=self.trainable,
+        )
+            ],
+            name="max_summarizer",
+            trainable=self.trainable,
+        )
+
+        self.channel_down = layers.Conv2D(filters=8,
+                                         kernel_size=(1,1),
+                                         strides=(1,1),
+                                         padding="same",
+                                         name="channel_low",
+                                         activation=None,
+                                         kernel_initializer="glorot_uniform",
+                                         kernel_constraint=constraints.NonNeg(),
+                                         use_bias=False,
+                                         trainable=self.trainable)
+        
+        self.channel_up = layers.Conv2D(filters=self.filters,
+                                         kernel_size=(1,1),
+                                         strides=(1,1),
+                                         padding="same",
+                                         name="channel_up",
+                                         activation=None,
+                                         kernel_initializer="glorot_uniform",
+                                         use_bias=False,
+                                         trainable=self.trainable)
 
         # Spatial Attention heads
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,
                                                 trainable=self.trainable,
                                                 name=f"SpatialHead_{u}") 
                                                 for u in range(self.head_num)] 
-        
-        #self.global_path = _GlobalPathLayer(name="global_path")
 
         # Set spatial heads as attributes to ensure full serialization.
         for k,layer in enumerate(self.spatial_heads):
             self.__setattr__(f"sam_{k}", layer)
 
+        self.temp_sig = self.add_weight(shape=(1,),
+                                        initializer=tf.constant_initializer(1.0),
+                                        constraint=constraints.NonNeg(),
+                                        name="temp_sig",
+                                        trainable=self.trainable,)
+        self.alpha = self.add_weight(shape=(1,),
+                                         initializer=tf.constant_initializer(1.0),
+                                         constraint=constraints.MaxNorm(2.0),
+                                         name="alpha_factor",
+                                         trainable=self.trainable,)
+
         # Conv layer for combining the spatial heads' outputs.
         #"""
-        self.score_gen = layers.Conv2D(
-            filters=1,
-            kernel_size=(1,1),
-            strides=(1,1),
-            padding="same",
-            name="AttConv2D_scores",
-            activation="sigmoid",
-            kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
-            kernel_initializer= tf.constant_initializer(0.5), #"he_normal",#initializers.RandomNormal(mean=0.0, stddev=0.001),
-            bias_initializer=tf.constant_initializer(0.0),
-            use_bias=True,
+        self.score_gen = SequentialLayer(
+            [
+                layers.Conv2D(
+                filters=1,
+                kernel_size=(1,1),
+                strides=(1,1),
+                padding="same",
+                name="AttConv2D_scores",
+                activation=None,
+                kernel_regularizer= RegL2(1e-6) if self.kernel_reg else None,
+                kernel_initializer= "glorot_uniform",
+                bias_initializer=tf.constant_initializer(0.0),
+                use_bias=True,
+                trainable = self.trainable
+            ),
+            ],
+            name = "score_aggregation",
             trainable = self.trainable
         )
+        
+        self.attention_reg_metric = keras.metrics.Mean(name=f"Reg_{name[5:]}") if self.include_metric else None
 
-        self.weight_gen = layers.Dense(units=self.head_num,
-                                       activation="sigmoid",
-                                       trainable=self.trainable,
-                                       name="weighter")
-        """
-        self.head_pool = SequentialLayer(
-                [layers.AveragePooling2D(pool_size=(2,2),name="avg_p"),
-                layers.MaxPool2D(pool_size=(2,2),name="max_p"),
-                ],
-                name="head_pooler"
-        )
-        """
-
-        #self.softmax_layer = layers.Softmax(axis=[1,2])
-        #"""
+        self.ln = layers.LayerNormalization(axis=-1,name="ln_spatial",trainable=self.trainable)
         
     def get_config(self):
         return {
@@ -555,78 +548,89 @@ class SpatialAttentionMechanism(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
-        # Compute the mean energy 2D 
-        #_inputs = tf.clip_by_value(inputs,-1e4,1e4) #B,H,W,C
-        #_inputs_square = tf.reduce_mean(tf.square(tf.clip_by_value(inputs,-1e3,1e3) ),axis=-1,keepdims=True) #B,H,W,1
-        _inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,1
-        _inputsmax = tf.reduce_max(inputs,axis=-1,keepdims=True) #B,H,W,1
-        _inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
-        #projection = self.gap_proj(_inputs)
-        #_inputs = self.in_ln(inputs)
-        B = tf.shape(_inputs)[0] 
+        # Compute a rich collapsed feature
+        #S_mean = self.S_mean(inputs,training=training) # B,H,W,8
+        #S_max = self.S_max(inputs,training=training) # B,H,W,8
+        #S = tf.concat([S_mean,S_max],axis=-1) # B,H,W,16
+        #S = self.ln(S) # B,H,W,16
+        #_inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,1
+        #_inputsmax = tf.reduce_max(inputs,axis=-1,keepdims=True) #B,H,W,1
+        #_inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
+        B = tf.shape(inputs)[0]
+        C = tf.shape(inputs)[-1] 
         K = self.feat_size # Width or Height
-        #spatial_desc = self.summarizer(inputs)
-        #print(self.head_mixer_w)
-        
-        #global_scores = self.global_path(_inputs)
-        heads_outs = [self.spatial_heads[u](_inputs,training=training) for u in range(self.head_num)]
+        splitted = tf.split(inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
+        #_inputs = self.channel_down(inputs) # B,H,W,8
+        #_inputs_rec = self.channel_up(_inputs) # B,H,W,filters
+
+        # Reconstruction loss
+        #rec_penalty = tf.reduce_mean(tf.square(inputs-_inputs_rec))    
+        #self.add_loss(1e-5*rec_penalty)
+
+        # Compute the local descriptors from the spatial heads
+        #heads_outs = [self.spatial_heads[u](_inputs,training=training) for u in range(self.head_num)]
+        heads_outs = [self.spatial_heads[u](splitted[u],training=training) for u in range(self.head_num)]
+        heads_kernels = tf.stack([tf.squeeze(heads_outs[u][1]) for u in range(self.head_num)],axis=-1)
         heads_losses = tf.stack([heads_outs[u][1] for u in range(self.head_num)],axis=-1)
         stacked_outs_local = tf.concat([heads_outs[u][0] for u in range(self.head_num)],axis=-1)
-        heads_mean = tf.reduce_mean(stacked_outs_local,axis=-1,keepdims=True)
-        heads_var = tf.reduce_mean(tf.square(stacked_outs_local-heads_mean),axis=(1,2))
-        #heads_descriptor = self.head_pool(stacked_outs_local)
-        #_dsize = tf.cast((((K//4)**2)*self.head_num),dtype=tf.int32)
-        #heads_descriptor = tf.reshape(tf.transpose(heads_descriptor, [0,3,1,2]),shape=(B,_dsize))
-        
-        head_weights = self.weight_gen(heads_var)
-        head_weights = head_weights/tf.reduce_sum(head_weights,axis=-1,keepdims=True)
-        head_weights = tf.expand_dims(head_weights,axis=1)
-        head_weights = tf.expand_dims(head_weights,axis=1)
-        #stacked_view = tf.concat([stacked_outs_local,global_scores],axis=-1)
-
-        stacked_view = tf.concat([stacked_outs_local],axis=-1)
-        outs_aggregated_local =  tf.clip_by_value(tf.reduce_sum(stacked_outs_local,axis=-1,keepdims=True),0.01,1.0)
-        #stacked_outs = tf.concat([heads_outs[u][0] for u in range(self.head_num)],axis=-1)
-        #stacked_outs = tf.stack([heads_outs[u][0] for u in range(self.head_num)],axis=-1) #(B,H,W,D,Heads)
-        #stacked_outs = tf.concat([heads_outs[u][0] for u in range(self.head_num)],axis=-1) #(B,H,W,Heads)
-        
-        #stacked_outs_w = self.head_mixer_w*stacked_outs #
-        #outs_aggregated = tf.reduce_sum(stacked_outs_w,axis=-1,keepdims=True) #(B,H,W,1) #(B,H,W,D)
-
-        #outs_aggregated =  self.head_mixer_w(stacked_outs)
+        stacked_outs = tf.stack([heads_outs[u][0] for u in range(self.head_num)],axis=-1) # B,H,W,C,Heads
+        stacked_out_mean = tf.reduce_mean(stacked_outs,axis=-1) # B,H,W,C
+        #stacked_view = tf.concat([stacked_outs_local],axis=-1)
         
 
-        #stacked_latent = tf.stack([heads_outs[u][1] for ua in range(self.head_num)],axis=-1)
-        #scores =  0.1+tf.clip_by_value(0.95*tf.nn.sigmoid((self.score_gen(outs_aggregated)))-0.05,0.0,0.9)
-        #scores =  tf.clip_by_value(1.0+0.5*tf.nn.tanh((self.score_gen(outs_aggregated))),0.1,1.5)
-        
-        #scores =  tf.clip_by_value(tf.nn.sigmoid((self.score_gen(outs_aggregated))),0.01,1.0)
-        #scores =  tf.clip_by_value(outs_aggregated_local+global_scor es,0.01,1.0)
 
-        #scores = self.score_gen(stacked_view)
-        scores = tf.clip_by_value(tf.reduce_sum(stacked_outs_local*head_weights,axis=-1,keepdims=True),0.001,1.0)
-        # Enforce orthogonality between heads
-        #positions = tf_attention_softargmax(stacked_outs_local) # B,2,H
-        #positions_mean = tf.reduce_mean(positions,axis=-1,keepdims=True)
-        #positions_var = tf.reduce_mean(tf.square(positions-positions_mean),axis=-1)
-        #positions_reg = tf.reduce_mean(tf.reduce_sum(positions_var,axis=-1))
-
-        #head_outs_flatten = tf.reshape(tf.transpose(stacked_outs_local, [0,3,1,2]),shape=(B,self.head_num,-1))# B x H x K^2
-        #heads_norm = tf.math.l2_normalize(head_outs_flatten,epsilon=1e-6, axis=-1)    # B x H x K x K
-        #gram = tf.abs(tf.matmul(heads_norm, heads_norm, transpose_b=True))  # (B, H, H)
+        # Enforce orthogonality between heads (orthogonality regularization)
+        stacked_ = tf.transpose(stacked_outs,perm=[0,3,4,1,2]) # B x H x W x C x Heads 
+        stacked_ = tf.reduce_mean(stacked_,axis=1)
+        stacked_view = tf.transpose(stacked_,perm=[0,2,3,1]) # B x W x C x Heads
+        #heads_flatten = tf.reshape(stacked_,shape=(B,self.head_num,-1)) # 
+        heads_norm = tf.math.l2_normalize(heads_kernels,epsilon=1e-6, axis=0) # F,Heads   # B x H x K x K
+        #heads_norm = tf.math.l2_normalize(heads_flatten,epsilon=1e-6, axis=-1)
+        gram = tf.abs(tf.matmul(heads_norm, heads_norm, transpose_a=True))  # (H, H)
+        eye = tf.eye(tf.shape(gram)[1])
+        off_diag = gram - eye
+        orthogonality_reg = tf.reduce_sum(tf.square(off_diag),axis=[0,1])/tf.reduce_sum(1.0-eye,axis=[0,1])
         #eye = tf.eye(tf.shape(gram)[1], batch_shape=[tf.shape(gram)[0]])
         #off_diag = gram - eye
         #orthogonality_reg = tf.reduce_sum(tf.square(off_diag),axis=[1,2])/tf.reduce_sum(1.0-eye,axis=[1,2])
-        #attention_loss = (self.feat_size/64.0)*1e-7*tf.reduce_mean(orthogonality_reg)
-        #self.add_loss(tf.minimum(attention_loss,1e-6))
-        self.add_loss(tf.reduce_mean(heads_losses))
-        # Enforce higher variance at the heads' features
-        #latent_mean = tf.reduce_mean(stacked_outs,axis=-1,keepdims=True)
-        #latent_var = tf.reduce_mean(tf.square(stacked_outs-latent_mean),axis=-1)
-        #var_reg = tf.reduce_mean(1/tf.maximum(latent_var,0.001))
-        #self.add_loss((64.0/self.feat_size)*1e-7*var_reg)
+
         
+        
+        if self.include_metric:
+            metric = tf.reduce_mean(orthogonality_reg) #rec_penalty #
+            self.attention_reg_metric.update_state(metric)
+        attention_loss = (self.feat_size/64.0)*1e-3*tf.reduce_mean(orthogonality_reg)
+        #self.add_loss(attention_loss)
+        #self.add_loss(tf.minimum(attention_loss,1e-4))
+        #self.add_loss(tf.reduce_mean(heads_losses))
+        
+        # Enforce higher variance at the heads' features
+        #latent_mean = tf.reduce_mean(stacked_outs_local,axis=-1,keepdims=True)
+        #latent_var = tf.reduce_mean(tf.square(stacked_outs_local-latent_mean),axis=-1)
+        #var_reg = tf.reduce_mean(1/tf.maximum(latent_var,0.001))
+        #self.add_loss(tf.minimum((self.feat_size/64.0)*1e-4*var_reg,1e-4))
+        
+        # Compute the final attention scores
+        #scores = self.score_gen(tf.reduce_sum(stacked_outs,axis=-1))
+        alpha =tf.reduce_sum(self.alpha)
+        alpha = tf.minimum(tf.abs(alpha),4.0)
+        #stack_norm = self.ln(stacked_outs_local)
+        scores = tf.nn.sigmoid(self.score_gen(stacked_out_mean)*alpha)
+        #tf.print("Spatial Attention Scores Shape:",scores.shape)
+        
+        #tau = 1.0 #tf.maximum(tf.reduce_sum(self.temp_sig),1e-3) # 0.01
+        #shift = 1.0 #tf.reduce_sum(self.shift_sig)
+        #scores = tf.reduce_sum(stacked_outs_local,axis=-1,keepdims=True) # B,H,W,1
+        #scores = tf.nn.sigmoid((scores-shift)/tau)
+        
+        #
+        #delta = tf.reduce_max(scores,axis=(1,2),keepdims=True) - tf.reduce_min(scores,axis=(1,2),keepdims=True) # B,1,1,1
+        #scores = (scores - tf.reduce_min(scores,axis=(1,2),keepdims=True)) /(tf.maximum(delta,1e-4)) # B,H,W,1
+
         return scores,tf.concat([stacked_view,scores],axis=-1) #stacked_outs_local #scores_raw # (B,K,K,1)=(B,H,W,1)
     
+    def reset_metrics(self):
+        self.attention_reg_metric.reset_states()
+
     def build(self, input_shape):
         super().build(input_shape)

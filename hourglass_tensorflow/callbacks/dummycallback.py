@@ -1,3 +1,4 @@
+from multiprocessing import dummy
 import tensorflow as tf
 import numpy as np
 from hourglass_tensorflow.models.hourglass import HourglassModel
@@ -9,6 +10,7 @@ import keras
 from keras.callbacks import Callback
 import keras.models
 import json
+from hourglass_tensorflow.utils.loaders.model_loader2 import load_wrapped_model,load_basemodel_weights
 
 """
 from hourglass_tensorflow.layers.conv_block import ConvBlockLayer
@@ -33,7 +35,7 @@ class DummyCallback(Callback):
         self.input_data = x_val
     
     def on_epoch_end(self, epoch, logs=None):
-        if int(epoch) % 4 ==0:
+        if int(epoch) % 3 ==0:
             print(f"Executing dummy callback at epoch: {epoch}")
             data1 = self.input_data.map(lambda imgs:1.0*imgs)
             data2 = self.input_data.map(lambda imgs:1.0*imgs)
@@ -47,9 +49,10 @@ class DummyCallback(Callback):
             """
             # Save the model and check consistency in the results
             #keras.config.enable_unsafe_deserialization()
-            _ = self.model(tf.ones((1,7, 256, 256, 4)), training=True)
+            #_ = self.model(tf.ones((1,7, 256, 256, 4)), training=True)
+            _ = self.model(tf.ones((1,256, 256, 4)), training=True)
             self.model.trainable = True
-            self.model.save("bed_action_recognition/data/dummymodel.keras")
+            self.model.save("data/dummymodel.keras")
             print(json.dumps(self.model.get_config(), indent=1)) 
             #self.model.save_weights("data/baseline.weights.h5")
             sleep(2.0)
@@ -83,8 +86,11 @@ class DummyCallback(Callback):
                                             "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=False)
             
             """
-            dummymodel = keras.models.load_model("bed_action_recognition/data/dummymodel.keras")
-            dummymodel(tf.random.normal((1,7,256,256,4)),training=False)
+            #dummymodel = keras.models.load_model("bed_action_recognition/data/dummymodel.keras")
+            dummymodel = load_wrapped_model("data/dummymodel.keras",compile=False)
+            #dummymodel(tf.random.normal((1,7,256,256,4)),training=False)
+            dummymodel(tf.random.normal((1,256,256,4)),training=False)
+            
             #dummymodel = load_basemodel_weights(self.model,"data/dummymodel.keras",compile=False)
             #dummymodel = load_basemodel_weights(self.model,"data/model_t/myModel_SLP_fABC10_2j.keras",compile=False)
             #lazyInput = tf.ones(shape=(160,256,256,1),dtype=tf.float32)

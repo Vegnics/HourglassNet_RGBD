@@ -136,7 +136,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             batch_validation = validation_dataset.batch(80)#self._apply_batch(validation_dataset)
             batch_num = batch_train.__len__()
 
-        """
+        #"""
         with tf.device('/CPU:0'):
             batch_testimgs_cpu = tf.identity(imgs_ds)
             imgs = []
@@ -146,7 +146,7 @@ class HTFTrainHandler(_HTFTrainHandler):
             _test_ds = tf.data.Dataset.from_tensor_slices(_testimgs)
             batch_testds = _test_ds.batch(40)
             print("test images cpu:",batch_testds)
-        """
+        #"""
 
         with tf.device('/GPU:0'):
             #dummy_callback = DummyCallback(batch_testds)

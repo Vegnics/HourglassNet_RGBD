@@ -113,9 +113,14 @@ class MetricReduceLROnPlateau(Callback):
                 self.wait = 0  # Reset wait counter
         #logs['LR'] = float(keras.backend.get_value(self.model.optimizer.learning_rate))
         logs['LR'] = np.float32(self.model.optimizer.learning_rate.numpy())
-
+        #print("Status of Residual with BRC :::",self.model.get_layer("Hourglass2").residual_brc.residual1.trainable)
+        #print("Status of alpha :::",self.model.get_layer("Hourglass2").residual_brc.residual1.residual_blocks[0].attention_block.alpha.trainable)
+        #logs['alpha'] = np.float32(self.model.get_layer("Hourglass2").residual_brc.residual1.residual_blocks[0].attention_block.alpha.numpy()[0])
+        
     def on_train_begin(self, logs=None):
         # Initialization of the best metric value
+        #logs = logs or {}
+        #logs['alpha'] = np.float32(self.model.get_layer("Hourglass2").residual_brc.residual1.residual_blocks[0].attention_block.alpha.numpy()[0])
         self.best = np.float32(-float('inf'))
         self.wait = 0
         self.lr_reduced = False

@@ -138,8 +138,8 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
 def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
     fig,ax = plt.subplots()
     #scalimg = ax.imshow(depth)
-    #scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.5)
-    scalimg = ax.imshow(depth,cmap="jet")
+    scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.0)
+    #scalimg = ax.imshow(depth,cmap="jet")
     if use_hms:
         kpnts = []
         for i in range(14):

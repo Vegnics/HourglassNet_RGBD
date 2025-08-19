@@ -13,7 +13,7 @@ from hourglass_tensorflow.losses.mae_custom import *
 from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
-from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
+from hourglass_tensorflow.utils.loaders.model_loader2 import load_wrapped_model,load_basemodel_weights
 from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora as HourglassLayer
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
@@ -193,8 +193,8 @@ LM_NAMES = ["00_rAnkle",
 hm_scale = tf.constant(2.1269474)
 
 subject_id = 15  
-cover = "cover2"
-img_num = 21
+cover = "cover1"
+img_num = 12
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))
@@ -231,6 +231,7 @@ mapp = tf.squeeze(intermediate[2])
 
 fig,ax = plt.subplots(nrows=1, ncols=5, figsize=(6, 8))
 for i in range(5):
+    #ax[i].imshow(mapp[:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
     ax[i].imshow(mapp[:,:,i],cmap="jet")
     #ax[i].colorbar()
 #plt.colorbar()

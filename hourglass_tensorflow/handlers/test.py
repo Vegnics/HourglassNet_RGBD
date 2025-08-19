@@ -217,6 +217,7 @@ class HTFTestHandler(_HTFTestHandler):
             #model.build(input_shape=(None,256,256,1))
             model.trainable = False
             model.summary()
+            print("CONFIG:::->>", model.get_config())
 
             hm_scale = tf.constant(2.1269474)
             #imgs = batch_test.map(lambda imgs,coords,bboxes: imgs).get_single_element()
@@ -243,8 +244,8 @@ class HTFTestHandler(_HTFTestHandler):
             #preds = preds*hm_scale/(normpreds+0.00001)
             print(preds.shape)
             
-            max_preds = tf.reduce_max(preds[:,:,:,0:14],axis=[1,2])
-            vis_preds = tf.reshape(tf.where(max_preds>0.001,1.0,0.0),shape=(-1,14))
+            max_preds = tf.reduce_max(preds[:,:,:,0:14],axis=[1,2]) #B,14
+            vis_preds = tf.reshape(tf.where(max_preds>0.001,1.0,0.0),shape=(-1,14)) #B,14
             #       0,1,2,3,4,5,6,7,8,9,10,11,12,13
             mask_ankles = tf.reshape(tf.convert_to_tensor([1,0,0,0,0,1,0,0,0,0,0,0,0,0],dtype=tf.float32),shape=(1,14))
             mask_knees = tf.reshape(tf.convert_to_tensor([0,1,0,0,1,0,0,0,0,0,0,0,0,0],dtype=tf.float32),shape=(1,14))
@@ -266,7 +267,7 @@ class HTFTestHandler(_HTFTestHandler):
 
 
             #error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32))/(64*0.14), dtype=tf.dtypes.float32)
-            error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32)), dtype=tf.dtypes.float32)
+            error = tf.cast((tf.cast(gtcoords,tf.float32) - tf.cast(predcoords,tf.float32)), dtype=tf.dtypes.float32) # B,C,2
             distance = tf.norm(error, ord=2, axis=-1) #NxC
             #distance = _distance+(1-visibility)*64.0
             # We compute the norm of the reference limb from the ground truth
@@ -276,6 +277,7 @@ class HTFTestHandler(_HTFTestHandler):
                 dtype=tf.float32,
             )# Nx2
             refer_dist = tf.expand_dims(tf.norm(reference_limb_error,ord=2,axis=-1),axis=-1)
+            print(refer_dist[:10,:])
             # Compute the reference distance (It could be the head distance, or torso distance)
             
             #mask_tensor = 2.0*(1.0-vis)*tf.constant(32.0)
@@ -284,18 +286,19 @@ class HTFTestHandler(_HTFTestHandler):
             joint_results = []
 
             thresholds = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+            effective_thresh =  tf.maximum(refer_dist,6.4)
 
             for k, joint_mask in enumerate(joint_masks):
                 name_ = joint_mask_names[k]
 
                 # Compute PCKh at each threshold
                 correctkpnts = [
-                    tf.reduce_sum(tf.cast(tf.math.less(distance, tf.maximum(t*refer_dist,t*6.4)), dtype=tf.float32) * mod_vis * joint_mask)
+                    tf.reduce_sum(tf.cast(tf.math.less_equal(distance,effective_thresh*t), dtype=tf.float32) * mod_vis * joint_mask)
                     for t in thresholds
                 ]
 
                 Njoints = tf.reduce_sum(mod_vis * joint_mask)
-                mpjpe = 64.0*0.1*tf.math.divide_no_nan(tf.reduce_sum(distance * mod_vis * joint_mask), tf.cast(Njoints, tf.float32))
+                mpjpe = tf.math.divide_no_nan(tf.reduce_sum(distance * mod_vis * joint_mask), tf.cast(Njoints, tf.float32))
 
                 pckh_values = [float(100.0 * tf.math.divide_no_nan(v, Njoints).numpy()) for v in correctkpnts]
                 

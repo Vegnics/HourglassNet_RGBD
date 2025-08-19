@@ -199,5 +199,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras_11:24:12.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras_18:54:03.csv
 test: null

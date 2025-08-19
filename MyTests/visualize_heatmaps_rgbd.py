@@ -13,7 +13,13 @@ from hourglass_tensorflow.losses.mae_custom import *
 from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
-from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model
+from hourglass_tensorflow.utils.loaders.model_loader2 import load_wrapped_model
+from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora as HourglassLayer
+from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
+from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
+from hourglass_tensorflow.layers.residual_exp3 import ResidualBlock,ResidualLayer,ResidualLayerIn
+
+from keras.models import Model
 
 def read_landmark_data(csv_path: str):
     with open(csv_path,"r") as csv_file:
@@ -174,7 +180,7 @@ hm_scale = tf.constant(2.1269474)
 
 subject_id = 15  
 cover = "cover1"
-img_num = 25
+img_num = 12
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))
@@ -204,13 +210,14 @@ squared_rgb = tensor[0,:,:,1:4]
 #print()
 #"""
 #img_bgr = np.uint8(tensor[0,:,:,0:3].numpy())
-hms = Model.predict(tf.expand_dims(tensor[:,:,:,:],axis=-1))
+#hms = Model.predict(tf.expand_dims(tensor[:,:,:,:],axis=-1))
+hms = Model.predict(tensor[:,:,:,:])
 preds = hms[0,1,:,:,:]
 normpreds = tf.linalg.norm(preds,axis=[0,1])
 normpreds = tf.expand_dims(normpreds,axis=0)
 normpreds = tf.expand_dims(normpreds,axis=0)
 print(normpreds.shape)
-preds = preds*hm_scale/normpreds
+#preds = preds*hm_scale/normpreds
 
 #hm = preds[:,:,:]
 for i in range(14):
@@ -223,16 +230,17 @@ for i in range(14):
     y = 4*int((pnt//64) + 0.5*dy)
     #cv2.circle(img_bgr,(x,y),5,(0,0,255),-1)
     print(f"Landmark {LM_NAMES[i]}:  ({x},{y})")
-    #plt.imshow(hm,cmap="jet")
+    plt.imshow(hm,cmap="jet",vmin=0.0,vmax=1.0)
     #plt.savefig(f"/home/quinoa/HEAT_SLP_LM_{subject_id}_{cover}_{LM_NAMES[i]}_.png", bbox_inches='tight')
-    #plt.show()
+    plt.show()
 img_bgr = draw_pose(imgrgb,preds,_obbox,padding)
 img_gt = draw_poseGT(imgrgb,squared_rgbd[1][0])
 plt.imshow(img_bgr)#[:,:,::-1])
 plt.figure()
 plt.imshow(img_gt)
 plt.figure()
-plt.imshow(squared_rgb)
+#plt.imshow(squared_rgb)
+plt.imshow( tensor[0,:,:,0],cmap="jet")
 #plt.savefig(f"/home/quinoa/sub_{subject_id}-num_{img_num}-{cover}.png", bbox_inches='tight')
 plt.show()
 #"""

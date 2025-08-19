@@ -161,9 +161,14 @@ def tf_rotate_coords(coordinates: tf.Tensor,tshape:tf.Tensor,center:tf.Tensor, v
     #vis = tf.reshape(tf.cast(tf.logical_and(tf.logical_and(vis_x,vis_y),tf.cast(visibility,tf.bool)),dtype=precision),(-1,1))
     vis = tf.reshape(tf.cast(visibility,dtype=precision),(-1,1))*annotated
     rrcoords_x = tf.where(annotated<tf.cast(0.5,tf.float64),-100000000.0*tf.ones_like(rcoords_x),rcoords_x)
-    rrcoords_x = tf.where(rrcoords_x>xmax-1,-100000000.0*tf.ones_like(rrcoords_x),rrcoords_x)
+    #rrcoords_x = tf.where(rrcoords_x>xmax-1,-100000000.0*tf.ones_like(rrcoords_x),rrcoords_x)
+    rrcoords_x = tf.where(rrcoords_x>xmax-1, (xmax-1)*tf.ones_like(rrcoords_x),rrcoords_x)
+
+
     rrcoords_y = tf.where(annotated<tf.cast(0.5,tf.float64),-100000000.0*tf.ones_like(rcoords_y),rcoords_y)
-    rrcoords_y = tf.where(rrcoords_y>ymax-1,-100000000.0*tf.ones_like(rrcoords_y),rrcoords_y)
+    #rrcoords_y = tf.where(rrcoords_y>ymax-1,-100000000.0*tf.ones_like(rrcoords_y),rrcoords_y)
+    rrcoords_y = tf.where(rrcoords_y>ymax-1,(ymax-1)*tf.ones_like(rrcoords_y),rrcoords_y)
+
     rcoords = tf.stack([rrcoords_x,rrcoords_y],axis=0)
     rcoords = tf.cast(tf.transpose(rcoords,perm=[1,0]),dtype=precision)
     rcoords = tf.concat([rcoords,vis],axis=1) #vis
@@ -464,13 +469,11 @@ def tf_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
     #_tens_max = tf.reduce_max(tensor,axis=[0,1],keepdims=True)
     #_tensor = (tensor-_tens_min)/(_tens_max-_tens_min+0.0001)
     #thresh_tensor = tf.where(_tensor > 0.3, _tensor, 0.3*tf.ones_like(tensor))
-    _flat_tensor = tf.reshape(100.0*tensor, (-1, tf.shape(tensor)[-1]))
-    flat_shape = tf.shape(_flat_tensor)
-    val = 64*64-32
-    _zero_correction = tf.reshape(tf.convert_to_tensor([0.0001]*32+[0.0]*val),shape=(flat_shape[0],1))
-    #_flat_tensor = _flat_tensor + tf.cast(_zero_correction,dtype=tf.float32)
-    # Apply softmax to normalize heatmaps
-    flat_tensor = tf.nn.softmax(_flat_tensor, axis=0) + tf.cast(_zero_correction,dtype=tf.float32) #HWxC 
+    tau = 10.0
+    flat = tf.reshape(tensor, (-1, tf.shape(tensor)[-1])) # (HW, C)
+    logits = flat / tf.maximum(tau, 1e-6) # (HW, C)
+    logits = logits - tf.reduce_max(logits, axis=0, keepdims=True)  # (HW, C)
+    weights = tf.nn.softmax(logits, axis=0)  # (HW, C)
 
     # Create coordinate grids
     x_grid = tf.range(tf.shape(tensor)[0], dtype=tf.float32)
@@ -482,10 +485,11 @@ def tf_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
     y_grid = tf.reshape(y_grid, shape=(-1,1)) #HWx1 
 
     # Compute expected (x, y) coordinates using softmax weights
-    x = tf.reduce_sum(x_grid * flat_tensor, axis=0) #C,
-    y = tf.reduce_sum(y_grid * flat_tensor, axis=0) #C,  
+    x = tf.reduce_sum(x_grid * weights, axis=0) #C,
+    y = tf.reduce_sum(y_grid * weights, axis=0) #C,  
     # stack and return 2D coordinates
     return tf.transpose(tf.stack((x,y), axis=0), [1, 0])
+
 
 @tf.function
 def tf_multistage_matrix_softargmax_loss(tensor: tf.Tensor) -> tf.Tensor:
@@ -598,7 +602,7 @@ def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
     _tensor = (tensor-mean)/stddev
 
     # 2nd normalization step ( reduce the effect of background )
-    mask_bg = tf.where(_tensor>=1.7,0.0,1.0)
+    mask_bg = tf.where(_tensor>=1.3,0.0,1.0)
     mask_full = mask*mask_bg
     numpx_full = tf.reduce_sum(mask_full)
     mean2 = tf.reduce_sum(tensor*mask_full)/numpx_full

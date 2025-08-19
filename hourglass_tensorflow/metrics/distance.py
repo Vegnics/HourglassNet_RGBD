@@ -140,11 +140,12 @@ class OverallMeanDistance(keras.metrics.Metric):
         )# Nx2
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
         reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
+        distance_factor = tf.maximum(reference_distance,6.4) #Nx1
 
         err_distance = tf.norm(distance, ord=2, axis=-1)#NC
-        err_distance = err_distance
+        norm_distance = err_distance/distance_factor
         #perc_distance = 100.0*tf.math.divide_no_nan(err_distance,reference_distance)
-        perc_distance = tf.reduce_sum(err_distance*vis, axis=1) #/tf.cast(Njoints,dtype=tf.float32)
+        perc_distance = tf.reduce_sum(norm_distance*vis, axis=1) #/tf.cast(Njoints,dtype=tf.float32)
         #cum_mean_perc_distance = tf.reduce_sum(perc_distance/Njoints) 
         cum_mean_perc_distance = tf.reduce_sum(perc_distance)/tf.cast(Njoints,dtype=tf.float32)
         self.distance.assign_add(cum_mean_perc_distance)

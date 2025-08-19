@@ -1,3 +1,4 @@
+from xml.etree.ElementInclude import include
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
@@ -8,7 +9,11 @@ from hourglass_tensorflow.layers.residual_exp3 import ResidualLayer,ResidualLaye
 #from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer as ResidualLayerFrozen
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
+
 from hourglass_tensorflow.layers.linear_projection import LinearProjection
+
+#Experimenting with LoRA at the linear projection layers
+#from hourglass_tensorflow.layers.linear_projection import LinearProjectionLoRA as LinearProjection
 #from hourglass_tensorflow.layers.batch_norm_conv_1 import BatchNormConv1Layer
 
 
@@ -19,6 +24,7 @@ def generate_residual_layer(layer_type: str ,
                             name: str = None ,
                             trainable = True,
                             activate_lora = None,
+                            include_metric = False,
                             feat_size = None):
         return  ResidualLayer(
                 output_filters= feature_filters,
@@ -28,6 +34,7 @@ def generate_residual_layer(layer_type: str ,
                 use_last_relu=False,
                 attentionType=layer_type,
                 feat_size = feat_size,
+                include_metric = include_metric,
                 activate_lora = activate_lora)
         """
         #print("Feature filters",feature_filters)
@@ -116,6 +123,7 @@ class ResidualWithBNRC(Layer):
                                                 name="Residual",
                                                 trainable=self.trainable,
                                                 feat_size=self.feat_size,
+                                                include_metric = True,
                                                 activate_lora=self.activate_lora)
         
         """
@@ -183,7 +191,6 @@ class ResidualWithBNRC(Layer):
         return x,s #self.lora_path(inputs)
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         if self.activate_lora:
             self.batch_norm.trainable = False
             self.conv.trainable = False
@@ -410,57 +417,40 @@ class HourglassLayerLora(Layer):
         }
         
     def _recursive_call(self, input_tensor, step, training=True):
-        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' recursive call ENTERED for step {step}. Input shape: {input_tensor.shape}")
         step_layers = self.layer_list[f"STEP_{step}"]#self.layer_list[step]
         _input = input_tensor
         #_input = step_layers["low_in"](_input, training=training) if step == 3 else input_tensor
         #if step == 3:
         #    _input = step_layers["low_in"](_input, training=training)
-        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: About to call 'up_1' layer ('{step_layers['up_1'].name}') with input shape {input_tensor.shape}")
-        up_1,_ = step_layers["up_1"](_input, training=training) #Skip
-        #print(self.intermediate_up1_layers)
-        
-
-        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: 'up_1' layer ('{step_layers['up_1'].name}') called. Output shape: {up_1.shape}")
+        up_1,_ = step_layers["up_1"](_input, training=training) #Skip        
         low_ = step_layers["low_"](_input, training=training) #MaxPool
         low_1,_ = step_layers["low_1"](low_, training=training) #S2F
         
         if step == 0:
             low_2,_ = step_layers["low_2"](low_1, training=training) # Dont apply any attention mechanism
         else:
-            #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: Making recursive call for step {step-1}. Input to recursive call: {low_1.shape}")
             low_2 = self._recursive_call(low_1, step=(step - 1), training=training)
-            #print(f"DEBUG_CALL: HourglassLayer '{self.name}' at step {step}: Recursive call for step {step-1} returned with shape: {low_2.shape}")
         low_3,s = step_layers["low_3"](low_2, training=training) # F2S
-        #if step == 3:
-        #    self.capture = 1.0*s
+        if step == 3:
+            self.capture = 1.0*s
         up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
         out = step_layers["out"]([up_1, up_2], training=training) # Add  
         #if step == 3:
         #    out = step_layers["low_out"](out,training=training)
-        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' recursive call EXITED for step {step}. Final output shape: {out.shape}")
         return out
 
     def call(self, inputs, training=False):
-        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' main call ENTERED. Input shape: {inputs.shape}")
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        #print(f"DEBUG_CALL: HourglassLayer '{self.name}' main call EXITED from recursive part. Recursive output shape: {_x.shape}")
         _x,s = self.residual_brc(_x,training=training) # Output of the Hourglass module
-        self.capture = 1.0*s
+        #self.capture = 1.0*s
         main_feats = self.merge_feats_main(_x)
         intermediate_2jhms = self.hm2_output(_x,training=training)
         features_2jhms = self.features_hm2(intermediate_2jhms) 
         transit_2jhms = self.residual_2j(features_2jhms, training=training)
-
         intermediate_1jhms = self.hm1_output(tf.add_n([_x,transit_2jhms]), training=training)
-        #bpart_feats = self.body_part_residual(intermediate_2jhms,training=training)
-        #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training) # Intermediate Heatmap outputs >>>> IMPORTANT
-        #intermediate_1jhms = self._hm_output(tf.add_n([_x,bpart_feats]), training=training)
         feats1j = self.merge_feats_1j(intermediate_1jhms)
-        #feats1j_norm = self.bn_feats_1j(feats1j,training=training)
-        #_out = self._last_residual(_x,training=training)
 
         out_tensor = tf.add_n(
             [inputs, main_feats, feats1j], #_out

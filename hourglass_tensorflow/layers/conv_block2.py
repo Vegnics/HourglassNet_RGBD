@@ -123,12 +123,19 @@ class BatchNormReluConvLayerWLoRA(Layer):
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         super().build(input_shape)
-        if self.activate_lora:
-            self.conv.trainable = False
+        if self.activate_lora and self.trainable:
+            self.lora.trainable = True
+            self.conv.trainable = False #False
             if self.normalized:
-                self.batch_norm.trainable = False
+                self.batch_norm.trainable = True
+        elif not self.activate_lora and self.trainable:
+            self.lora.trainable = False
+            self.conv.trainable = True
+            self.batch_norm.trainable = True
         else:
             self.lora.trainable = False
+            self.conv.trainable = False
+            self.batch_norm.trainable = False
 
 @register_keras_serializable(package="lBNReLuConvlora")
 class ConvBlockLayer(Layer):

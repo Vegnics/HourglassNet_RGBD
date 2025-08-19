@@ -27,7 +27,8 @@ class ResidualBlock(Layer):
         use_last_relu: bool = False,
         attentionType: str = None,
         feat_size: int = None,
-        activate_lora: bool = None, 
+        activate_lora: bool = None,
+        include_metric: bool = False, 
         **kwargs
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -53,6 +54,7 @@ class ResidualBlock(Layer):
                 kernel_reg = False,
                 trainable = self.trainable,
                 feat_size = self.feat_size,
+                include_metric=include_metric
             )
             
         elif self.attention_type == "FAM":
@@ -125,30 +127,23 @@ class ResidualBlock(Layer):
                 "epsilon": self.epsilon,
                 "use_last_relu": self.use_last_relu,
                 "attentionType": self.attention_type,
-                "feat_size": self.feat_size
+                "feat_size": self.feat_size,
+                "activate_lora": self.activate_lora
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
-        #print(f"DEBUG_CALL: ResidualBlock '{self.name}' call method entered. Input shape: {inputs.shape}")
         B = tf.shape(inputs)[0]        
         out_conv = self.conv_block(inputs, training=training)
-        if self.attention_type != "NoAM":
-            scores,scores_heads = self.attention_block(out_conv,training=training)
-        else:
-            scores = self.attention_block(out_conv,training=training)
+        #scores,scores_heads = self.attention_block(out_conv,training=training)
 
         _sum = self.add(
             [  
-                #out_conv*((1-alpha_gen) + alpha_gen*scores),
-                out_conv*scores,
+                out_conv,
                 inputs,
             ])
-        
-        #return self.relu(_sum*scores),scores
-        if self.attention_type != "NoAM":
-            return self.relu(_sum),scores_heads #scores
-        else:
-            return self.relu(_sum),scores
+        scores,scores_heads = self.attention_block(_sum,training=training)
+        return self.relu(_sum*scores),scores_heads #scores
+
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
@@ -177,6 +172,7 @@ class ResidualLayer(Layer):
         attentionType: str = None,
         feat_size: int = None,
         activate_lora: bool = None,
+        include_metric = False,
         **kwargs,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -197,7 +193,8 @@ class ResidualLayer(Layer):
                                             trainable=self.trainable,
                                             attentionType=self.attention_type,
                                             feat_size=self.feat_size,
-                                            activate_lora=self.activate_lora) for k in range(self.nblocks)]
+                                            activate_lora=self.activate_lora,
+                                            include_metric = include_metric) for k in range(self.nblocks)]
         for k,layer in enumerate(self.residual_blocks):
             self.__setattr__(f"residual_{k}", layer)
     def get_config(self):
@@ -287,6 +284,7 @@ class ResidualBlockIn(Layer):
                 "momentum": self.momentum,
                 "epsilon": self.epsilon,
                 "use_last_relu": self.use_last_relu,
+                "activate_lora": self.activate_lora
             },
         }
 
@@ -343,6 +341,7 @@ class ResidualLayerIn(Layer):
                     )
         
         for k in range(self.nblocks-1):
+            print("DEBUG: Adding residual block ",k)
             self.residual_blocks.append(
                 ResidualBlock(output_filters= self.output_filters,
                     name=f"{name}_block{k}",

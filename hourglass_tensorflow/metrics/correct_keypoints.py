@@ -213,31 +213,20 @@ class PercentageOfCorrectKeypoints(Metric):
         return vis
 
     def _internal_update(self, y_true, y_pred):
-        #_y_true = tf.cast(y_true,dtype=tf.dtypes.float32)/255.0
         vis_true = self.check_visibility(y_true[:,:,:,:,0:self.num_1joints],0.8)
         vis_pred = self.check_visibility(y_pred[:,:,:,:,0:self.num_1joints],0.01)
         vis = vis_true*vis_pred
         N = tf.ones_like(vis,dtype=tf.float32)
         N = tf.reduce_sum(N)/14.0
-        #Njoints = tf.reduce_sum(vis, axis=1) #N
         Njoints = tf.reduce_sum(vis) #N
-        #_y_pred = 1.0*y_pred[:,-1,:,:,:]
-        #normpreds = tf.linalg.norm(y_pred[:,-1,:,:,:],axis=[0,1])
-        #normpreds = tf.expand_dims(normpreds,axis=0)
-        #normpreds = tf.expand_dims(normpreds,axis=0)
-        #_y_pred = _y_pred*hm_scale/normpreds
-        #_y_pred = tf.expand_dims(_y_pred,axis=1)
         
-        #pred_joints = self.interpolate_joints()
         ground_truth_joints = self.argmax_tensor(y_true) #NxCx2
         ground_truth_joints = tf.cast(ground_truth_joints,dtype = tf.float32)
         predicted_joints = self.argmax_tensor(y_pred) #NxCx2
         predicted_joints = tf.cast(predicted_joints,dtype = tf.float32)
-        #predicted_joints = tf_batch_matrix_softargmax(y_pred[:,-1,:,:,0:self.num_1joints]) #NxCx2
-
         
         # We compute distance between ground truth and prediction
-        error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32)/6.4
+        error = tf.cast(ground_truth_joints - predicted_joints, dtype=tf.dtypes.float32) #/6.4
         distance = tf.norm(error, ord=2, axis=-1) #NxC
         # We compute the norm of the reference limb from the ground truth
         reference_limb_error = tf.cast(
@@ -251,13 +240,13 @@ class PercentageOfCorrectKeypoints(Metric):
         #distance = distance + mask_tensor
 
         reference_distance = tf.norm(reference_limb_error, ord=2, axis=-1) #N
-        #max_ref = tf.reduce_max(reference_distance)
-        
         reference_distance = tf.expand_dims(reference_distance,axis=1) #Nx1
+        thresh_distance = tf.maximum(reference_distance * self.ratio,3.2) #Nx1
+
         # We apply the thresholding condition
         #condition = tf.cast(tf.math.less(distance,reference_distance * self.ratio),
         #                        dtype=tf.float32)
-        condition = tf.cast(tf.math.less(distance,self.ratio),dtype=tf.float32) #NC
+        condition = tf.cast(tf.math.less(distance,thresh_distance),dtype=tf.float32) #NC
         #condition = tf.cast(tf.math.less(distance,tf.maximum(self.ratio*reference_distance,1.8)),dtype=tf.float32) #NC
         correct_keypoints = tf.reduce_sum(condition*vis)
         

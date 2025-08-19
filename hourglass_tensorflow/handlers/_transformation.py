@@ -396,14 +396,17 @@ def tf_train_map_affine_augmentation(
     mask0 = tf.expand_dims(mask0,axis=0)
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2]#*0.0+1.0 #mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]*mask0+mask1 #*0.0+1.0 #mask0+mask1
     #_visibilities  = _coordinates_map[:,:,2]
     _coordinates = _coordinates_map[:,:,0:2]
 
     #_bboxf = tf.constant([1.20,1.18,1.20,1.22,1.20,1.19,1.24,  1.26,1.24,1.22,1.18, 1.16,1.20,1.16,1.20,1.18,1.20,1.18,  1.20,1.19,1.22,1.19,1.24,1.19,1.21,  1.24,1.20,1.20,1.18, 1.18,1.22,1.2,1.22,1.19,1.20,1.18],
     #                     dtype=tf.float32)
     
-    _bboxf = tf.constant([1.14,1.12,1.16,1.18,1.20,1.18,1.22,  1.12,1.14,1.18,1.2, 1.14,1.12,1.18,1.16,1.12,1.14,1.16,  1.14,1.12,1.14,1.12,1.20,1.18,1.20,  1.18,1.16,1.18,1.16, 1.18,1.20,1.22,1.18,1.16,1.14,1.18],
+    #_bboxf = tf.constant([1.14,1.12,1.16,1.18,1.20,1.18,1.22,  1.12,1.14,1.18,1.2, 1.14,1.12,1.18,1.16,1.12,1.14,1.16,  1.14,1.12,1.14,1.12,1.20,1.18,1.20,  1.18,1.16,1.18,1.16, 1.18,1.20,1.22,1.18,1.16,1.14,1.18],
+    #                     dtype=tf.float32)
+    
+    _bboxf = tf.constant([1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13,  1.20,1.12,1.20,1.12,1.20,1.12,1.20,  1.24,1.18,1.14,1.10, 1.13,1.20,1.13,1.20,1.13,1.20,1.13],
                          dtype=tf.float32)
     bbox_dev = 0.02*2.0*(tf.random.uniform(shape=(36,),dtype=tf.float32)-0.5)
     bboxf = _bboxf + bbox_dev
@@ -609,11 +612,12 @@ def tf_validation_map_affine(
     mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
     mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
-    _visibilities  = _coordinates_map[:,:,2] #*0.0+1.0 #*mask0+mask1
+    _visibilities  = _coordinates_map[:,:,2]*mask0+mask1 #*0.0+1.0 #*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     #_bboxf = tf.constant([1.18,1.19,1.17,1.18,1.24,1.22],dtype=tf.float32)    
-    _bboxf = tf.constant([1.13,1.14,1.15,1.17,1.19,1.21],dtype=tf.float32)
+    #_bboxf = tf.constant([1.13,1.14,1.15,1.17,1.19,1.21],dtype=tf.float32)
+    _bboxf = tf.constant([1.12,1.18,1.23,1.13,1.2,1.15],dtype=tf.float32)
     bboxf = 0.02*2.0*(tf.random.uniform(shape=(6,))-0.5)+_bboxf
     sbboxf = tf.gather(bboxf,tf.random.shuffle(tf.range(6))[:3])
     
@@ -713,10 +717,10 @@ def tf_test_map_affine(
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
-    _visibilities = _visibilities #* mask0 + mask1
+    _visibilities = _visibilities* mask0 + mask1 #* mask0 + mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
-    bboxf = tf.constant([1.16],dtype=tf.float32) #1.24
+    bboxf = tf.constant([1.18],dtype=tf.float32) #1.24
     _zipped = tf.map_fn(
         fn=(
             lambda imgncoords: tf_test_map_standard_squarify(imgncoords[0],
@@ -823,7 +827,7 @@ def tf_test_map_affine_woaugment_RGBD(
     mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     #_visibilities  = _coordinates_map[:,:,2]*0.0+1.0#*mask0+mask1
-    _visibilities  = _coordinates_map[:,:,2]
+    _visibilities  = _coordinates_map[:,:,2]*mask0+mask1 #
     _coordinates = _coordinates_map[:,:,0:2]
     tf.print(_coordinates)
     """

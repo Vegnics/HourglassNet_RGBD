@@ -231,13 +231,20 @@ class AddPosEncodingLayer(Layer):
     """
     This layer adds positional encoding to the input tensor.
     """
-    def __init__(self, name: str = None) -> None:
+    def __init__(self, name: str = None, ndim:int = None) -> None:
         super().__init__(name=name, trainable=False)
-        self.pos_encoding_xy = TFPositionalEncoding2D(16)  # Assuming 16 channels for positional encoding
-
+        self.pos_encoding_xy = TFPositionalEncoding2D(ndim) 
+        self.ndim = ndim 
     def call(self, inputs: tf.Tensor, training: bool = False) -> tf.Tensor:
         pos_enc = self.pos_encoding_xy(inputs)
         return inputs + pos_enc
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "ndim": self.ndim,
+            },
+        }
     
 @register_keras_serializable(package="lattentionSpatial") 
 class SpatialEnergyHead(Layer):
@@ -250,7 +257,6 @@ class SpatialEnergyHead(Layer):
         kernel_initializer: str = "glorot_uniform",
         name: str = None,
         trainable: bool = True,
-        decoder: layers.Layer = None,
     ) -> None:
         super().__init__(name=name, trainable=trainable)
         # Store config
@@ -265,7 +271,7 @@ class SpatialEnergyHead(Layer):
         self.local_path = SequentialLayer(
            [
               layers.Conv2D(
-                filters=16,#8,
+                filters=8,#8,
                 kernel_size=(3,3),
                 strides=(1,1),
                 padding="same",
@@ -287,14 +293,27 @@ class SpatialEnergyHead(Layer):
                 layers.MaxPool2D(pool_size=(2,2),name="mpool_1"),
 
                 #SpatialSoftMax(name="head_softmax1"),
-                #AddPosEncodingLayer(name="add_pos_encoding_1"),
                 
                 layers.Conv2D(
                     filters=16,#8,
-                    kernel_size=(3,3),
+                    kernel_size=(1,1),
                     strides=(1,1),
                     padding="same",
                     name="head_local_conv_3",
+                    activation="gelu",
+                    kernel_initializer = "glorot_uniform",
+                    bias_initializer=tf.constant_initializer(0.0),
+                    use_bias=True,
+                    trainable = self.trainable),
+                
+                AddPosEncodingLayer(name="add_pos_encoding_1",ndim=16),
+
+                layers.Conv2D(
+                    filters=8,#8,
+                    kernel_size=(3,3),
+                    strides=(1,1),
+                    padding="same",
+                    name="head_local_conv_4",
                     activation="gelu",
                     kernel_initializer = "glorot_uniform",
                     bias_initializer=tf.constant_initializer(0.0),
@@ -307,7 +326,7 @@ class SpatialEnergyHead(Layer):
             trainable=self.trainable
         )
         
-
+        """
         self.score_gen = SequentialLayer(
             [
                 layers.Conv2D(
@@ -317,6 +336,29 @@ class SpatialEnergyHead(Layer):
                 padding="same",
                 name="HeadConv2D_scores",
                 activation="gelu",
+                kernel_initializer= "glorot_uniform",#initializers.RandomNormal(mean=0.0, stddev=0.001),
+                bias_initializer=tf.constant_initializer(0.0),
+                use_bias=True,
+                trainable = self.trainable
+            ),
+            #    layers.UpSampling2D(size=(2,2),
+            #        interpolation="bilinear",
+            #        name="upsample_scores"
+            #    )
+            ],
+            name="head_score_gen",
+            trainable=self.trainable
+        )
+        """
+        self.score_gen = SequentialLayer(
+            [
+                layers.Conv2D(
+                filters=1,
+                kernel_size=(1,1),
+                strides=(1,1),
+                padding="same",
+                name="HeadConv2D_scores",
+                activation="sigmoid",
                 kernel_initializer= "glorot_uniform",#initializers.RandomNormal(mean=0.0, stddev=0.001),
                 bias_initializer=tf.constant_initializer(0.0),
                 use_bias=True,
@@ -345,13 +387,13 @@ class SpatialEnergyHead(Layer):
         #projection = self.summarizer(inputs)
         B = tf.shape(inputs)[0]
         #_inputs = self.linear_proj(inputs) # B,H,W,16
-        #_inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,c
+        _inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,c
         #_inputsigns = tf.sign(inputs) #B,H,W,c
-        #_inputsmax = tf.reduce_max(tf.abs(inputs),axis=-1,keepdims=True) #B,H,W,1
-        #_inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
+        _inputsmax = tf.reduce_max(tf.abs(inputs),axis=-1,keepdims=True) #B,H,W,1
+        _inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
 
-        local_map = self.local_path(inputs,training=training)
-        local_map2 = self.local_x2(inputs,training=training)
+        local_map = self.local_path(_inputs,training=training)
+        local_map2 = self.local_x2(_inputs,training=training)
         #local_map_concat = tf.concat([local_map,local_map2],axis=-1) #local_map + local_map2
         local_map_concat = local_map + local_map2 #local_map_concat
 
@@ -410,54 +452,6 @@ class SpatialAttentionMechanism(Layer):
         self.rank = feat_size//2 #rank
         self.include_metric = include_metric
         # Create layers
-
-        self.S_mean = SequentialLayer(
-            [
-                layers.AveragePooling2D(
-                    pool_size=(2,2),
-                    name="mean_pooling",
-                ),
-
-                layers.Conv2D(
-                filters=8,
-                kernel_size=(1,1),
-                strides=(1,1),
-                padding="same",
-                name="mean_summarizer_conv",
-                kernel_initializer="glorot_uniform",
-                #kernel_constraint=constraints.NonNeg(),
-                activation="gelu",
-                use_bias=True,
-                trainable=self.trainable,
-        )
-            ],
-            name="mean_summarizer",
-            trainable=self.trainable,
-        )
-
-        self.S_max = SequentialLayer(
-            [
-                layers.MaxPooling2D(
-                    pool_size=(2,2),
-                    name="max_pooling",
-                ),
-
-                layers.Conv2D(
-                filters=8,
-                kernel_size=(1,1),
-                strides=(1,1),
-                padding="same",
-                name="max_summarizer_conv",
-                kernel_initializer="glorot_uniform",
-                #kernel_constraint=constraints.NonNeg(),
-                activation="gelu",
-                use_bias=True,
-                trainable=self.trainable,
-        )
-            ],
-            name="max_summarizer",
-            trainable=self.trainable,
-        )
 
         self.channel_down = layers.Conv2D(filters=8,
                                          kernel_size=(1,1),
@@ -572,7 +566,7 @@ class SpatialAttentionMechanism(Layer):
         heads_outs = [self.spatial_heads[u](splitted[u],training=training) for u in range(self.head_num)]
         heads_kernels = tf.stack([tf.squeeze(heads_outs[u][1]) for u in range(self.head_num)],axis=-1)
         heads_losses = tf.stack([heads_outs[u][1] for u in range(self.head_num)],axis=-1)
-        stacked_outs_local = tf.concat([heads_outs[u][0] for u in range(self.head_num)],axis=-1)
+        stacked_outs_local = tf.concat([heads_outs[u][0] for u in range(self.head_num)],axis=-1)# B,H,W,C*Heads
         stacked_outs = tf.stack([heads_outs[u][0] for u in range(self.head_num)],axis=-1) # B,H,W,C,Heads
         stacked_out_mean = tf.reduce_mean(stacked_outs,axis=-1) # B,H,W,C
         #stacked_view = tf.concat([stacked_outs_local],axis=-1)
@@ -580,9 +574,9 @@ class SpatialAttentionMechanism(Layer):
 
 
         # Enforce orthogonality between heads (orthogonality regularization)
-        stacked_ = tf.transpose(stacked_outs,perm=[0,3,4,1,2]) # B x H x W x C x Heads 
-        stacked_ = tf.reduce_mean(stacked_,axis=1)
-        stacked_view = tf.transpose(stacked_,perm=[0,2,3,1]) # B x W x C x Heads
+        stacked_ = tf.transpose(stacked_outs,perm=[0,3,4,1,2]) # B x C x Heads x H x W
+        stacked_ = tf.reduce_mean(stacked_,axis=1) # B,Heads,H,W
+        stacked_view = tf.transpose(stacked_,perm=[0,2,3,1]) # B,H,W,Heads
         #heads_flatten = tf.reshape(stacked_,shape=(B,self.head_num,-1)) # 
         heads_norm = tf.math.l2_normalize(heads_kernels,epsilon=1e-6, axis=0) # F,Heads   # B x H x K x K
         #heads_norm = tf.math.l2_normalize(heads_flatten,epsilon=1e-6, axis=-1)
@@ -615,7 +609,14 @@ class SpatialAttentionMechanism(Layer):
         alpha =tf.reduce_sum(self.alpha)
         alpha = tf.minimum(tf.abs(alpha),4.0)
         #stack_norm = self.ln(stacked_outs_local)
-        scores = tf.nn.sigmoid(self.score_gen(stacked_out_mean)*alpha)
+        #scores = tf.nn.sigmoid(self.score_gen(stacked_out_mean)*alpha)
+
+        group_c = self.filters//self.head_num
+        scores_l = []
+        for u in range(self.head_num):
+            att_map = tf.expand_dims(stacked_outs_local[:,:,:,u],axis=-1) # B,H,W,1
+            scores_l.append(att_map*tf.ones(shape=(1,1,1,group_c)))
+        scores = tf.concat(scores_l,axis=-1) # B,H,W,filters
         #tf.print("Spatial Attention Scores Shape:",scores.shape)
         
         #tau = 1.0 #tf.maximum(tf.reduce_sum(self.temp_sig),1e-3) # 0.01
@@ -633,4 +634,4 @@ class SpatialAttentionMechanism(Layer):
         self.attention_reg_metric.reset_states()
 
     def build(self, input_shape):
-        super().build(input_shape)
+        super().build(input_shape)#

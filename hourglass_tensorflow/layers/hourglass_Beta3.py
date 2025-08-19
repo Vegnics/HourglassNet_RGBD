@@ -10,7 +10,7 @@ from hourglass_tensorflow.layers.residual_exp3 import ResidualLayer,ResidualLaye
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
-from hourglass_tensorflow.layers.linear_projection import LinearProjection
+from hourglass_tensorflow.layers.linear_projection import LinearProjectionLoRA as LinearProjection
 
 #Experimenting with LoRA at the linear projection layers
 #from hourglass_tensorflow.layers.linear_projection import LinearProjectionLoRA as LinearProjection
@@ -126,47 +126,29 @@ class ResidualWithBNRC(Layer):
                                                 include_metric = True,
                                                 activate_lora=self.activate_lora)
         
-        """
-        self.lora_path = SequentialLayer(
-                        [
+        self.lora = SequentialLayer(
+            [
+                    layers.Conv2D(
+                        filters=4,
+                        kernel_size=1,
+                        name="lora_a",
+                        activation=None,
+                        use_bias=False,
+                        kernel_initializer="glorot_uniform",
+                    ),
 
-                            layers.Conv2D(filters=16,
-                                    kernel_size=(1,1),
-                                    kernel_initializer="glorot_normal",
-                                    name="lora_a",
-                                    use_bias=False),
-
-                            layers.LayerNormalization(
-                                axis=-1,
-                                name="lora_ln",
-                                epsilon=0.01
-                            ),
-                            
-                            layers.Conv2D(filters=32,
-                                    kernel_size=(3,3),
-                                    padding = "same",
-                                    activation="gelu",
-                                    kernel_initializer="glorot_uniform",
-                                    name="lora_i0"),
-                            
-                            layers.Conv2D(filters=8,
-                                    kernel_size=(3,3),
-                                    padding = "same",
-                                    activation="gelu",
-                                    kernel_initializer="glorot_uniform",
-                                    name="lora_i1"),
-
-                            layers.Conv2D(filters=self.feature_filters,
-                                    kernel_size=(1,1),
-                                    kernel_initializer="zeros",
-                                    name="lora_b",
-                                    use_bias=False)
-
-                        ],
-                        name="lora_path",
-                        trainable=self.trainable
+                    layers.Conv2D(
+                        filters=self.feature_filters,
+                        kernel_size=1,
+                        name="lora_b",
+                        activation=None,
+                        use_bias=False,
+                        kernel_initializer="zeros",
                     )
-        """
+                ],
+                name="lora_path",
+                trainable=self.trainable
+                ) if self.activate_lora else zeroLayer(self.feature_filters,name="lora_path")
     
     def get_config(self):
         return {
@@ -187,13 +169,23 @@ class ResidualWithBNRC(Layer):
         x,s = self.residual1(inputs, training=training)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
+        lora = self.lora(x, training=training)
         x = self.conv(x)
-        return x,s #self.lora_path(inputs)
+        return x + lora,s #self.lora_path(inputs)
     
     def build(self, input_shape):
-        if self.activate_lora:
+        if self.activate_lora and self.trainable:
+            self.batch_norm.trainable = True
+            self.conv.trainable = False
+            self.lora.trainable = True
+        elif not self.activate_lora and self.trainable:
+            self.lora.trainable = False
+            self.conv.trainable = True
+            self.batch_norm.trainable = True
+        else:
             self.batch_norm.trainable = False
             self.conv.trainable = False
+            self.lora.trainable = False
         super().build(input_shape)
     
     """
@@ -248,6 +240,7 @@ class HourglassLayerLora(Layer):
             kernel_size=1,
             name="HeatmapOutput",
             trainable=trainable,
+            activate_lora = self.activate_lora,
             outmax=None,
         )
 
@@ -290,9 +283,10 @@ class HourglassLayerLora(Layer):
                                             kernel_size=1,
                                             name="Merge_Feats_1J",
                                             trainable=trainable,
+                                            activate_lora = self.activate_lora,
         )
 
-        """
+        #"""
         self.bn_feats_1j = layers.BatchNormalization(
             axis=-1,
             momentum=0.989,
@@ -301,7 +295,7 @@ class HourglassLayerLora(Layer):
             trainable=trainable,
             name="BN_Feats_1J",
         )
-        """
+        #"""
 
         self.residual_brc = ResidualWithBNRC(
                     output_filters=self.feature_filters,
@@ -453,7 +447,7 @@ class HourglassLayerLora(Layer):
         feats1j = self.merge_feats_1j(intermediate_1jhms)
 
         out_tensor = tf.add_n(
-            [inputs, main_feats, feats1j], #_out
+            [inputs, main_feats, self.bn_feats_1j(feats1j,training=training)], #_out
             name=f"{self.name}_OutputAdd",
         )
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)

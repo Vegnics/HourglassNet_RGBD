@@ -158,7 +158,7 @@ class HourglassModelLora(Model):
         return self._outputs
         """
         for hglayer in self.hourglasses:
-            x, y,_ = hglayer(x) # x is the output features, y is the intermediate output heatmaps
+            x, y,_ = hglayer(x,training=training) # x is the output features, y is the intermediate output heatmaps
             outputs_list.append(y)
         outputs = self.stacker(outputs_list)
         #tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")

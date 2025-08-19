@@ -135,14 +135,17 @@ class ResidualBlock(Layer):
         B = tf.shape(inputs)[0]        
         out_conv = self.conv_block(inputs, training=training)
         #scores,scores_heads = self.attention_block(out_conv,training=training)
+        scores,scores_heads = self.attention_block(inputs,training=training)
 
+        alpha = 0.8
         _sum = self.add(
             [  
                 out_conv,
-                inputs,
+                inputs*(alpha*scores + (1-alpha)),
             ])
-        scores,scores_heads = self.attention_block(_sum,training=training)
-        return self.relu(_sum*scores),scores_heads #scores
+        
+        #scores,scores_heads = self.attention_block(_sum,training=training)
+        return self.relu(_sum),scores_heads #scores
 
     
     def build(self, input_shape):

@@ -3,6 +3,7 @@ from keras import layers
 from keras.layers import Layer
 from keras.activations import swish
 from keras.saving import register_keras_serializable
+from hourglass_tensorflow.layers.dummy_layers import zeroLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
 
@@ -96,7 +97,7 @@ class LinearProjectionLoRA(Layer):
         outmax: float = None,
         name: str = None,
         trainable: bool = True,
-        activate_lora: bool = None,
+        activate_lora: bool = False,
         **kwargs
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
@@ -126,7 +127,7 @@ class LinearProjectionLoRA(Layer):
         self.lora = SequentialLayer(
             [
                     layers.Conv2D(
-                        filters=8,
+                        filters=4,
                         kernel_size=1,
                         strides=self.strides,
                         padding=self.padding,
@@ -149,7 +150,7 @@ class LinearProjectionLoRA(Layer):
                 ],
                 name="lora_path",
                 trainable=self.trainable
-                )
+                ) if self.activate_lora else zeroLayer(output_channels=self.filters,name="lora_path",trainable = False)
     def get_config(self):
         return {
             **super().get_config(),

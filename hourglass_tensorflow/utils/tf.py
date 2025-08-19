@@ -282,10 +282,16 @@ def tf_expand_bbox(
     height, width = bottom_right_y - top_left_y, bottom_right_x - top_left_x
 
     N = tf.maximum(height,width)
-    sqfactor = 3.0 + randomw*tf.random.uniform(shape=[],minval=-0.5,maxval=1.0) #[-0.1,0.06]
-    
-    bfactorW = 1.0+(1.0 + sqfactor*(1.0-(width/N)))*(bbox_factor - 1.0)  # tf.minimum((N/width),1.05)
-    bfactorH = 1.0+(1.0 + sqfactor*(1.0-(height/N)))* (bbox_factor - 1.0) #tf.minimum((N/height),1.05)
+
+    # Previous squarification approach
+    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06) #[-0.1,0.06]
+    bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
+    bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
+
+    ## Latest squarification approach 
+    #sqfactor = 3.0 + randomw*tf.random.uniform(shape=[],minval=-0.5,maxval=1.0) #[-0.1,0.06]
+    #bfactorW = 1.0+(1.0 + sqfactor*(1.0-(width/N)))*(bbox_factor - 1.0)  # tf.minimum((N/width),1.05)
+    #bfactorH = 1.0+(1.0 + sqfactor*(1.0-(height/N)))* (bbox_factor - 1.0) #tf.minimum((N/height),1.05)
 
     # Increase BBox Size
     c_tl_x =  top_left_x - width * (bfactorW - 1.0)/2
@@ -602,7 +608,7 @@ def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
     _tensor = (tensor-mean)/stddev
 
     # 2nd normalization step ( reduce the effect of background )
-    mask_bg = tf.where(_tensor>=1.3,0.0,1.0)
+    mask_bg = tf.where(_tensor>=1.6,0.0,1.0)
     mask_full = mask*mask_bg
     numpx_full = tf.reduce_sum(mask_full)
     mean2 = tf.reduce_sum(tensor*mask_full)/numpx_full
@@ -629,9 +635,11 @@ def tf_depth_parameterized_noise(tensor:tf.Tensor,shape: tf.Tensor,thresh_val: f
                 start=0.0, limit=tf.cast(shape[1], precision), delta=1.0, dtype=precision
             ),
         )
-    G = tf.reduce_mean(tf.random.uniform(shape=[10],minval=0,maxval=350,dtype=precision))
+    #G = tf.reduce_mean(tf.random.uniform(shape=[10],minval=0,maxval=350,dtype=precision))
+    G = tf.reduce_mean(tf.random.uniform(shape=[10],minval=0,maxval=500,dtype=precision))
     k = 1/(tf.cast(shape[1], precision))
-    angle = tf.random.uniform(shape=[],minval=-45.0,maxval=45.0,dtype=precision)
+    #angle = tf.random.uniform(shape=[],minval=-45.0,maxval=45.0,dtype=precision)
+    angle = tf.random.uniform(shape=[],minval=-90.0,maxval=90.0,dtype=precision)
     kx = tf.math.sin(angle/180*3.141592)*k
     ky = tf.math.cos(angle/180*3.141592)*k
     Z = G*(kx*X+ky*Y)

@@ -23,7 +23,7 @@ from hourglass_tensorflow.metrics.correct_keypoints import PercentageOfCorrectKe
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.losses.mae_custom import MAE_custom
 from hourglass_tensorflow.metrics import SoftargmaxMeanDist
-from hourglass_tensorflow.utils.loaders.model_loader import load_wrapped_model,load_basemodel_weights
+from hourglass_tensorflow.utils.loaders.model_loader2 import load_wrapped_model,load_basemodel_weights
 from hourglass_tensorflow.layers.downsampling2 import DownSamplingLayerLora
 from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora
 
@@ -216,8 +216,7 @@ class HTFModelHandler(_HTFModelHandler):
                             #print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
                             #layer.ln_feats1j.trainable = False 
                             #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
-                            #layer.bn_feats_1j.trainable = False
-                            
+                            layer.bn_feats_1j.trainable = False
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
                             layer.hm1_output.trainable = False #False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")

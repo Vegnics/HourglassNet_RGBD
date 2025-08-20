@@ -153,7 +153,7 @@ def draw_pose(img,hm,obbox,pad):
     return _img
     
 #Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
-Model = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S1.keras",compile=False) 
 
 Model.trainable = False
 
@@ -180,7 +180,7 @@ hm_scale = tf.constant(2.1269474)
 
 subject_id = 15  
 cover = "cover1"
-img_num = 30
+img_num = 12
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))

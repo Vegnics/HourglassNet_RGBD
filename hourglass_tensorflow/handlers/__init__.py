@@ -178,12 +178,16 @@ class HTFManager(ObjectLogger):
             #print(img.shape,img.dtype)
             
             hmp = tf.expand_dims(data[1],axis=0)#.numpy()
-            cntld = 0
+            #cntld = 0
             #for i in range(14): #16
+            #    plt.imshow(hmp[0,-1,:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
+            #    plt.show()
             #    val = np.max(hmp[0,-1,:,:,i])
-            #    if val>0.3:
+            #    if val>0.8:
             #        cntld += 1
             #print(np.max(img),np.min(img),cntld)
+            #if cntld == 14:
+            #    continue
             
             depth = img[:,:,0]#*255.0/3.5
             #H, W = 256, 256
@@ -195,10 +199,12 @@ class HTFManager(ObjectLogger):
             #ax = fig.add_subplot(111, projection='3d')
             #ax.plot_surface(X, Y, depth, cmap='jet', linewidth=0, antialiased=True)
             #plt.show()
-            print(hmp.shape)
+            #print(hmp.shape)
             #plt.imshow(depth,cmap="jet")
             #plt.show()
             #print(data[2].numpy())
+            #plt.imshow(tf.reduce_sum(hmp[0,-1,:,:,:],axis=-1),cmap="jet",vmin=0,vmax=1.0)
+            #plt.show()
             draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
             
             #draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
@@ -245,6 +251,7 @@ class HTFManager(ObjectLogger):
                 #plt.imshow(img_rgb)
                 #plt.show() 
         """
+        
         self._config.model.batch_size = self._config.train.batch_size
         #"""
         # Launch Model Handler

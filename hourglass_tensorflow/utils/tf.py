@@ -284,14 +284,14 @@ def tf_expand_bbox(
     N = tf.maximum(height,width)
 
     # Previous squarification approach
-    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06) #[-0.1,0.06]
-    bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
-    bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
+    #sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06) #[-0.1,0.06]
+    #bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
+    #bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
 
     ## Latest squarification approach 
-    #sqfactor = 3.0 + randomw*tf.random.uniform(shape=[],minval=-0.5,maxval=1.0) #[-0.1,0.06]
-    #bfactorW = 1.0+(1.0 + sqfactor*(1.0-(width/N)))*(bbox_factor - 1.0)  # tf.minimum((N/width),1.05)
-    #bfactorH = 1.0+(1.0 + sqfactor*(1.0-(height/N)))* (bbox_factor - 1.0) #tf.minimum((N/height),1.05)
+    sqfactor = 3.0 + randomw*tf.random.uniform(shape=[],minval=-0.5,maxval=1.0) #[-0.1,0.06]
+    bfactorW = 1.0+(1.0 + sqfactor*(1.0-(width/N)))*(bbox_factor - 1.0)  # tf.minimum((N/width),1.05)
+    bfactorH = 1.0+(1.0 + sqfactor*(1.0-(height/N)))* (bbox_factor - 1.0) #tf.minimum((N/height),1.05)
 
     # Increase BBox Size
     c_tl_x =  top_left_x - width * (bfactorW - 1.0)/2

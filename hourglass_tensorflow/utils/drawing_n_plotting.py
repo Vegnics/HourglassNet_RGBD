@@ -135,14 +135,14 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
     #fig.colorbar(scalimg,location="left",orientation="vertical",cmap="jet")
     plt.show()
 
-def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
+def draw_pose_mplib_new(depth,hms,use_hms=True,kpnts_loc=None,npoints=14):
     fig,ax = plt.subplots()
     #scalimg = ax.imshow(depth)
     scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.0)
     #scalimg = ax.imshow(depth,cmap="jet")
     if use_hms:
         kpnts = []
-        for i in range(14):
+        for i in range(npoints):
             pnt = np.argmax(hms[:,:,i])
             x = int((pnt%64))
             y = int((pnt//64))
@@ -151,9 +151,9 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
         kpnts = np.array(kpnts)
     else:
         kpnts = kpnts_loc.copy()
-    _visible_kpts = np.array([i for i in range(14)])
+    _visible_kpts = np.array([i for i in range(npoints)])
     _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.45])
-    #"""
+    """
     KEYPOINT_EDGE_INDS_TO_COLOR = {
     (0, 1): (150,80,50),
     (1, 2): (150,80,50),
@@ -170,7 +170,8 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
     (3, 12): (50,80,160),
     (12, 13): (230,10,20)
     }
-    #"""
+    """
+    
     """
     KEYPOINT_EDGE_INDS_TO_COLOR = {
     # Upper body / torso
@@ -208,8 +209,43 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
     (15, 17): (50, 160, 200)  # Left Eye to Left Ear
     }
     """
+
+    # 20-Joint scheme (Kinect V1 - MHAD)
+    KEYPOINT_EDGE_INDS_TO_COLOR = {
+        # Spine
+        (0, 1): (255, 0, 0),      # Head <-> Shoulder Center
+        (1, 2): (255, 0, 0),      # Shoulder Center <-> Spine
+        (2, 3): (255, 0, 0),      # Spine <-> Hip Center
+
+        # Left Arm
+        (1, 4): (0, 255, 0),      # Shoulder Center <-> Shoulder Left
+        (4, 5): (0, 255, 0),      # Shoulder Left <-> Elbow Left
+        (5, 6): (0, 255, 0),      # Elbow Left <-> Wrist Left
+        (6, 7): (0, 255, 0),      # Wrist Left <-> Hand Left
+
+        # Right Arm
+        (1, 8): (0, 0, 255),      # Shoulder Center <-> Shoulder Right
+        (8, 9): (0, 0, 255),      # Shoulder Right <-> Elbow Right
+        (9, 10): (0, 0, 255),     # Elbow Right <-> Wrist Right
+        (10, 11): (0, 0, 255),    # Wrist Right <-> Hand Right
+
+        # Left Leg
+        (3, 12): (255, 255, 0),   # Hip Center <-> Hip Left
+        (12, 13): (255, 255, 0),  # Hip Left <-> Knee Left
+        (13, 14): (255, 255, 0),  # Knee Left <-> Ankle Left
+        (14, 15): (255, 255, 0),  # Ankle Left <-> Foot Left
+
+        # Right Leg
+        (3, 16): (255, 0, 255),   # Hip Center <-> Hip Right
+        (16, 17): (255, 0, 255),  # Hip Right <-> Knee Right
+        (17, 18): (255, 0, 255),  # Knee Right <-> Ankle Right
+        (18, 19): (255, 0, 255)   # Ankle Right <-> Foot Right
+    }
+
+
     for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
         _color = (color[2]/255.0,color[1]/255.0,color[0]/255.0)
+        print(edge_pair)
         if edge_pair[0] in _visible_kpts and edge_pair[1] in _visible_kpts:
             x0=kpnts[edge_pair[0],0]
             y0=kpnts[edge_pair[0],1]

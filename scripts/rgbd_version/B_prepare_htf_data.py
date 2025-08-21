@@ -22,11 +22,11 @@ from hourglass_tensorflow.types import HTFPersonDatapointRGBD
 #HTF_JSON = "data/htf_dccv.ignore.json"
 #HTF_DATASET_JSON = "data/htf_dccv_dataset.ignore.json"
 
-HTF_JSON = "data/htf_dccv_c2.ignore.json"
-HTF_DATASET_JSON = "data/htf_dccv_dataset_c2.ignore.json"
+#HTF_JSON = "data/htf_dccv_c2.ignore.json"
+#HTF_DATASET_JSON = "data/htf_dccv_dataset_c2.ignore.json"
 
-#HTF_JSON = "data/htf_mhad.ignore.json"
-#HTF_DATASET_JSON = "data/htf_mhad_dataset.ignore.json"
+HTF_JSON = "data/htf_mhad.ignore.json"
+HTF_DATASET_JSON = "data/htf_mhad_dataset.ignore.json"
 
 if __name__ == "__main__":
     # Parse file as list of records
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         "center_x": -1,
         "center_y": -1,
         }
-        for jid in range(14):
+        for jid in range(20):
             if jid in jids :#and jid in forced_ids:
                 k = jids.index(jid)
                 #d[f"joint_{jid}_X"] = jxs[k]

@@ -613,6 +613,7 @@ def tf_validation_map_affine(
     mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     _visibilities  = _coordinates_map[:,:,2]*mask0+mask1 #*0.0+1.0 #*mask0+mask1
+    #_visibilities  = _coordinates_map[:,:,2]#*mask0+mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     #_bboxf = tf.constant([1.18,1.19,1.17,1.18,1.24,1.22],dtype=tf.float32)    
@@ -717,7 +718,8 @@ def tf_test_map_affine(
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
-    _visibilities = _visibilities* mask0 + mask1 #* mask0 + mask1
+    
+    #_visibilities = _visibilities* mask0 + mask1 #* mask0 + mask1
     _coordinates = _coordinates_map[:,:,0:2]
 
     bboxf = tf.constant([1.18],dtype=tf.float32) #1.24

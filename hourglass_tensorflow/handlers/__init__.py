@@ -20,7 +20,7 @@ from hourglass_tensorflow.handlers.train import HTFTrainHandler
 from hourglass_tensorflow.handlers.test import HTFTestHandler
 from hourglass_tensorflow.handlers.dataset import HTFDatasetHandler
 from hourglass_tensorflow.utils.tf import tf_matrix_argmax,tf_batch_matrix_argmax
-from hourglass_tensorflow.utils import draw_pose_mplib
+from hourglass_tensorflow.utils import draw_pose_mplib_new
 from io import StringIO, BytesIO
 import PIL
 from matplotlib import patches as mpatches
@@ -205,7 +205,7 @@ class HTFManager(ObjectLogger):
             #print(data[2].numpy())
             #plt.imshow(tf.reduce_sum(hmp[0,-1,:,:,:],axis=-1),cmap="jet",vmin=0,vmax=1.0)
             #plt.show()
-            draw_pose_mplib(depth,hmp[0,-1,:,:,:].numpy())
+            draw_pose_mplib_new(depth,hmp[0,-1,:,:,:].numpy(),npoints=20)
             
             #draw_pose_mplib(img_rgb,hmp[0,-1,:,:,:].numpy())
             

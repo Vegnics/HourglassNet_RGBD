@@ -167,7 +167,7 @@ class HTFManager(ObjectLogger):
         train_dataset=self.DATASET._train_dataset
         test_dataset=self.DATASET._test_dataset
         validation_dataset = self.DATASET._validation_dataset
-        for k,data in enumerate(train_dataset):
+        for k,data in enumerate(validation_dataset):
             if ((k%36)+1)!=9 and False:
                 continue
             img = data[0].numpy()

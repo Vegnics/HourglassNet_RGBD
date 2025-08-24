@@ -9,7 +9,7 @@ class SequentialLayer(Layer):
         #self.layer_list = layer_list
         self.modelc = keras.Sequential(layer_list,name=name)
         for i, layer in enumerate(self.modelc.layers):
-            self.__setattr__(f"layer_{i}", layer) 
+            self.__setattr__(f"sequential_layer_{i}", layer) 
 
     def call(self, inputs, training=False):
         return self.modelc(inputs, training=training)

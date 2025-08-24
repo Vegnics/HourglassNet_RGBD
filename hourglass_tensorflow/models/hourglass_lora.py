@@ -6,8 +6,8 @@ from keras.layers import Lambda,Layer
 from typing import List
 from keras import Input as InputTensor
 from hourglass_tensorflow.types.config import HTFModelAsLayers
-from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora
-from hourglass_tensorflow.layers.downsampling2 import DownSamplingLayerLora
+from hourglass_tensorflow.layers.hourglass_lora import HourglassLayerLora
+from hourglass_tensorflow.layers.downsampling_lora import DownSamplingLayerLora
 from hourglass_tensorflow.types.config.model import ATTENTION_MECHANISMS
 
 @register_keras_serializable(package="cHourglassModelLora")
@@ -72,7 +72,10 @@ class HourglassModelLora(Model):
         self.trainable = trainable
         self.activate_lora = activate_lora
 
-        # Layers
+        """
+        Layers block
+        """
+        # Downsampling layer
         self.downsampling = DownSamplingLayerLora(
             input_size=self.input_size,
             output_size=self.output_size,
@@ -84,6 +87,7 @@ class HourglassModelLora(Model):
             activate_lora = self.activate_lora
         )
         
+        # Hourglass layers
         self.hourglasses = [
             HourglassLayerLora(
                 downsamplings=self.ndownsamplings,
@@ -105,10 +109,11 @@ class HourglassModelLora(Model):
             for i in range(self.stages)
         ]
 
+        # Set the hourglasses as attributes for serialization
         for k,hg in enumerate(self.hourglasses):
             self.__setattr__(f"HG_{k}",hg)
         self.stacker = stack_tensors_layer(name="StackedOutput",trainable=False)
-        self.exposed =  self.hourglasses[1].layer_list[f"STEP_3"]["up_1"] 
+    
     def _yes_no_str(self,val: bool):
         return "Yes" if val else "No"
     
@@ -143,7 +148,6 @@ class HourglassModelLora(Model):
         print("------------------------------------------------")
 
     def call(self, inputs: tf.Tensor, training=True):
-        #x = self.downsampling(tf.cast(inputs,dtype=tf.dtypes.float32))
         x = self.downsampling(inputs,training=training)
         outputs_list = []
         """
@@ -161,8 +165,7 @@ class HourglassModelLora(Model):
             x, y,_ = hglayer(x,training=training) # x is the output features, y is the intermediate output heatmaps
             outputs_list.append(y)
         outputs = self.stacker(outputs_list)
-        #tf.stack(outputs_list, axis=1, name="NetworkStackedOutput")
-        return outputs #,self.stacker(intermediates) #self._outputs
+        return outputs
     
     def get_config(self):
         return {
@@ -180,7 +183,6 @@ class HourglassModelLora(Model):
             "s2f_AM": self.s2f_AM,
             "f2s_AM": self.f2s_AM,
             "use_2jointHM": self.use_2jointHM,
-            "trainable": self.trainable,
             "use_kernel_regularization": self.use_kernel_reg,
             "freeze_attention_weights":self.freeze_attention,
             "stage_filters":self.stage_filters,
@@ -188,13 +190,13 @@ class HourglassModelLora(Model):
             "activate_lora":self.activate_lora
             },
         }
-    """
+    #"""
     @classmethod
     def from_config(cls, config):
         instance = cls(**config)
         print("Restored Config [Hourglass Model]:", config)  # Debugging output
         return instance
-    """
+    #"""
     
 @register_keras_serializable(package="cHourglassModelLora")
 def build_hourglassModelLora(
@@ -256,7 +258,7 @@ def build_hourglassModelLora(
     x = inputs
     x  = downsampling(x)
     for _layer in hourglasses:
-        x,y = _layer(x)
+        x,y,_ = _layer(x)
         outputs_list.append(y)
 
     outputs = stacker(outputs_list)
@@ -273,9 +275,15 @@ def model_as_layers_lora(
     output_channels: int = 16,
     intermediate_supervision: bool = True,
     name: str = None,
-    dtype=None,
-    dynamic=False,
     trainable: bool = True,
+    skip_AM: ATTENTION_MECHANISMS = "NoAM",
+    s2f_AM: ATTENTION_MECHANISMS = "NoAM",
+    f2s_AM: ATTENTION_MECHANISMS = "NoAM",
+    use_2jointHM: bool = False,
+    use_kernel_regularization: bool = False,
+    freeze_attention_weights: bool = False,
+    residual_nblocks: int = None,
+    activate_lora: bool = False,
     *args,
     **kwargs,
 ) -> HTFModelAsLayers:
@@ -285,7 +293,9 @@ def model_as_layers_lora(
         kernel_size=7,
         output_filters=stage_filters,
         name="DownSampling",
-        trainable=trainable,
+        residual_nblocks= residual_nblocks,
+        trainable= trainable,
+        activate_lora = activate_lora
     )
     hourglasses = [
         HourglassLayerLora(
@@ -294,6 +304,13 @@ def model_as_layers_lora(
             output_filters=output_channels,
             name=f"Hourglass{i+1}",
             trainable=trainable,
+            intermed= True,
+            skip_attention = skip_AM,
+            s2f_attention = s2f_AM,
+            f2s_attention = f2s_AM,
+            use_2jointHM = use_2jointHM,
+            residual_nblocks=residual_nblocks,
+            activate_lora = activate_lora
         )
         for i in range(stages)
     ]
@@ -301,7 +318,7 @@ def model_as_layers_lora(
     x = downsampling(inputs)
     output_list = []
     for layer in hourglasses:
-        x, y = layer(x)
+        x, y,_ = layer(x)
         if intermediate_supervision:
             output_list.append(y)
     if intermediate_supervision:

@@ -5,7 +5,7 @@ from keras.layers import Layer
 from keras.saving import register_keras_serializable
 
 
-from hourglass_tensorflow.layers.residual_exp3 import ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual_lora import ResidualLayer,ResidualLayerIn
 #from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer as ResidualLayerFrozen
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
@@ -36,34 +36,6 @@ def generate_residual_layer(layer_type: str ,
                 feat_size = feat_size,
                 include_metric = include_metric,
                 activate_lora = activate_lora)
-        """
-        #print("Feature filters",feature_filters)
-        if layer_type == "NoAM":
-            return  ResidualLayer(
-                output_filters= feature_filters,
-                nblocks = nblocks,
-                name=name,
-                trainable=trainable,)
-        elif layer_type == "SAM":
-            return ResidualLayerAttentionSpatial(
-                output_filters=feature_filters,
-                nblocks = nblocks,
-                name=name,
-                trainable=trainable,
-                kernel_reg=kernel_reg,
-                freeze_attention=freeze_attention,)
-        elif layer_type == "FAM":
-            return ResidualLayerAttention(
-                output_filters=feature_filters,
-                nblocks = nblocks,
-                name=name,
-                trainable=trainable,
-                kernel_reg = kernel_reg,
-                freeze_attention=freeze_attention)
-        else:
-            raise Exception(f"The residual layer type: {layer_type} is invalid.")
-        """
-
 
 @register_keras_serializable(package="lHourglass")
 class ResidualWithBNRC(Layer):
@@ -91,10 +63,6 @@ class ResidualWithBNRC(Layer):
         self.epsilon = epsilon
         self.feat_size = feat_size
         self.activate_lora = activate_lora
-        #self.conv = None
-        #self.batch_norm = None
-        #self.relu = None
-        #self.residual1 = None
 
         self.conv = layers.Conv2D(
             filters=self.feature_filters,
@@ -126,6 +94,7 @@ class ResidualWithBNRC(Layer):
                                                 include_metric = True,
                                                 activate_lora=self.activate_lora)
         
+        # LoRA path with rank 4
         self.lora = SequentialLayer(
             [
                     layers.Conv2D(
@@ -166,12 +135,12 @@ class ResidualWithBNRC(Layer):
         }
     
     def call(self,inputs, training=True):
-        x,s = self.residual1(inputs, training=training)
+        x = self.residual1(inputs, training=training)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
         lora = self.lora(x, training=training)
         x = self.conv(x)
-        return x + lora,s #self.lora_path(inputs)
+        return x + lora #self.lora_path(inputs)
     
     def build(self, input_shape):
         if self.activate_lora and self.trainable:
@@ -229,11 +198,12 @@ class HourglassLayerLora(Layer):
         self.use_2jointHM = use_2jointHM
         self.freeze_attention = freeze_attention
         self.residual_nblocks = residual_nblocks
-        self.capture = None
         self.activate_lora = activate_lora
+
+        # Used to capture the heads' attention results for visualization
+        self.capture = None
         
         # Create Layers
-        #ConvBatchNormReluLayer
         self.hm1_output = LinearProjection(
             # Layer for heatmaps output.
             filters=self.joint_filters_1J, #output_filters
@@ -249,7 +219,7 @@ class HourglassLayerLora(Layer):
             filters=self.joint_filters_2J,#14,
             kernel_size=1,
             name="Heatmap2Output",
-            trainable=trainable,
+            trainable=self.trainable,
             outmax=None,
         ) if self.use_2jointHM else zeroLayer(self.joint_filters_2J,name="Heatmap2Output")
 
@@ -258,7 +228,7 @@ class HourglassLayerLora(Layer):
             filters=self.feature_filters,
             kernel_size=1,
             name="Heatmap2Features",
-            trainable=trainable,
+            trainable=self.trainable,
             outmax=None,
         ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Heatmap2Features")
 
@@ -272,11 +242,12 @@ class HourglassLayerLora(Layer):
                                             activate_lora = self.activate_lora,
         ) if self.use_2jointHM else zeroLayer(self.feature_filters,name="Transit_Output")
         
-        #self.in_feature_size = in_feature_size
+
         self.merge_feats_main = LinearProjection(filters=self.feature_filters,
                                             kernel_size=1,
                                             name="Merge_Feats_main",
                                             trainable=trainable,
+                                            activate_lora= self.activate_lora,
         )
 
         self.merge_feats_1j = LinearProjection(filters=self.feature_filters,
@@ -290,7 +261,6 @@ class HourglassLayerLora(Layer):
         self.bn_feats_1j = layers.BatchNormalization(
             axis=-1,
             momentum=0.989,
-            #epsilon=0.001,
             epsilon=0.0001,
             trainable=trainable,
             name="BN_Feats_1J",
@@ -373,7 +343,7 @@ class HourglassLayerLora(Layer):
             _downsampl["up_2"] = layers.UpSampling2D(
                 size=(2, 2),
                 data_format=None,
-                interpolation= "nearest", #"nearest",
+                interpolation= "nearest", 
                 name=f"Step{i}_UpSampling2D",
                 trainable=trainable,
             )
@@ -416,17 +386,17 @@ class HourglassLayerLora(Layer):
         #_input = step_layers["low_in"](_input, training=training) if step == 3 else input_tensor
         #if step == 3:
         #    _input = step_layers["low_in"](_input, training=training)
-        up_1,_ = step_layers["up_1"](_input, training=training) #Skip        
+        up_1 = step_layers["up_1"](_input, training=training) #Skip        
         low_ = step_layers["low_"](_input, training=training) #MaxPool
-        low_1,_ = step_layers["low_1"](low_, training=training) #S2F
+        low_1 = step_layers["low_1"](low_, training=training) #S2F
         
         if step == 0:
-            low_2,_ = step_layers["low_2"](low_1, training=training) # Dont apply any attention mechanism
+            low_2 = step_layers["low_2"](low_1, training=training) # Dont apply any attention mechanism
         else:
             low_2 = self._recursive_call(low_1, step=(step - 1), training=training)
-        low_3,s = step_layers["low_3"](low_2, training=training) # F2S
+        low_3 = step_layers["low_3"](low_2, training=training) # F2S
         if step == 3:
-            self.capture = 1.0*s
+            self.capture = 1.0*step_layers["low_3"].scores_heads
         up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
         out = step_layers["out"]([up_1, up_2], training=training) # Add  
         #if step == 3:
@@ -434,10 +404,11 @@ class HourglassLayerLora(Layer):
         return out
 
     def call(self, inputs, training=False):
+        _x = 0.0
         _x = self._recursive_call(
             input_tensor=inputs, step=self.downsamplings - 1, training=training
         )
-        _x,s = self.residual_brc(_x,training=training) # Output of the Hourglass module
+        _x = self.residual_brc(_x,training=training) # Output of the Hourglass module
         #self.capture = 1.0*s
         main_feats = self.merge_feats_main(_x)
         intermediate_2jhms = self.hm2_output(_x,training=training)
@@ -446,8 +417,11 @@ class HourglassLayerLora(Layer):
         intermediate_1jhms = self.hm1_output(tf.add_n([_x,transit_2jhms]), training=training)
         feats1j = self.merge_feats_1j(intermediate_1jhms)
 
+        # One version with BN and one without it
+        feats1j = self.bn_feats_1j(feats1j,training=training)
+
         out_tensor = tf.add_n(
-            [inputs, main_feats, self.bn_feats_1j(feats1j,training=training)], #_out
+            [inputs, main_feats, feats1j],
             name=f"{self.name}_OutputAdd",
         )
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)

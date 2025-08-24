@@ -28,6 +28,7 @@ class MAE_custom(keras.losses.Loss):
         channel_mask = tf.reshape(tf.convert_to_tensor([1]*self.n1joints+[self.use2joints]*self.n2joints),shape=(1,1,1,1,self.n1joints+self.n2joints))
         self.channel_mask = tf.cast(channel_mask, dtype = tf.float32)
         self.Nchannels = tf.reduce_sum(self.channel_mask)
+
     def call(self, y_true, y_pred):
         #01234
         #NSHWC
@@ -53,13 +54,15 @@ class MAE_custom(keras.losses.Loss):
         joint_count_1 = tf.reduce_sum(mask_joints_1,axis=1)#N
         mask_joints_2 = tf.where(tf.reduce_max(y_true[:,-1,:,:,self.n1joints:self.n1joints+self.n2joints],axis=[1,2])>0.0001,1.0,0.0) #NC
         joint_count_2 = tf.reduce_sum(mask_joints_2,axis=1)#N
+
+        heatmap_weights = tf.where(y_true>0.5,2.5,1.0) #NSHWC
         
         # GT and pred sums
         mag_true =  tf.reduce_sum(y_true[:,:,:,:,0:self.n1joints],axis=[2,3])/64.0 #N,S,C
         mag_pred = tf.reduce_sum(y_pred[:,:,:,:,0:self.n1joints],axis=[2,3])/64.0 #N,S,C
         
         # Heatmap regression losses
-        ndiff = tf.math.square(y_true-y_pred) #NSHWC
+        ndiff = tf.math.square(y_true-y_pred)*heatmap_weights #NSHWC
         ndiff = tf.reduce_mean(ndiff,axis=[1,2,3]) #NC  0.00000001
         
         # 1J Heatmap regression loss
@@ -74,9 +77,9 @@ class MAE_custom(keras.losses.Loss):
         cum_diff = tf.square(mag_true-mag_pred) #N,S,C
         cum_diff = tf.reduce_mean(cum_diff,axis=1) #N,C
         cum_loss = (tf.reduce_sum(cum_diff*tf.cast(mask_joints_1,dtype=tf.float32),axis=-1))/(tf.cast(joint_count_1,dtype=tf.float32)+0.001)
-        cum_loss = tf.reduce_mean(cum_loss) 
+        cum_loss = tf.reduce_mean(cum_loss)
         
         #tf.debugging.check_numerics(loss_2jnt,"loss_2jnt has invalid numeric values")
         #loss_2jnt = tf.reduce_mean(loss_2jnt,axis=1)
         Loss_final = self.wl2_j1*tf.reduce_mean(loss_1jnt)+self.wcoords*loss_coords+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
-        return Loss_final + 1e-3*cum_loss
+        return Loss_final #+ 1e-3*cum_loss

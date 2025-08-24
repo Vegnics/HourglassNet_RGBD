@@ -7,9 +7,9 @@ from keras import constraints
 
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 from hourglass_tensorflow.layers.skip import SkipLayer
-from hourglass_tensorflow.layers.conv_block2 import ConvBlockLayer
+from hourglass_tensorflow.layers.conv_block_lora import ConvBlockLoRALayer as ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
-from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer, quasiConstantLayer
+from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer, ConstantScoreLayer
 from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 
@@ -44,7 +44,7 @@ class ResidualBlock(Layer):
         # Convolutional block
         self.attention_block = None
         if self.attention_type == "NoAM":
-            self.attention_block = quasiConstantLayer(self.output_filters,name="AttentionBlock",value=1.0)
+            self.attention_block = ConstantScoreLayer(self.output_filters,name="AttentionBlock",value=1.0)
         
         elif self.attention_type == "SAM":
             self.attention_block = SpatialAttentionMechanism(
@@ -132,7 +132,7 @@ class ResidualBlock(Layer):
             },
         }
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
-        B = tf.shape(inputs)[0]        
+        #B = tf.shape(inputs)[0]        
         out_conv = self.conv_block(inputs, training=training)
         scores,scores_heads = self.attention_block(out_conv,training=training)
         #scores,scores_heads = self.attention_block(inputs,training=training)
@@ -140,7 +140,7 @@ class ResidualBlock(Layer):
         alpha = 0.8
         _sum = self.add(
             [  
-                out_conv*(alpha*scores + (1-alpha)),
+                out_conv*scores,
                 inputs,
             ])
         
@@ -188,8 +188,11 @@ class ResidualLayer(Layer):
         self.attention_type = attentionType
         self.feat_size = feat_size
         self.activate_lora = activate_lora
-        #self.residual_blocks = []
-
+        
+        # Used to capture the scores from the heads' attention outputs 
+        self.scores_heads = None
+        
+        # Residual Blocks
         self.residual_blocks = [ResidualBlock(output_filters= self.output_filters,
                                             name=f"{name}_block{k}",
                                             use_last_relu = self.use_last_relu,
@@ -198,6 +201,8 @@ class ResidualLayer(Layer):
                                             feat_size=self.feat_size,
                                             activate_lora=self.activate_lora,
                                             include_metric = include_metric) for k in range(self.nblocks)]
+        
+        # Set each residual block as attribute for serialization
         for k,layer in enumerate(self.residual_blocks):
             self.__setattr__(f"residual_{k}", layer)
     def get_config(self):
@@ -221,7 +226,8 @@ class ResidualLayer(Layer):
         for layer in self.residual_blocks:
             x,s = layer(x,training=training)
             scores.append(s)
-        return x,tf.stack(scores,axis=-1)
+        self.scores_heads = tf.stack(scores,axis=-1)
+        return x
     
     def build(self, input_shape):
         #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
@@ -292,6 +298,7 @@ class ResidualBlockIn(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
+        _inputs = 0.0
         _inputs = self.match_layer(inputs,training=training)
         _sum = self.add(
             [
@@ -344,7 +351,7 @@ class ResidualLayerIn(Layer):
                     )
         
         for k in range(self.nblocks-1):
-            print("DEBUG: Adding residual block ",k)
+            #print("DEBUG: Adding residual block ",k)
             self.residual_blocks.append(
                 ResidualBlock(output_filters= self.output_filters,
                     name=f"{name}_block{k}",
@@ -369,6 +376,7 @@ class ResidualLayerIn(Layer):
         }
     
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
+        x = 0.0
         x = 1.0*inputs
         for layer in self.residual_blocks:
             x = layer(x,training=training)

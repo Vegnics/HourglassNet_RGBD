@@ -941,10 +941,16 @@ def tf_train_map_squarify(
     bbox = tf.cast(bbox,dtype=tf.float32)
     ww = bbox[1,0]-bbox[0,0]
     hh = bbox[1,1]-bbox[0,1]
-    n = tf.minimum(ww,hh)
+    
+    # Initial bbox deviation method
+    bbox_dev_x = tf.random.uniform(shape=[2],minval=-devf*tf.cast(ww,dtype=tf.float32),maxval=devf*tf.cast(ww,dtype=tf.float32)) 
+    bbox_dev_y = tf.random.uniform(shape=[2],minval=-devf*tf.cast(hh,dtype=tf.float32),maxval=devf*tf.cast(hh,dtype=tf.float32))
 
-    bbox_dev_x = tf.random.uniform(shape=[2],minval=-devf*tf.cast(n,dtype=tf.float32),maxval=devf*tf.cast(n,dtype=tf.float32)) 
-    bbox_dev_y = tf.random.uniform(shape=[2],minval=-devf*tf.cast(n,dtype=tf.float32),maxval=devf*tf.cast(n,dtype=tf.float32))
+    # My latest bbox deviation method
+    #n = tf.minimum(ww,hh)
+    #bbox_dev_x = tf.random.uniform(shape=[2],minval=-devf*tf.cast(n,dtype=tf.float32),maxval=devf*tf.cast(n,dtype=tf.float32)) 
+    #bbox_dev_y = tf.random.uniform(shape=[2],minval=-devf*tf.cast(n,dtype=tf.float32),maxval=devf*tf.cast(n,dtype=tf.float32))
+
     bbox_mod_x= tf.reshape(tf.clip_by_value(bbox[:,0] + bbox_dev_x,0,tf.cast(_image_shape[1]-1,dtype=tf.float32)),shape=(2,1))
     bbox_mod_y= tf.reshape(tf.clip_by_value(bbox[:,1] + bbox_dev_y,0,tf.cast(_image_shape[0]-1,dtype=tf.float32)),shape=(2,1))
     bbox_mod = tf.concat((bbox_mod_x,bbox_mod_y),axis=1)

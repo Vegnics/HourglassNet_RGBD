@@ -2,7 +2,7 @@ import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
 from keras.saving import register_keras_serializable
-from hourglass_tensorflow.layers.dummy_layers import IdentityLayer
+from hourglass_tensorflow.layers.dummy_layers import IdentityLayer,zeroLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
 @register_keras_serializable(package="lBNReLuConvlora")
@@ -41,9 +41,6 @@ class BatchNormReluConvLayerWLoRA(Layer):
         self.normalized = normalized
         self.activate_lora = activate_lora
         # Create Layers
-        #self.batch_norm = None
-        #self.conv = None
-        #self.relu = None
 
         self.batch_norm = layers.BatchNormalization(
             axis=-1,
@@ -90,7 +87,7 @@ class BatchNormReluConvLayerWLoRA(Layer):
                 ],
                 name="lora_path",
                 trainable=self.trainable
-                )
+                ) if self.activate_lora else zeroLayer(self.filters,name="lora_path")
 
         self.relu = layers.ReLU(
             name="ReLU_identity",
@@ -120,14 +117,14 @@ class BatchNormReluConvLayerWLoRA(Layer):
         lora = self.lora(x)
         y = self.conv(x)
         return y + lora
+    
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         super().build(input_shape)
         if self.activate_lora and self.trainable:
-            self.lora.trainable = True
+            self.lora.trainable = False
             self.conv.trainable = False #False
             if self.normalized:
-                self.batch_norm.trainable = True
+                self.batch_norm.trainable = False
         elif not self.activate_lora and self.trainable:
             self.lora.trainable = False
             self.conv.trainable = True
@@ -138,7 +135,7 @@ class BatchNormReluConvLayerWLoRA(Layer):
             self.batch_norm.trainable = False
 
 @register_keras_serializable(package="lBNReLuConvlora")
-class ConvBlockLayer(Layer):
+class ConvBlockLoRALayer(Layer):
     """
     A convolutional block: 1x1 convolution, 3x3 convolution, 1x1 convolution.
     """

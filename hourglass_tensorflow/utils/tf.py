@@ -1,4 +1,5 @@
 import math as m
+from statistics import stdev
 from typing import Tuple,List
 import tensorflow as tf
 import numpy as np
@@ -284,14 +285,14 @@ def tf_expand_bbox(
     N = tf.maximum(height,width)
 
     # Previous squarification approach
-    #sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06) #[-0.1,0.06]
-    #bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
-    #bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
+    sqfactor = 0.2 + randomw*tf.random.uniform(shape=[],minval=-0.1,maxval=0.06) #[-0.1,0.06]
+    bfactorW = (tf.minimum((N/width),1.005)+sqfactor*(1.0-(width/N)))*bbox_factor
+    bfactorH = (tf.minimum((N/height),1.005)+sqfactor*(1.0-(height/N)))*bbox_factor
 
     ## Latest squarification approach 
-    sqfactor = 3.0 + randomw*tf.random.uniform(shape=[],minval=-0.5,maxval=1.0) #[-0.1,0.06]
-    bfactorW = 1.0+(1.0 + sqfactor*(1.0-(width/N)))*(bbox_factor - 1.0)  # tf.minimum((N/width),1.05)
-    bfactorH = 1.0+(1.0 + sqfactor*(1.0-(height/N)))* (bbox_factor - 1.0) #tf.minimum((N/height),1.05)
+    #sqfactor = 3.0 + randomw*tf.random.uniform(shape=[],minval=-0.5,maxval=1.0) #[-0.1,0.06]
+    #bfactorW = 1.0+(1.0 + sqfactor*(1.0-(width/N)))*(bbox_factor - 1.0)  # tf.minimum((N/width),1.05)
+    #bfactorH = 1.0+(1.0 + sqfactor*(1.0-(height/N)))* (bbox_factor - 1.0) #tf.minimum((N/height),1.05)
 
     # Increase BBox Size
     c_tl_x =  top_left_x - width * (bfactorW - 1.0)/2
@@ -601,20 +602,44 @@ def tf_normalize_tensor(tensor:tf.Tensor,thresh_val: float) -> tf.Tensor:
     """
     #Compute a mask depicting valid pixels
     mask = tf.where(tensor<=thresh_val,0.0,1.0)
-    numpx = tf.reduce_sum(mask) # Number of valid pixels
+
+    tensor_sorted = tf.reshape(tensor,[-1]) # Flatten the tensor
+    tensor_sorted = tf.sort(tensor_sorted,axis=-1) # Sort the tensor to find the threshold value
+    nelems = tf.cast(tf.size(tensor_sorted),tf.float32)
+    low_t = tf.cast(0.3*nelems,tf.int32) # 20% of the elements
+    high_t = tf.cast(0.9*nelems,tf.int32) # 80% of the elements
+    #tensor_max = tf.reduce_max(tensor)
+    #tensor_min = tf.reduce_min(tensor)
+    #tensor_diff = tensor_max - tensor_min
+    #low_t = tensor_min + 0.2*tensor_diff
+    #high_t = tensor_max - 0.2*tensor_diff
+    tensor_stat = tensor_sorted[low_t:high_t] # Get the 20% - 80% of the sorted tensor
+    mask_s = tf.where(tensor_stat<=thresh_val,0.0,1.0)
+    numpx_s = tf.reduce_sum(mask_s)
+    mean = tf.reduce_sum(tensor_stat*mask_s)/numpx_s
+    stddev = tf.sqrt(tf.reduce_sum(tf.square(tensor_stat-mean)*mask_s)/numpx_s + 1e-8)
+
+    #numpx_s = tf.reduce_sum(mask)
+    #mean_s = tf.reduce_sum(tensor_sorted*mask_s)/numpx_s
+    
+    #numpx = tf.reduce_sum(mask) # Number of valid pixels
     # 1st normalization step
-    mean = tf.reduce_sum(tensor*mask)/numpx
-    stddev = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean)*mask))/numpx+0.000000001)
+    #mean = tf.reduce_sum(tensor*mask_s)/numpx_s
+    #stddev = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean_s)*mask_s))/numpx_s+0.000000001)
+    #stddev = tf.minimum(stddev,5.0)
+    
     _tensor = (tensor-mean)/stddev
 
     # 2nd normalization step ( reduce the effect of background )
-    mask_bg = tf.where(_tensor>=1.6,0.0,1.0)
+    mask_bg = tf.where(_tensor>=1.5,0.0,1.0)
     mask_full = mask*mask_bg
     numpx_full = tf.reduce_sum(mask_full)
     mean2 = tf.reduce_sum(tensor*mask_full)/numpx_full
     stddev2 = tf.sqrt(tf.reduce_sum(tf.square((tensor-mean2)*mask_full))/numpx_full+0.000000001)
-    _tensor_full = (tensor-mean2)/stddev2
-    _tensor_full = tf.clip_by_value(_tensor_full,-3.3,2.0)+3.5
+    #_tensor_full = (tensor-mean2)/stddev2
+    #_tensor_full = tf.clip_by_value(_tensor_full,-3.3,2.0)+3.5
+    _tensor_full = tf.clip_by_value(_tensor,-3.3,2.0)+3.5
+    _tensor_full = tf.math.exp((_tensor_full/5.0))/2.0
     return _tensor_full*mask
 
 @tf.function

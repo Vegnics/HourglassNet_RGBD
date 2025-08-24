@@ -14,10 +14,10 @@ from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
 
 #"""
 from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
-from hourglass_tensorflow.layers.conv_block2 import ConvBlockLayer 
-from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora as HourglassLayer
-from hourglass_tensorflow.layers.residual_exp3 import ResidualLayer,ResidualLayerIn,ResidualBlock,ResidualBlockIn
-from hourglass_tensorflow.layers.downsampling2 import DownSamplingLayerLora as DownSamplingLayer
+from hourglass_tensorflow.layers.conv_block_lora import ConvBlockLoRALayer 
+from hourglass_tensorflow.layers.hourglass_lora import HourglassLayerLora as HourglassLayer
+from hourglass_tensorflow.layers.residual_lora import ResidualLayer,ResidualLayerIn,ResidualBlock,ResidualBlockIn
+from hourglass_tensorflow.layers.downsampling_lora import DownSamplingLayerLora as DownSamplingLayer
 #"""
 
 

@@ -124,13 +124,13 @@ model:
     intermediate_supervision: true
     skip_AM: NoAM
     s2f_AM: NoAM
-    f2s_AM: SAM
+    f2s_AM: NoAM
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
     residual_nblocks: 1
-    activate_lora: true
-  load_model: true
+    activate_lora: false
+  load_model: false
   model_path: /home/quinoa/myModel_SLP_Colab_BL_1B_Att_Depth4C_d17_2108.keras
   loading_style: Partial_Train_Attention
 train:
@@ -141,7 +141,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 4.0e-05
+  learning_rate: 2.5e-04
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -172,6 +172,11 @@ train:
       - 12
       - 13
       num_1joints: 14
+  - source: hourglass_tensorflow.metrics.monitoring.MagnitudeLossMonitor
+    params:
+      name: Mag_loss
+      num_1joints: 14
+
   callbacks:
   - source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
     params:

@@ -226,7 +226,8 @@ class _GlobalPathLayer(Layer):
         x = self.core_2(x)
         x = self.core_2_down(x) + skip2
         return self.score_gen(self.upsample_deconv(x))
-
+    
+@register_keras_serializable(package="lattentionSpatial") 
 class AddPosEncodingLayer(Layer):
     """
     This layer adds positional encoding to the input tensor.
@@ -268,6 +269,17 @@ class SpatialEnergyHead(Layer):
         self.pos_encoding_xy = TFPositionalEncoding2D(16)
 
 
+        self.in_proj = layers.Conv2D(filters=4,
+                                    kernel_size=(1,1),
+                                    strides=(1,1),
+                                    padding="same",
+                                    name="in_proj",
+                                    activation=None,
+                                    kernel_initializer="glorot_uniform",
+                                    bias_initializer=tf.constant_initializer(0.0),
+                                    use_bias=True,
+                                    trainable=self.trainable)
+
         self.local_path = SequentialLayer(
            [
               layers.Conv2D(
@@ -287,14 +299,8 @@ class SpatialEnergyHead(Layer):
            trainable = self.trainable
         )
 
-        self.local_x2 = SequentialLayer(
-            [
-                
-                layers.MaxPool2D(pool_size=(2,2),name="mpool_1"),
-
-                #SpatialSoftMax(name="head_softmax1"),
-                
-                layers.Conv2D(
+        """
+        layers.Conv2D(
                     filters=16,#8,
                     kernel_size=(1,1),
                     strides=(1,1),
@@ -307,6 +313,14 @@ class SpatialEnergyHead(Layer):
                     trainable = self.trainable),
                 
                 AddPosEncodingLayer(name="add_pos_encoding_1",ndim=16),
+        """
+
+        self.local_x2 = SequentialLayer(
+            [
+                
+                layers.MaxPool2D(pool_size=(2,2),name="mpool_1"),
+
+                #SpatialSoftMax(name="head_softmax1"),
 
                 layers.Conv2D(
                     filters=8,#8,
@@ -358,7 +372,7 @@ class SpatialEnergyHead(Layer):
                 strides=(1,1),
                 padding="same",
                 name="HeadConv2D_scores",
-                activation="sigmoid",
+                activation=None,
                 kernel_initializer= "glorot_uniform",#initializers.RandomNormal(mean=0.0, stddev=0.001),
                 bias_initializer=tf.constant_initializer(0.0),
                 use_bias=True,
@@ -389,13 +403,13 @@ class SpatialEnergyHead(Layer):
         #_inputs = self.linear_proj(inputs) # B,H,W,16
         _inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,c
         #_inputsigns = tf.sign(inputs) #B,H,W,c
-        _inputsmax = tf.reduce_max(tf.abs(inputs),axis=-1,keepdims=True) #B,H,W,1
+        _inputsmax = tf.reduce_max(inputs,axis=-1,keepdims=True) #B,H,W,1
         _inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
 
         local_map = self.local_path(_inputs,training=training)
         local_map2 = self.local_x2(_inputs,training=training)
-        #local_map_concat = tf.concat([local_map,local_map2],axis=-1) #local_map + local_map2
-        local_map_concat = local_map + local_map2 #local_map_concat
+        local_map_concat = tf.concat([local_map,local_map2],axis=-1) #local_map + local_map2
+        #local_map_concat = local_map + local_map2 #local_map_concat
 
         weights = tf.ones((1,16))
         if len(self.score_gen.weights)>0:
@@ -406,7 +420,8 @@ class SpatialEnergyHead(Layer):
             weights2 = tf.reshape(self.score_gen.weights[0],shape=(1,-1))
             weights2 = weights2/(tf.reduce_sum(tf.abs(weights2),axis=-1,keepdims=True)+1e-6)
             weights = tf.concat([weights0,weights1],axis=-1)
-        return self.score_gen(local_map_concat), weights #self.score_gen(local_map), weights #self.score_gen.weights[0] # tf.minimum(attention_loss,1e-6)
+        scores_raw = self.score_gen(local_map_concat)
+        return tf.nn.sigmoid(scores_raw), weights #self.score_gen(local_map), weights #self.score_gen.weights[0] # tf.minimum(attention_loss,1e-6)
     def build(self, input_shape):
         super().build(input_shape)
 
@@ -517,7 +532,7 @@ class SpatialAttentionMechanism(Layer):
             trainable = self.trainable
         )
         
-        self.attention_reg_metric = keras.metrics.Mean(name=f"Reg_{name[5:]}") if self.include_metric else None
+        #self.attention_reg_metric = keras.metrics.Mean(name=f"Reg_{name[5:]}") if self.include_metric else None
 
         self.ln = layers.LayerNormalization(axis=-1,name="ln_spatial",trainable=self.trainable)
         
@@ -590,9 +605,9 @@ class SpatialAttentionMechanism(Layer):
 
         
         
-        if self.include_metric:
-            metric = tf.reduce_mean(orthogonality_reg) #rec_penalty #
-            self.attention_reg_metric.update_state(metric)
+        #if self.include_metric:
+        #    metric = tf.reduce_mean(orthogonality_reg) #rec_penalty #
+        #    self.attention_reg_metric.update_state(metric)
         attention_loss = (self.feat_size/64.0)*1e-3*tf.reduce_mean(orthogonality_reg)
         #self.add_loss(attention_loss)
         #self.add_loss(tf.minimum(attention_loss,1e-4))

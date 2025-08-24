@@ -46,7 +46,7 @@ residual_nblocks = 1
 activate_lora = True
 
 #learning_rate = 2.5e-4
-learning_rate = 4.0e-5
+learning_rate = 8.0e-5
 # Related to loading pre-trained models
 load_model = True
 #pt_model_name = "/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_150e90p.keras" # # #"data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_d32_S1.keras" #"/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d3.keras" # #"/home/quinoa/Downloads/SLP_Colab_BL_Depth4C_d2.keras" # # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # ## S1 # #  # ## # # # ## "data/model_t/myModel_WS_BL_WithAtt777_Depth4C.keras"#  #"myModel_SLP_WS_BL_WithAtt_Depth4C_FT2.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras" #"/home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" # # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #

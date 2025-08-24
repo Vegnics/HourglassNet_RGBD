@@ -138,7 +138,7 @@ def draw_pose_mplib(depth,hms,use_hms=True,kpnts_loc=None):
 def draw_pose_mplib_new(depth,hms,use_hms=True,kpnts_loc=None,npoints=14):
     fig,ax = plt.subplots()
     #scalimg = ax.imshow(depth)
-    scalimg = ax.imshow(depth,cmap="jet",vmin=0,vmax=5.0)
+    scalimg = ax.imshow(depth,cmap="jet",vmin=0.5,vmax=1.25)
     #scalimg = ax.imshow(depth,cmap="jet")
     if use_hms:
         kpnts = []
@@ -153,7 +153,7 @@ def draw_pose_mplib_new(depth,hms,use_hms=True,kpnts_loc=None,npoints=14):
         kpnts = kpnts_loc.copy()
     _visible_kpts = np.array([i for i in range(npoints)])
     _visible_kpts = list(_visible_kpts[kpnts[:,2]>0.45])
-    """
+    #"""
     KEYPOINT_EDGE_INDS_TO_COLOR = {
     (0, 1): (150,80,50),
     (1, 2): (150,80,50),
@@ -170,7 +170,7 @@ def draw_pose_mplib_new(depth,hms,use_hms=True,kpnts_loc=None,npoints=14):
     (3, 12): (50,80,160),
     (12, 13): (230,10,20)
     }
-    """
+    #"""
     
     """
     KEYPOINT_EDGE_INDS_TO_COLOR = {
@@ -211,6 +211,7 @@ def draw_pose_mplib_new(depth,hms,use_hms=True,kpnts_loc=None,npoints=14):
     """
 
     # 20-Joint scheme (Kinect V1 - MHAD)
+    """
     KEYPOINT_EDGE_INDS_TO_COLOR = {
         # Spine
         (0, 1): (255, 0, 0),      # Head <-> Shoulder Center
@@ -241,11 +242,12 @@ def draw_pose_mplib_new(depth,hms,use_hms=True,kpnts_loc=None,npoints=14):
         (17, 18): (255, 0, 255),  # Knee Right <-> Ankle Right
         (18, 19): (255, 0, 255)   # Ankle Right <-> Foot Right
     }
+    """
 
 
     for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
         _color = (color[2]/255.0,color[1]/255.0,color[0]/255.0)
-        print(edge_pair)
+        #print(edge_pair)
         if edge_pair[0] in _visible_kpts and edge_pair[1] in _visible_kpts:
             x0=kpnts[edge_pair[0],0]
             y0=kpnts[edge_pair[0],1]

@@ -60,7 +60,7 @@ class zeroLayer(Layer):
 
 
 @register_keras_serializable(package="lDummy")
-class  quasiConstantLayer(Layer):
+class  ConstantScoreLayer(Layer):
     def __init__(
         self,
         output_channels: int = None,

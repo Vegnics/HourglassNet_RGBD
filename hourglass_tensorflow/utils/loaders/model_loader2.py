@@ -13,11 +13,11 @@ from hourglass_tensorflow.layers.downsampling import DownSamplingLayer
 """
 
 #"""
-from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
+from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora 
 from hourglass_tensorflow.layers.conv_block_lora import ConvBlockLoRALayer 
-from hourglass_tensorflow.layers.hourglass_lora import HourglassLayerLora as HourglassLayer
+from hourglass_tensorflow.layers.hourglass_lora import HourglassLayerLora 
 from hourglass_tensorflow.layers.residual_lora import ResidualLayer,ResidualLayerIn,ResidualBlock,ResidualBlockIn
-from hourglass_tensorflow.layers.downsampling_lora import DownSamplingLayerLora as DownSamplingLayer
+from hourglass_tensorflow.layers.downsampling_lora import DownSamplingLayerLora 
 #"""
 
 
@@ -31,15 +31,15 @@ from hourglass_tensorflow.utils.loaders.weight_loader import recursive_weight_tr
 
 def load_wrapped_model(fpath: str = None, compile:bool=False):
     wmodel = keras.models.load_model(fpath,custom_objects= {
-                                            "HourglassModel": HourglassModel,
-                                            "HourglassLayer": HourglassLayer,
-                                            "ConvBlockLayer": ConvBlockLayer,
+                                            "HourglassModelLora": HourglassModelLora,
+                                            "HourglassLayerLora": HourglassLayerLora,
+                                            "ConvBlockLoRALayer": ConvBlockLoRALayer,
                                             "ResidualLayer": ResidualLayer,
                                             "ResidualLayerIn": ResidualLayerIn,
                                             "ResidualBlock": ResidualBlock,
                                             "ResidualBlockIn": ResidualBlockIn,
                                             "SkipLayer": SkipLayer,
-                                            "DownsamplingLayer": DownSamplingLayer,
+                                            "DownSamplingLayerLora": DownSamplingLayerLora,
                                             "BatchNormReluConvLayer": BatchNormReluConvLayer,
                                             "ConvBatchNormReluLayer": ConvBatchNormReluLayer,
                                             "IdentityLayer": IdentityLayer,
@@ -54,15 +54,15 @@ def load_wrapped_model(fpath: str = None, compile:bool=False):
 def load_basemodel_weights(ftmodel:keras.models.Model = None, basepath: str = None, compile:bool=False):
     basemodel = keras.models.load_model(basepath,
                 custom_objects= {
-                    "HourglassModel": HourglassModel,
-                    "HourglassLayer": HourglassLayer,
-                    "ConvBlockLayer": ConvBlockLayer,
+                    "HourglassModelLora": HourglassModelLora,
+                    "HourglassLayerLora": HourglassLayerLora,
+                    "ConvBlockLoRALayer": ConvBlockLoRALayer,
                     "ResidualLayer": ResidualLayer,
                     "ResidualLayerIn": ResidualLayerIn,
                     "ResidualBlock": ResidualBlock,
                     "ResidualBlockIn": ResidualBlockIn,
                     "SkipLayer": SkipLayer,
-                    "DownsamplingLayer": DownSamplingLayer,
+                    "DownSamplingLayerLora": DownSamplingLayerLora,
                     "BatchNormReluConvLayer": BatchNormReluConvLayer,
                     "ConvBatchNormReluLayer": ConvBatchNormReluLayer,
                     "IdentityLayer": IdentityLayer,

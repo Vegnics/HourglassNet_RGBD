@@ -211,6 +211,13 @@ train:
           - 12
           - 13
         num_1joints: 14
+
+    - 
+      source: hourglass_tensorflow.metrics.monitoring.MagnitudeLossMonitor
+      params:
+        name: Mag_loss
+        num_1joints: 14 
+
   callbacks:
     -
       source: hourglass_tensorflow.schedulers.scheduler_plateau.MetricReduceLROnPlateau
@@ -219,12 +226,11 @@ train:
         factor: 0.4                # Factor to reduce the learning rate, e.g., new_lr = lr * 0.5
         patience: 4                # Number of epochs with no improvement before reducing
         verbose: 1                 # Print updates
-        min_lr: 0.000000002     
+        min_lr: 0.000000002  
     -
       source: "tensorflow.keras.callbacks.ModelCheckpoint"
       params:
-        #filepath: "data/model.ignore.folder/myModel.{epoch:02d}"
-        #filepath: "data/model_t/myModel.{epoch:02d}"
+        #filepath: - source: hourglass_tensorflow.metrics.monitoring.MagnitudeLossMonitor
         mode: max
         filepath: "data/model_t/myModel_SLP_fAB6_2j"
         save_weights_only: false
@@ -245,6 +251,6 @@ train:
     -
       source: "tensorflow.keras.callbacks.CSVLogger"
       params:
-        filename: logs/myModelLogs.csv
+        filename: logs/myModelLogs.csv  
 
 test: 

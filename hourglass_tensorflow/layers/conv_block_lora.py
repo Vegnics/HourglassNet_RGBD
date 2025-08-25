@@ -1,3 +1,4 @@
+from numpy import shape
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
@@ -60,11 +61,11 @@ class BatchNormReluConvLayerWLoRA(Layer):
             kernel_initializer=self.kernel_initializer,
         )
         
-        #lora path using a rank of 8
+        #lora path using a rank of 4
         self.lora = SequentialLayer(
             [
                     layers.Conv2D(
-                        filters=8,
+                        filters=4,
                         kernel_size=1,
                         strides=self.strides,
                         padding=self.padding,
@@ -114,6 +115,11 @@ class BatchNormReluConvLayerWLoRA(Layer):
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         x = self.batch_norm(inputs, training=training)
         x = self.relu(x)
+        #if self.activate_lora:
+        #    lora_k = tf.matmul(self.lora_ka, self.lora_kb) # shape=(kernel_size*kernel_size, filters, filters)
+        #    lora_k = tf.transpose(lora_k, perm=[1, 2, 0]) # shape=(filters,filters,kernel_size*kernel_size)
+        #    lora_k = tf.reshape(lora_k, shape=(self.filters, self.filters, self.kernel_size, self.kernel_size)) # shape=(filters,filters,kernel_size,kernel_size)
+        #    self.conv.kernel = tf.add(self.conv_kernel, lora_k) # add LoRA weights to the convolution kernel
         lora = self.lora(x)
         y = self.conv(x)
         return y + lora
@@ -121,10 +127,20 @@ class BatchNormReluConvLayerWLoRA(Layer):
     def build(self, input_shape):
         super().build(input_shape)
         if self.activate_lora and self.trainable:
-            self.lora.trainable = False
-            self.conv.trainable = False #False
+            self.lora.trainable = True
+            #self.lora_ka = self.add_weight(shape=(self.kernel_size * self.kernel_size, self.filters, 4),
+            #                                initializer="glorot_uniform",
+            #                                trainable=self.trainable,
+            #                                name="lora_a_kernel")
+            
+            #self.lora_kb = self.add_weight(shape=(4,self.filters),
+             #                               initializer="zeros",
+             #                               trainable=self.trainable,
+             #                               name="lora_b_kernel")
+            #self.conv_kernel = self.conv.kernel
+            self.conv.trainable = False
             if self.normalized:
-                self.batch_norm.trainable = False
+                self.batch_norm.trainable = True
         elif not self.activate_lora and self.trainable:
             self.lora.trainable = False
             self.conv.trainable = True

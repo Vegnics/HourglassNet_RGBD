@@ -15,10 +15,10 @@ from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.utils.loaders.model_loader2 import load_wrapped_model
-from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora as HourglassLayer
+from hourglass_tensorflow.layers.hourglass_lora import HourglassLayerLora as HourglassLayer
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
-from hourglass_tensorflow.layers.residual_exp3 import ResidualBlock,ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual_lora import ResidualBlock,ResidualLayer,ResidualLayerIn
 
 from keras.models import Model
 
@@ -156,7 +156,8 @@ def draw_pose(img,hm,obbox,pad):
 #Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
 #Model = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S1.keras",compile=False)
 
-Model = load_wrapped_model("/home/quinoa/myModel_SLP_Colab_BL_1B_Att_Depth4C_d17_2108.keras",compile=False)
+# Model = load_wrapped_model("/home/quinoa/myModel_SLP_Colab_BL_1B_Att_Depth4C_d17_2108.keras",compile=False)
+Model = load_wrapped_model("/home/quinoa/myModel_SLP_Colab_BL_1B_Depth4C_d23_resumed.keras",compile=False)
 
 Model.trainable = False
 
@@ -183,7 +184,7 @@ hm_scale = tf.constant(2.1269474)
 
 subject_id = 15  
 cover = "cover1"
-img_num = 21
+img_num = 12
 #img_bgr = cv2.imread("/home/quinoa/football_player.png")#cv2.imread("data/test_tennis.png")"/home/quinoa/tennis.png"
 imgrgb = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/RGB/{}/image_{:06d}.jpg".format(subject_id,cover,img_num))#tf_load_image("data/test_tennis.png")
 imagedepth = tf_load_image("/home/quinoa/Desktop/some_shit/patient_project/SLP_RGBD/{:05d}/Depth/{}/depth_{:06d}.png".format(subject_id,cover,img_num))

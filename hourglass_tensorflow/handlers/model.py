@@ -183,10 +183,10 @@ class HTFModelHandler(_HTFModelHandler):
                             main_name = layer.name
                             # Train only the main hourglass
                             for _,val in layer.layer_list.items():
-                                val["up_1"].trainable = False # Freeze the Skip layers
+                                val["up_1"].trainable = True # Freeze the Skip layers
                                 #val["up_1"].residual_blocks[0].conv_block.trainable = False
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
-                                val["low_1"].trainable = False # Train S2F
+                                val["low_1"].trainable = True # Train S2F
                                 print("Freezing {}/{}".format(main_name,val["low_1"].name))
                                 #val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
                                 #val["low_1"].residual_blocks[0].alpha.trainable = False # Freeze the ConvBlock
@@ -201,7 +201,7 @@ class HTFModelHandler(_HTFModelHandler):
                                     pass
 
                             print(f"Training {main_name}/{layer.residual_brc.name}")
-                            layer.residual_brc.trainable = False
+                            layer.residual_brc.trainable = True
                             #layer.residual_brc.residual1.residual_blocks[0].conv_block.trainable = False
                             #layer.residual_brc.lora_path.trainable = True
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")

@@ -219,7 +219,8 @@ class HTFTestHandler(_HTFTestHandler):
             model.summary()
             print("CONFIG:::->>", model.get_config())
 
-            hm_scale = tf.constant(2.1269474)
+            #hm_scale = tf.constant(2.1269474)
+            hm_scale = tf.constant(1.94)
             #imgs = batch_test.map(lambda imgs,coords,bboxes: imgs).get_single_element()
             #bboxes = test_dataset.map(lambda imgs,coords,bboxes: bboxes)#.get_single_element()
 
@@ -238,10 +239,10 @@ class HTFTestHandler(_HTFTestHandler):
 
             _preds = model.predict(x=batch_test) #NSHWC
             preds = _preds[:,-1,:,:,:] 
-            #normpreds = tf.linalg.norm(preds,axis=[1,2])
-            #normpreds = tf.expand_dims(normpreds,axis=1)
-            #normpreds = tf.expand_dims(normpreds,axis=1)
-            #preds = preds*hm_scale/(normpreds+0.00001)
+            normpreds = tf.linalg.norm(preds,axis=[1,2])
+            normpreds = tf.expand_dims(normpreds,axis=1)
+            normpreds = tf.expand_dims(normpreds,axis=1)
+            preds = preds*hm_scale/(normpreds+0.00001)
             print(preds.shape)
             
             max_preds = tf.reduce_max(preds[:,:,:,0:14],axis=[1,2]) #B,14
@@ -286,14 +287,14 @@ class HTFTestHandler(_HTFTestHandler):
             joint_results = []
 
             thresholds = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
-            effective_thresh =  tf.maximum(refer_dist,6.4)
+            effective_thresh =  tf.maximum(refer_dist,8.95)
 
             for k, joint_mask in enumerate(joint_masks):
                 name_ = joint_mask_names[k]
 
                 # Compute PCKh at each threshold
                 correctkpnts = [
-                    tf.reduce_sum(tf.cast(tf.math.less_equal(distance,effective_thresh*t), dtype=tf.float32) * mod_vis * joint_mask)
+                    tf.reduce_sum(tf.cast(tf.math.less_equal(distance,t*effective_thresh), dtype=tf.float32) * mod_vis * joint_mask)
                     for t in thresholds
                 ]
 

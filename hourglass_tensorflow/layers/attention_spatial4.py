@@ -626,12 +626,13 @@ class SpatialAttentionMechanism(Layer):
         #stack_norm = self.ln(stacked_outs_local)
         #scores = tf.nn.sigmoid(self.score_gen(stacked_out_mean)*alpha)
 
-        group_c = self.filters//self.head_num
-        scores_l = []
-        for u in range(self.head_num):
-            att_map = tf.expand_dims(stacked_outs_local[:,:,:,u],axis=-1) # B,H,W,1
-            scores_l.append(att_map*tf.ones(shape=(1,1,1,group_c)))
-        scores = tf.concat(scores_l,axis=-1) # B,H,W,filters
+        #group_c = self.filters//self.head_num
+        #scores_l = []
+        #for u in range(self.head_num):
+        #    att_map = tf.expand_dims(stacked_outs_local[:,:,:,u],axis=-1) # B,H,W,1
+        #    scores_l.append(att_map*tf.ones(shape=(1,1,1,group_c)))
+        #scores = tf.concat(scores_l,axis=-1) # B,H,W,filters
+        
         #tf.print("Spatial Attention Scores Shape:",scores.shape)
         
         #tau = 1.0 #tf.maximum(tf.reduce_sum(self.temp_sig),1e-3) # 0.01
@@ -642,7 +643,7 @@ class SpatialAttentionMechanism(Layer):
         #
         #delta = tf.reduce_max(scores,axis=(1,2),keepdims=True) - tf.reduce_min(scores,axis=(1,2),keepdims=True) # B,1,1,1
         #scores = (scores - tf.reduce_min(scores,axis=(1,2),keepdims=True)) /(tf.maximum(delta,1e-4)) # B,H,W,1
-
+        scores = tf.nn.sigmoid(self.score_gen(stacked_outs_local))
         return scores,tf.concat([stacked_view,scores],axis=-1) #stacked_outs_local #scores_raw # (B,K,K,1)=(B,H,W,1)
     
     def reset_metrics(self):

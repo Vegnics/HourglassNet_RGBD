@@ -144,7 +144,7 @@ class ResidualWithBNRC(Layer):
     
     def build(self, input_shape):
         if self.activate_lora and self.trainable:
-            self.batch_norm.trainable = True
+            self.batch_norm.trainable = False
             self.conv.trainable = False
             self.lora.trainable = True
         elif not self.activate_lora and self.trainable:

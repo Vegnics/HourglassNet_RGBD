@@ -175,6 +175,10 @@ class FeatureAttentionMechanism(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         # Mean Energy tensor computation 
+        batch_size = tf.shape(inputs)[0]
+        height = tf.shape(inputs)[1]
+        width = tf.shape(inputs)[2]
+        stack_out = tf.ones(shape=[batch_size, height, width, 4], dtype=inputs.dtype)
 
         splitted = tf.split(inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
         head_outs = [self.heads[i](splitted[i],training=training) for i in range(self.head_num)]
@@ -208,6 +212,6 @@ class FeatureAttentionMechanism(Layer):
         #scores_var = tf.reduce_mean(tf.square(scores-scores_mean),axis=-1)
         #var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.001))
         #self.add_loss(1e-6*var_reg)
-        return scores #scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
+        return scores,stack_out #scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
     def build(self, input_shape):
         super().build(input_shape)

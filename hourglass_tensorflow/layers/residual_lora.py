@@ -10,7 +10,7 @@ from hourglass_tensorflow.layers.skip import SkipLayer
 from hourglass_tensorflow.layers.conv_block_lora import ConvBlockLoRALayer as ConvBlockLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer, ConstantScoreLayer
-from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
+from hourglass_tensorflow.layers.attention_feature2 import FeatureAttentionMechanism
 from hourglass_tensorflow.layers.attention_spatial5 import SpatialAttentionMechanism
 
 

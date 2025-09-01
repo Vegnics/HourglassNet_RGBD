@@ -89,7 +89,7 @@ class FeatureAttentionMechanism(Layer):
         epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
-        headnum: int = 5,
+        headnum: int = 4,
         trainable: bool = True,
         kernel_reg: bool = False,
     ) -> None:
@@ -172,8 +172,9 @@ class FeatureAttentionMechanism(Layer):
                 "kernel_reg":self.kernel_reg,
             },
         }
-
-    def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
+    
+    def call(self, inputs, y_true=None, training=False):
+    #def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         # Mean Energy tensor computation 
         batch_size = tf.shape(inputs)[0]
         height = tf.shape(inputs)[1]

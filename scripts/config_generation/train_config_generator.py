@@ -56,7 +56,7 @@ loading_mode =  "Partial_Train_Attention" #"Full_Train" # # # #"Full_Train"# # #
 #Related to the attention mechanisms
 skip_AM = "NoAM"    
 s2f_AM =  "NoAM" 
-f2s_AM = "SAM" 
+f2s_AM = "FAM" 
 
 #Related to the loss
 W_1jnts = 1.00

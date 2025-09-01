@@ -11,14 +11,11 @@ class SkipLayer(Layer):
         name: str = None,
         trainable: bool = True,
         **kwargs,
-        #momentum: float = 0.98,
-        #epsilon: float = 1e-3,
     ) -> None:
         super().__init__(name=name, trainable=trainable,**kwargs)
         # Store config
         self.output_filters = output_filters
         # Create Layers
-        #self.conv = None
         self.conv = layers.Conv2D(
             filters=self.output_filters,
             kernel_size=1,
@@ -28,13 +25,6 @@ class SkipLayer(Layer):
             activation=None,
             kernel_initializer="glorot_uniform",
         )
-        #self.batch_norm = layers.BatchNormalization(
-        #    axis=-1,
-        #    momentum=momentum,
-        #    epsilon=epsilon,
-        #    trainable=trainable,
-        #    name="BatchNorm",
-        #)
 
     def get_config(self):
         return {

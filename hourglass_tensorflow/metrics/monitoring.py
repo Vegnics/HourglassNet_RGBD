@@ -28,11 +28,11 @@ class MagnitudeLossMonitor(Metric):
         joint_count_1 = tf.reduce_sum(mask_joints_1,axis=1)#N
 
         # GT and pred sums
-        mag_true =  tf.reduce_sum(y_true[:,:,:,:,0:self.n1joints],axis=[2,3])/64.0 #N,S,C
-        mag_pred = tf.reduce_sum(y_pred[:,:,:,:,0:self.n1joints],axis=[2,3])/64.0 #N,S,C
+        mag_true =  tf.reduce_sum(y_true[:,:,:,:,0:self.n1joints],axis=[2,3]) #N,S,C
+        mag_pred = tf.reduce_sum(y_pred[:,:,:,:,0:self.n1joints],axis=[2,3]) #N,S,C
 
         # Cumulative heatmap regression loss
-        cum_diff = tf.square(mag_true-mag_pred) #N,S,C
+        cum_diff = tf.math.abs(mag_true-mag_pred) #N,S,C
         cum_diff = tf.reduce_mean(cum_diff,axis=1) #N,C
         cum_loss = (tf.reduce_sum(cum_diff*tf.cast(mask_joints_1,dtype=tf.float32),axis=-1))/(tf.cast(joint_count_1,dtype=tf.float32)+0.001)
         cum_loss = tf.reduce_mean(cum_loss)

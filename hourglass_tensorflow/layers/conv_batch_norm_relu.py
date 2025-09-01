@@ -39,10 +39,7 @@ class ConvBatchNormReluLayer(Layer):
         self.normalized = normalized
         
         # Create layers
-        #self.batch_norm = None
-        #self.conv = None
-        #self.relu = None
-        
+
         self.batch_norm = layers.BatchNormalization(
             axis=-1,
             momentum=self.momentum,
@@ -63,15 +60,6 @@ class ConvBatchNormReluLayer(Layer):
         self.relu = layers.ReLU(
             name="ReLU_identity",
         ) if self.use_relu else IdentityLayer(name="ReLU_identity")
-        #self.conv_in = layers.Conv2D(
-        #    filters=4,
-        #    kernel_size=1,
-        #    strides=1,
-        #    padding="same",
-        #    name="Conv2DIn",
-        #    activation=None,
-        #    kernel_initializer="glorot_uniform",
-        #)
 
     def get_config(self):
         return {
@@ -92,14 +80,12 @@ class ConvBatchNormReluLayer(Layer):
 
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         # Could it be CONV-> RELU -> BATCH NORM
-        #x = self.conv_in(inputs)
         x = self.conv(inputs)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
-        return x #, tf.ones(shape=(1,))  # Return a dummy tensor for compatibility
+        return x 
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         super().build(input_shape)
         self.built = True
 

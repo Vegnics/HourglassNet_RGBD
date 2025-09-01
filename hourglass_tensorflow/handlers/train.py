@@ -20,7 +20,7 @@ from hourglass_tensorflow.types.config import HTFTrainConfig
 from hourglass_tensorflow.types.config import HTFObjectReference
 from hourglass_tensorflow.handlers.meta import _HTFHandler
 
-from hourglass_tensorflow.callbacks.dummycallback import DummyCallback
+#from hourglass_tensorflow.callbacks.dummycallback import DummyCallback
 
 # region Abstract Class
 

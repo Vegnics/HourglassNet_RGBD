@@ -7,7 +7,6 @@ from keras.layers import Layer
 from keras.saving import register_keras_serializable
 
 from hourglass_tensorflow.layers.residual_lora import ResidualLayer,ResidualLayerIn
-#from hourglass_tensorflow.layers.residual_2 import ResidualLayerSkip as ResidualLayer
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 
 @register_keras_serializable(package="lDownsamplinglora")
@@ -111,18 +110,12 @@ class DownSamplingLayerLora(Layer):
         }
 
     def call(self, inputs: tf.Tensor, training=False) -> tf.Tensor:
-        #x = tf.cast(inputs,dtype=tf.dtypes.float32)
         x = 1.0*inputs
         for layer in self.layer_list:
-            #if isinstance(layer,ResidualLayer):
-            #    x,_ = layer(x, training=training)
-            #else:
-            #    x = layer(x, training=training)
             x = layer(x, training=training)
         return x
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
         super().build(input_shape)
         self.built = True
 

@@ -34,7 +34,7 @@ enable_visibility = False
 
 
 # Related to the model and training
-model_name = "SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S3.keras"
+model_name = "SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S4.keras"
 #model_name = "SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S2.keras" #"myModel_SLP_WS_BL_1B_w2joints.keras"
 chkpnt_path = os.path.join("data/model_t",model_name)
 csv_logger = f"logs/myModelLogs_{model_name}_{current_time}.csv"
@@ -46,11 +46,10 @@ residual_nblocks = 1
 activate_lora = True
 
 #learning_rate = 2.5e-4
-learning_rate = 8.0e-5
+learning_rate = 2.0e-5 # 8.0e-5
 # Related to loading pre-trained models
 load_model = True
-#pt_model_name = "/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_150e90p.keras" # # #"data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_d32_S1.keras" #"/home/quinoa/Downloads/SLP_Colab_BL_1B_Depth4C_d3.keras" # #"/home/quinoa/Downloads/SLP_Colab_BL_Depth4C_d2.keras" # # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # #"data/model_t/myModel_WS_BL_WithAtt888_Depth4C_S1.keras" # ## S1 # #  # ## # # # ## "data/model_t/myModel_WS_BL_WithAtt777_Depth4C.keras"#  #"myModel_SLP_WS_BL_WithAtt_Depth4C_FT2.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt2_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_WithAtt_Depth4C_FT1.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FTTEST_2_Depth4C.keras" #"/home/quinoa/Documents/models_slp/myModel_SLP_BL_1B_HG1Depth4C.keras" #"data/model_t/myModel_SLP_WS_BL_1B_FT2_Depth4C.keras" # # #"data/model_t/myModel_SLP_WS_BL_1B_ATT9FT_Depth4C.keras" #
-#pt_model_name = "data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S1.keras" #"/home/quinoa/Downloads/SLP_BL_1B_Depth4C_d9.keras" # # # #
+#pt_model_name = "data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S3.keras" #"/home/quinoa/Downloads/SLP_BL_1B_Depth4C_d9.keras" # # # #
 pt_model_name = "/home/quinoa/Downloads/myModel_SLP_Colab_BL_1B_Depth4C_d23_resumed.keras"
 loading_mode =  "Partial_Train_Attention" #"Full_Train" # # # #"Full_Train"# # # #"Partial_Downsampling_frozen" # # # #  # #"Partial_Train_F2S" # ## # # #"Partial_Train_Skip" ##  # ## # # # # # # # # # # # # #"Partial_Train_S2FF2S" # # # # # # # # # # #  #  ##"Partial_Train_Skip" # # # ## #  # # # # # # # #  # ## # # #"Partial_Train_Attention"  # ### #"Full_Train" # # # # # # # # # # # # # #  # # ## #  # #"Partial_Train_Attention" ###  # ## # # # # # # # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
 

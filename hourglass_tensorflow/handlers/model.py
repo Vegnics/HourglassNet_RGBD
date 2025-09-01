@@ -1,5 +1,6 @@
 from abc import abstractmethod
 
+from numpy import True_
 import tensorflow as tf
 import keras.layers
 import keras.models
@@ -10,9 +11,9 @@ from hourglass_tensorflow.utils.loaders.weight_loader import print_layers_recurs
 
 
 from hourglass_tensorflow.utils import BadConfigurationError
-from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora,build_hourglassModelLora,model_as_layers_lora
+from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora,build_hourglassModelLora,model_as_layers_lora, WrappedModel
 #from hourglass_tensorflow.models.hourglass_lora import model_as_layers
-from hourglass_tensorflow.models.hourglass import HourglassModel,build_hourglassModel,model_as_layers
+#from hourglass_tensorflow.models.hourglass import HourglassModel,build_hourglassModel,model_as_layers
 
 from hourglass_tensorflow.types.config import HTFModelConfig
 from hourglass_tensorflow.types.config import HTFModelParams
@@ -117,7 +118,7 @@ class HTFModelHandler(_HTFModelHandler):
         return self._model
 
     def _build_model_as_layer(self, *args, **kwargs) -> keras.models.Model:
-        self._layered_model = model_as_layers(inputs=self._input, **self.params.model_dump())
+        self._layered_model = model_as_layers_lora(inputs=self._input, **self.params.model_dump())
         self._output = self._layered_model["outputs"]
         self._model = self._layered_model["model"]
         return self._model
@@ -172,6 +173,7 @@ class HTFModelHandler(_HTFModelHandler):
                             layer.ln_main.trainable = False
                             print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
                             layer.ln_feats1j.trainable = False 
+               
                 elif self.config.loading_style == "Partial_Train_Attention":
                     print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR ATTENTION <<<<<<<<<<<<<<")
                     for layer in model.layers:
@@ -187,14 +189,13 @@ class HTFModelHandler(_HTFModelHandler):
                                 #val["up_1"].residual_blocks[0].conv_block.trainable = False
                                 print("Freezing {}/{}".format(main_name,val["up_1"].name))
                                 val["low_1"].trainable = True # Train S2F
-                                print("Freezing {}/{}".format(main_name,val["low_1"].name))
                                 #val["low_1"].residual_blocks[0].conv_block.trainable = False # Freeze the ConvBlock
-                                #val["low_1"].residual_blocks[0].alpha.trainable = False # Freeze the ConvBlock
+                                print("Freezing {}/{}".format(main_name,val["low_1"].name))
                                 val["low_3"].trainable = True # Freeze F2S
                                 #val["low_3"].residual_blocks[0].conv_block.trainable = False
                                 print("Freezing {}/{}".format(main_name,val["low_3"].name))
                                 try:
-                                    val["low_2"].trainable = False # Freeze F2S
+                                    val["low_2"].trainable = True # Freeze F2S
                                     print("Freezing {}/{}".format(main_name,val["low_2"].name))
                                     #val["low_2"].residual_blocks[0].conv_block.trainable = False
                                 except:
@@ -218,7 +219,7 @@ class HTFModelHandler(_HTFModelHandler):
                             #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
                             layer.bn_feats_1j.trainable = False
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
-                            layer.hm1_output.trainable = False #False
+                            layer.hm1_output.trainable = True #False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
                             layer.hm2_output.trainable = False
                             print(f"Freezing {main_name}/{layer.features_hm2.name}")

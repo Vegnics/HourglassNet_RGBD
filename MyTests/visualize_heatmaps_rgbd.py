@@ -153,11 +153,11 @@ def draw_pose(img,hm,obbox,pad):
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
     
-#Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
+Model = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S3.keras",compile=False) 
 #Model = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S1.keras",compile=False)
 
 # Model = load_wrapped_model("/home/quinoa/myModel_SLP_Colab_BL_1B_Att_Depth4C_d17_2108.keras",compile=False)
-Model = load_wrapped_model("/home/quinoa/myModel_SLP_Colab_BL_1B_Depth4C_d23_resumed.keras",compile=False)
+#Model = load_wrapped_model("/home/quinoa/myModel_SLP_Colab_BL_1B_Depth4C_d23_resumed.keras",compile=False)
 
 Model.trainable = False
 

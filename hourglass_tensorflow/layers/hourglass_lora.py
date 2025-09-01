@@ -1,4 +1,5 @@
 from xml.etree.ElementInclude import include
+from numpy import stack
 import tensorflow as tf
 from keras import layers
 from keras.layers import Layer
@@ -6,7 +7,6 @@ from keras.saving import register_keras_serializable
 
 
 from hourglass_tensorflow.layers.residual_lora import ResidualLayer,ResidualLayerIn
-#from hourglass_tensorflow.layers.residual_exp2 import ResidualLayer as ResidualLayerFrozen
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 
@@ -85,6 +85,7 @@ class ResidualWithBNRC(Layer):
         self.relu = layers.ReLU(
             name="ReLU",
         )
+
         self.residual1 =  generate_residual_layer(layer_type=self.attention,
                                                 feature_filters=self.feature_filters,
                                                 nblocks = self.nblocks,
@@ -95,14 +96,17 @@ class ResidualWithBNRC(Layer):
                                                 activate_lora=self.activate_lora)
         
         # LoRA path with rank 4
+        #"""
         self.lora = SequentialLayer(
-            [
+            [       layers.LayerNormalization(axis=-1,
+                                              epsilon=1e-4,
+                                              name = "lora_ln"),
                     layers.Conv2D(
                         filters=4,
                         kernel_size=1,
                         name="lora_a",
-                        activation=None,
-                        use_bias=False,
+                        activation="gelu",
+                        #use_bias=False,
                         kernel_initializer="glorot_uniform",
                     ),
 
@@ -111,14 +115,16 @@ class ResidualWithBNRC(Layer):
                         kernel_size=1,
                         name="lora_b",
                         activation=None,
-                        use_bias=False,
+                        #use_bias=False,
                         kernel_initializer="zeros",
                     )
                 ],
                 name="lora_path",
                 trainable=self.trainable
                 ) if self.activate_lora else zeroLayer(self.feature_filters,name="lora_path")
-    
+        #"""
+
+
     def get_config(self):
         return {
             **super().get_config(),
@@ -134,14 +140,69 @@ class ResidualWithBNRC(Layer):
             },
         }
     
+    # Call method with direct weight manipulation using LoRA
+    """
+    def call(self,inputs, training=True):
+        x = self.residual1(inputs, training=training)
+        x = self.batch_norm(x, training=training)
+        x = self.relu(x)
+        conv_kernel = self.conv.kernel
+        if self.activate_lora and self.built and self.trainable:
+            lora_k = tf.matmul(self.lora_a, self.lora_b) # shape=(kernel_size*kernel_size, filters, filters)
+            lora_k = tf.reshape(lora_k, shape=(1, 1, self.in_channels, self.feature_filters))
+            conv_kernel = tf.add(conv_kernel, lora_k) # add LoRA weights to the convolution kernel
+        #lora = self.lora(x, training=training)
+        #x = self.conv(x)
+        y = tf.nn.conv2d(x, conv_kernel, strides=[1, 1, 1, 1], padding="SAME")
+        return y #+ lora #self.lora_path(inputs)
+    """
+
     def call(self,inputs, training=True):
         x = self.residual1(inputs, training=training)
         x = self.batch_norm(x, training=training)
         x = self.relu(x)
         lora = self.lora(x, training=training)
-        x = self.conv(x)
-        return x + lora #self.lora_path(inputs)
+        y = self.conv(x)
+        return y #+ lora 
     
+    # Build method with direct weight manipulation using LoRA
+    """
+    def build(self, input_shape):
+        self.conv.build(input_shape)
+        if self.activate_lora and self.trainable:
+            if self.activate_lora and self.trainable:
+                self.in_channels = int(input_shape[-1])
+                #self.lora.trainable = False
+                flattened_kernel_dim = self.in_channels
+                self.lora_a = self.add_weight(
+                                    shape=(flattened_kernel_dim, 4),
+                                    initializer="glorot_uniform",
+                                    trainable=True,
+                                    name="lora_a_kernel"
+                                )
+                
+                self.lora_b = self.lora_B = self.add_weight(
+                                shape=(4, self.feature_filters),
+                                initializer="zeros",
+                                trainable=True,
+                                name="lora_b_kernel"
+                            )
+            self.batch_norm.momentum = 0.85
+            self.batch_norm.trainable = True
+            self.conv.trainable = False
+            #self.lora.trainable = False
+        elif not self.activate_lora and self.trainable:
+            #self.lora.trainable = False
+            self.conv.trainable = True
+            self.batch_norm.trainable = True
+        else:
+            self.batch_norm.trainable = False
+            self.conv.trainable = False
+            #self.lora.trainable = False
+        super().build(input_shape)
+    """
+
+    # Build method with adapter
     def build(self, input_shape):
         if self.activate_lora and self.trainable:
             self.batch_norm.trainable = False
@@ -199,6 +260,7 @@ class HourglassLayerLora(Layer):
         self.freeze_attention = freeze_attention
         self.residual_nblocks = residual_nblocks
         self.activate_lora = activate_lora
+        self.scores_agg = None
 
         # Used to capture the heads' attention results for visualization
         self.capture = None
@@ -272,7 +334,7 @@ class HourglassLayerLora(Layer):
                     nblocks=self.residual_nblocks,
                     name=f"ResidualWithBNRC",
                     trainable=trainable,
-                    attention= self.f2s_att, #"NoAM"
+                    attention= "NoAM",#self.f2s_att, #"NoAM"
                     feat_size = 64,
                     activate_lora = self.activate_lora,
                 )
@@ -331,7 +393,7 @@ class HourglassLayerLora(Layer):
                                                             kernel_reg=self.use_kernel_reg,
                                                            freeze_attention=self.freeze_attention)
             """
-            _downsampl["low_3"] = generate_residual_layer(layer_type= self.f2s_att if i>1 else "NoAM",
+            _downsampl["low_3"] = generate_residual_layer(layer_type= self.f2s_att if i>0 else "NoAM",
                                                             feature_filters=self.feature_filters,
                                                             nblocks=self.residual_nblocks,
                                                             name=f"Step{i}_ResidualLow3",
@@ -356,7 +418,10 @@ class HourglassLayerLora(Layer):
             self.__setattr__(f"dstep_{i}_out", _downsampl["out"])
 
             self.layer_list[f"STEP_{i}"] = dict(_downsampl)
-
+        ndowns = self.downsamplings
+        self.score_ups = [layers.UpSampling2D((2**(ndowns-i),2**(ndowns-i)),
+                                             interpolation="nearest",
+                                               name=f"Score_Upsampling_{i}") for i in range(self.downsamplings)]
         # endregion
     
     
@@ -379,56 +444,71 @@ class HourglassLayerLora(Layer):
                 "activate_lora":self.activate_lora
             },
         }
-        
-    def _recursive_call(self, input_tensor, step, training=True):
+    
+    def _recursive_call(self, input_tensor, y_true, step, training=True):
         step_layers = self.layer_list[f"STEP_{step}"]#self.layer_list[step]
         _input = input_tensor
         #_input = step_layers["low_in"](_input, training=training) if step == 3 else input_tensor
         #if step == 3:
         #    _input = step_layers["low_in"](_input, training=training)
-        up_1 = step_layers["up_1"](_input, training=training) #Skip        
+        up_1 = step_layers["up_1"](_input, y_true ,training=training) #Skip        
         low_ = step_layers["low_"](_input, training=training) #MaxPool
-        low_1 = step_layers["low_1"](low_, training=training) #S2F
+        low_1 = step_layers["low_1"](low_, y_true , training=training) #S2F
         
         if step == 0:
-            low_2 = step_layers["low_2"](low_1, training=training) # Dont apply any attention mechanism
+            low_2 = step_layers["low_2"](low_1, y_true, training=training) # Dont apply any attention mechanism
         else:
-            low_2 = self._recursive_call(low_1, step=(step - 1), training=training)
-        low_3 = step_layers["low_3"](low_2, training=training) # F2S
+            low_2 = self._recursive_call(low_1, y_true, step=(step - 1), training=training)
+        low_3 = step_layers["low_3"](low_2, y_true, training=training) # F2S
+        
         if step == 3:
             self.capture = 1.0*step_layers["low_3"].scores_heads
+        
+        interm = tf.reduce_sum(step_layers["low_3"].scores_heads,axis=[3,4]) #Sum along the heads
+        self.scores_agg.append(self.score_ups[step](tf.expand_dims(interm,axis=-1))[:,:,:,0]) # N H W 1 -> N H' W' 1 -> N H' W'
+
         up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
         out = step_layers["out"]([up_1, up_2], training=training) # Add  
         #if step == 3:
         #    out = step_layers["low_out"](out,training=training)
         return out
 
-    def call(self, inputs, training=False):
+    def call(self, inputs, y_true=None, training=False):
+        self.scores_agg = []
+        #tf.print(tf.shape(y_true))
+    #def call(self, inputs, training=False):
         _x = 0.0
-        _x = self._recursive_call(
-            input_tensor=inputs, step=self.downsamplings - 1, training=training
+        #_x += self._recursive_call(
+        #    input_tensor=inputs, step=self.downsamplings - 1, training=training
+        #)
+
+        _x += self._recursive_call(
+            input_tensor=inputs, y_true=y_true , step=self.downsamplings - 1, training=training
         )
+
         _x = self.residual_brc(_x,training=training) # Output of the Hourglass module
+
+        stacked_scores = tf.stack(self.scores_agg,axis=-1) # N S H W C
+        #tf.print(tf.shape(stacked_scores))
         #self.capture = 1.0*s
         main_feats = self.merge_feats_main(_x)
-        intermediate_2jhms = self.hm2_output(_x,training=training)
-        features_2jhms = self.features_hm2(intermediate_2jhms) 
-        transit_2jhms = self.residual_2j(features_2jhms, training=training)
-        intermediate_1jhms = self.hm1_output(tf.add_n([_x,transit_2jhms]), training=training)
-        feats1j = self.merge_feats_1j(intermediate_1jhms)
+        intermediate_2jhms = self.hm2_output(_x,training=training) # Linear projection to 2-joint heatmaps
+        features_2jhms = self.features_hm2(intermediate_2jhms) # Linear projection back to feature space
+        transit_2jhms = self.residual_2j(features_2jhms, training=training) # Residual block for 2-joint heatmaps features
+        intermediate_1jhms = self.hm1_output(tf.add_n([_x,transit_2jhms]), training=training) # Linear projection to 1-joint heatmaps
+        feats1j = self.merge_feats_1j(intermediate_1jhms) # Linear projection back to the feature space
+
 
         # One version with BN and one without it
-        feats1j = self.bn_feats_1j(feats1j,training=training)
+        feats1j = self.bn_feats_1j(feats1j,training=training) # BN to the 1-joint heatmaps features
 
         out_tensor = tf.add_n(
             [inputs, main_feats, feats1j],
             name=f"{self.name}_OutputAdd",
         )
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
-        return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms],axis=-1),self.capture
+        return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms,stacked_scores],axis=-1),self.capture
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
-        #print("CONFIG: ", self.get_config())
         super().build(input_shape) 
 
     """

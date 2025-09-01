@@ -84,7 +84,8 @@ class  ConstantScoreLayer(Layer):
                 "stack_num": self.stack_num
             },
         }
-    def call(self,inputs):
+    def call(self, inputs, y_true=None, training=False):
+    #def call(self,inputs):
         batch_size = tf.shape(inputs)[0]
         height = tf.shape(inputs)[1]
         width = tf.shape(inputs)[2]

@@ -14,10 +14,10 @@ from hourglass_tensorflow.utils.tf import tf_load_image,tf_3Uint8_to_float32
 from hourglass_tensorflow.handlers._transformation import tf_train_map_squarify,tf_test_map_affine_woaugment_RGBD
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance
 from hourglass_tensorflow.utils.loaders.model_loader2 import load_wrapped_model,load_basemodel_weights
-from hourglass_tensorflow.layers.hourglass_Beta3 import HourglassLayerLora as HourglassLayer
+from hourglass_tensorflow.layers.hourglass_lora import HourglassLayerLora as HourglassLayer
 from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 from hourglass_tensorflow.models.hourglass_lora import HourglassModelLora as HourglassModel
-from hourglass_tensorflow.layers.residual_exp3 import ResidualBlock,ResidualLayer,ResidualLayerIn
+from hourglass_tensorflow.layers.residual_lora import ResidualBlock,ResidualLayer,ResidualLayerIn
 
 from keras.models import Model
 
@@ -151,9 +151,11 @@ def draw_pose(img,hm,obbox,pad):
         if pnt[2]>0.14:
             cv2.circle(_img,(int(pnt[0]),int(pnt[1])),9,(0,0,255),-1)
     return _img
-    
+
+
 #Model = load_wrapped_model("data/model_t/myModel_SLP_WS_BL_1B_ATT7_Depth4C.keras",compile=False) 
-Model_pose = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras",compile=False)
+#Model_pose = load_wrapped_model("/home/quinoa/Downloads/myModel_SLP_Colab_BL_1B_Depth4C_d23_resumed.keras",compile=False)
+Model_pose = load_wrapped_model("data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S4.keras",compile=False)
 #print(Model_pose_base.get_config())
 #Model_pose = HourglassModel.from_config(Model_pose_base.get_config())
 #load_basemodel_weights(Model_pose,"data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2.keras")
@@ -229,10 +231,10 @@ squared_rgb = tensor[0,:,:,1:4]
 intermediate = intermediate_layer_model.predict(tensor)
 mapp = tf.squeeze(intermediate[2])
 
-fig,ax = plt.subplots(nrows=1, ncols=5, figsize=(6, 8))
-for i in range(5):
-    #ax[i].imshow(mapp[:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
-    ax[i].imshow(mapp[:,:,i],cmap="jet")
+fig,ax = plt.subplots(nrows=1, ncols=4, figsize=(6, 8))
+for i in range(4):
+    ax[i].imshow(mapp[:,:,i],cmap="jet") #,vmin=0.0,vmax=1.0
+    #ax[i].imshow(tf.nn.sigmoid(mapp[:,:,i]/2),cmap="jet")
     #ax[i].colorbar()
 #plt.colorbar()
 plt.show()

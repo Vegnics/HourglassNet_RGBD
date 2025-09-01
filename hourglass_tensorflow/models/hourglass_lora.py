@@ -11,6 +11,58 @@ from hourglass_tensorflow.layers.downsampling_lora import DownSamplingLayerLora
 from hourglass_tensorflow.types.config.model import ATTENTION_MECHANISMS
 
 @register_keras_serializable(package="cHourglassModelLora")
+class WrappedModel(Model):
+    def __init__(self, model, **kwargs):
+        super(WrappedModel, self).__init__(**kwargs)
+        # Instantiate your core functional model here.
+        # This will be the "core" of our model.
+        self.core_model = model
+
+    def call(self, inputs):
+        # The call method simply passes the inputs to the core functional model.
+        return self.core_model(inputs)
+
+    # This method is correctly overridden on the class.
+    # It will be executed by model.fit().
+    def train_step(self, data):
+        # Unpack the data received from model.fit().
+        x, y_true = data
+        
+        # A tf.print() here will now work as expected.
+        tf.print("y_true in train_step (Eager Execution):", y_true)
+        
+        with tf.GradientTape() as tape:
+            # Pass y_true explicitly to the call method if needed.
+            y_pred = self(x, training=True)
+            
+            # Get the main loss. Use self.losses for regularization losses.
+            loss = self.compiled_loss(y_true, y_pred, regularization_losses=self.losses)
+
+        # Compute gradients and apply them.
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+
+        # Update and return metrics.
+        self.compiled_metrics.update_state(y_true, y_pred)
+        return {m.name: m.result() for m in self.metrics}
+
+    def get_config(self):
+        # Override get_config to serialize the functional model's configuration.
+        config = super(WrappedModel, self).get_config()
+        config['core_config'] = self.core_model.get_config()
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        core_config = config.pop('core_config')
+        # Create an instance and then restore the core model from its config.
+        instance = cls(**config)
+        instance.core_model = Model.from_config(core_config)
+        return instance
+
+
+@register_keras_serializable(package="cHourglassModelLora")
 class stack_tensors_layer(Layer):
     def __init__(
         self,
@@ -120,9 +172,12 @@ class HourglassModelLora(Model):
     def wrap_model(self):
         inputs = InputTensor(shape=(self.input_size, self.input_size, self.channelnum))
         outputs = self.call(inputs)
+        # Intermediate output for axuliary loss
+        #aux_out = self.get_layer('Hourglass2').output[2]
         wrapped = Model(inputs, outputs,name="FunctionalHourglassModel")
         wrapped.core = self
         original_get_config = wrapped.get_config
+
         def merged_get_config():
             config = original_get_config()
             config["core_config"] = self.get_config()
@@ -147,7 +202,9 @@ class HourglassModelLora(Model):
         print(f"Use kernel regularization: {self._yes_no_str(self.use_kernel_reg)}")
         print("------------------------------------------------")
 
-    def call(self, inputs: tf.Tensor, training=True):
+    #def call(self, inputs: tf.Tensor, training=True):
+    def call(self, inputs, y_true=None, training=None):
+        tf.print(y_true)
         x = self.downsampling(inputs,training=training)
         outputs_list = []
         """
@@ -162,10 +219,11 @@ class HourglassModelLora(Model):
         return self._outputs
         """
         for hglayer in self.hourglasses:
-            x, y,_ = hglayer(x,training=training) # x is the output features, y is the intermediate output heatmaps
+            x, y,_ = hglayer(x,y_true,training=training) # x is the output features, y is the intermediate output heatmaps
             outputs_list.append(y)
         outputs = self.stacker(outputs_list)
         return outputs
+    
     
     def get_config(self):
         return {
@@ -190,13 +248,13 @@ class HourglassModelLora(Model):
             "activate_lora":self.activate_lora
             },
         }
-    #"""
+    """
     @classmethod
     def from_config(cls, config):
         instance = cls(**config)
         print("Restored Config [Hourglass Model]:", config)  # Debugging output
         return instance
-    #"""
+    """
     
 @register_keras_serializable(package="cHourglassModelLora")
 def build_hourglassModelLora(

@@ -11,7 +11,7 @@ from hourglass_tensorflow.layers.conv_block_lora import ConvBlockLoRALayer as Co
 from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLayer
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer, ConstantScoreLayer
 from hourglass_tensorflow.layers.attention_feature import FeatureAttentionMechanism
-from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
+from hourglass_tensorflow.layers.attention_spatial5 import SpatialAttentionMechanism
 
 
 
@@ -131,26 +131,23 @@ class ResidualBlock(Layer):
                 "activate_lora": self.activate_lora
             },
         }
-    def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
+    def call(self, inputs, y_true=None, training=False):
+    #def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         #B = tf.shape(inputs)[0]        
         out_conv = self.conv_block(inputs, training=training)
-        scores,scores_heads = self.attention_block(out_conv,training=training)
+        scores,scores_heads = self.attention_block(out_conv, y_true, training=training)
         #scores,scores_heads = self.attention_block(inputs,training=training)
 
         alpha = 0.8
         _sum = self.add(
-            [  
-                out_conv*scores,
+            [   out_conv*scores,
                 inputs,
             ])
         
-        #scores,scores_heads = self.attention_block(_sum,training=training)
         return self.relu(_sum),scores_heads #scores
 
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
-        
         super().build(input_shape)
         self.built = True
 
@@ -191,6 +188,8 @@ class ResidualLayer(Layer):
         
         # Used to capture the scores from the heads' attention outputs 
         self.scores_heads = None
+
+        #tf.print(f"{self.name} - Attention Type: {self.attention_type}")
         
         # Residual Blocks
         self.residual_blocks = [ResidualBlock(output_filters= self.output_filters,
@@ -219,18 +218,20 @@ class ResidualLayer(Layer):
                 "activate_lora": self.activate_lora
             },
         }
-    def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
-        #print(f"DEBUG_CALL: ResidualLayer '{self.name}' call method entered. Input shape: {inputs.shape}")
+    def call(self, inputs, y_true=None, training=False):
+    #def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         x = 1.0*inputs
         scores = []
         for layer in self.residual_blocks:
-            x,s = layer(x,training=training)
+            # Return the output and attention scores for each residual block.
+            x,s = layer(x,y_true,training=training)
             scores.append(s)
+        # Store the attention scores as an attribute
         self.scores_heads = tf.stack(scores,axis=-1)
+
         return x
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
         super().build(input_shape)
     
     """
@@ -260,12 +261,6 @@ class ResidualBlockIn(Layer):
         self.epsilon = epsilon
         self.use_last_relu = use_last_relu
         self.activate_lora = activate_lora
-        # Input layer (used just to match the dimensionality)
-        
-        #self.match_layer =  None
-        #self.conv_block = None
-        #self.add = None
-        #self.relu= None
 
         self.match_layer =   SkipLayer(
             output_filters=self.output_filters,
@@ -280,6 +275,7 @@ class ResidualBlockIn(Layer):
             epsilon=self.epsilon,
             name=f"ConvBlock",
             trainable=trainable,
+            activate_lora=self.activate_lora
         )
 
         self.add = layers.Add(name="Add")
@@ -299,7 +295,7 @@ class ResidualBlockIn(Layer):
 
     def call(self, inputs: tf.Tensor, training) -> tf.Tensor:
         _inputs = 0.0
-        _inputs = self.match_layer(inputs,training=training)
+        _inputs += self.match_layer(inputs,training=training)
         _sum = self.add(
             [
                 self.conv_block(inputs, training=training),
@@ -308,7 +304,6 @@ class ResidualBlockIn(Layer):
         return self.relu(_sum)
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
         super().build(input_shape) 
     
     """
@@ -342,6 +337,8 @@ class ResidualLayerIn(Layer):
         self.activate_lora = activate_lora
 
         self.residual_blocks = []
+
+        # Add the initial ResidualBlockIn to the layer list
         self.residual_blocks.append(
             ResidualBlockIn(output_filters= self.output_filters,
                     name=f"{name}_IN",
@@ -350,8 +347,8 @@ class ResidualLayerIn(Layer):
                     activate_lora=self.activate_lora)
                     )
         
+        # Add the remaining ResidualBlocks to the layer list
         for k in range(self.nblocks-1):
-            #print("DEBUG: Adding residual block ",k)
             self.residual_blocks.append(
                 ResidualBlock(output_filters= self.output_filters,
                     name=f"{name}_block{k}",
@@ -360,8 +357,10 @@ class ResidualLayerIn(Layer):
                     attentionType="NoAM",
                     activate_lora=self.activate_lora)
                 )
+        # Set each residual block as attribute for serialization
         for k,layer in enumerate(self.residual_blocks):
             self.__setattr__(f"residual_{k}", layer)
+    
     def get_config(self):
         return {
             **super().get_config(),
@@ -383,7 +382,6 @@ class ResidualLayerIn(Layer):
         return x
     
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}: CONFIG: {self.get_config()}")
         super().build(input_shape)
 
     """

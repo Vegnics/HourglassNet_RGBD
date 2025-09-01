@@ -35,9 +35,23 @@ class MAE_custom(keras.losses.Loss):
         #NSHW
         #NHW
         #tf.print(self.stages,self.n1joints,self.n2joints,self.use2joints)
+        #tf.print(y_true)
+        #tf.print(y_pred)
+        #_y_pred = y_pred[0]
         S = self.stages
         #C = self.njoints
         #"""
+
+        #Attention auxiliary loss (cosine similarity)
+        gt_att = y_true[:,:,:,:,self.n1joints+self.n2joints+1:] #NSHWC
+        pred_att = tf.nn.relu(y_pred[:,:,:,:,self.n1joints+self.n2joints+1:]) #NSHWC
+        cossim = tf.reduce_sum(gt_att*pred_att,axis=[2,3])/(tf.linalg.norm(gt_att,axis=[2,3])*tf.linalg.norm(pred_att,axis=[2,3])+1e-6) #NSHW
+        #attdiff = tf.math.square(gt_att-pred_att)#*(1.0+0.4*y_true) #NSHWC
+        attdiff = tf.maximum(1.0 - cossim,0)
+        attdiff = tf.reduce_mean(attdiff,axis=-1)
+        #NSH
+        #attdiff = tf.reduce_mean(1/tf.maximum(attdiff,1e-4),axis=-1)
+        Aux_loss = tf.reduce_mean(attdiff)
 
         #Coordinate regression loss
         gt_coords = tf_batch_multistage_matrix_softargmax_loss(y_true[:,:,:,:,0:self.n1joints])#NSC
@@ -56,14 +70,18 @@ class MAE_custom(keras.losses.Loss):
         joint_count_2 = tf.reduce_sum(mask_joints_2,axis=1)#N
 
         heatmap_weights = tf.where(y_true>0.001,1.25,1.0) #NSHWC
-        
+
+        # Attention loss
+        #attention_maps = self.model.get_layer("Hourglass2").capture #NSHWC
+        #tf.print(tf.shape(attention_maps))
         # GT and pred sums
         mag_true =  tf.reduce_sum(y_true[:,:,:,:,0:self.n1joints],axis=[2,3])/64.0 #N,S,C
         mag_pred = tf.reduce_sum(y_pred[:,:,:,:,0:self.n1joints],axis=[2,3])/64.0 #N,S,C
         
         # Heatmap regression losses
-        ndiff = tf.math.square(y_true-y_pred)*heatmap_weights #NSHWC
+        ndiff = tf.math.square(y_true-y_pred)*heatmap_weights#*(1.0+0.4*y_true) #NSHWC
         ndiff = tf.reduce_mean(ndiff,axis=[1,2,3]) #NC  0.00000001
+        #tf.debugging.check_numerics(ndiff,"ndiff has invalid numeric values")
         
         # 1J Heatmap regression loss
         loss_1jnt = (tf.reduce_sum(ndiff[:,0:self.n1joints]*mask_joints_1,axis=1))/(tf.cast(joint_count_1,dtype=tf.float32)+0.001) #NS
@@ -82,4 +100,4 @@ class MAE_custom(keras.losses.Loss):
         #tf.debugging.check_numerics(loss_2jnt,"loss_2jnt has invalid numeric values")
         #loss_2jnt = tf.reduce_mean(loss_2jnt,axis=1)
         Loss_final = self.wl2_j1*tf.reduce_mean(loss_1jnt)#+self.wcoords*loss_coords+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
-        return Loss_final #+ 1e-3*cum_loss
+        return Loss_final + 0.00006*Aux_loss #+ 1e-3*cum_loss

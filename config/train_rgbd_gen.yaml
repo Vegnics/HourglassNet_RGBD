@@ -141,7 +141,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 4.0e-05
+  learning_rate: 8.0e-05
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -187,7 +187,7 @@ train:
   - source: tensorflow.keras.callbacks.ModelCheckpoint
     params:
       mode: max
-      filepath: data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S3.keras
+      filepath: data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S4.keras
       save_weights_only: false
       save_freq: epoch
       monitor: val_PCKh@0.5
@@ -203,5 +203,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S3.keras_15:23:22.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S4.keras_07:16:43.csv
 test: null

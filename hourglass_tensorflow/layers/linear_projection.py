@@ -125,15 +125,18 @@ class LinearProjectionLoRA(Layer):
 
         #lora path using a rank of 8
         self.lora = SequentialLayer(
-            [
+            [       
+                    layers.LayerNormalization(axis=-1
+                                              ,epsilon=1e-6,
+                                              name="lora_ln"),
                     layers.Conv2D(
                         filters=4,
                         kernel_size=1,
                         strides=self.strides,
                         padding=self.padding,
                         name="lora_a",
-                        activation=None,
-                        use_bias=False,
+                        activation="gelu",
+                        use_bias=True,
                         kernel_initializer="glorot_uniform",
                     ),
 
@@ -144,13 +147,15 @@ class LinearProjectionLoRA(Layer):
                         padding=self.padding,
                         name="lora_b",
                         activation=None,
-                        use_bias=False,
+                        use_bias=True,
                         kernel_initializer="zeros",
                     )
                 ],
                 name="lora_path",
-                trainable=self.trainable
-                ) if self.activate_lora else zeroLayer(output_channels=self.filters,name="lora_path",trainable = False)
+                trainable=self.trainable) if self.activate_lora else zeroLayer(output_channels=self.filters,
+                                                                               name="lora_path",
+                                                                               trainable = False)
+        
     def get_config(self):
         return {
             **super().get_config(),
@@ -167,16 +172,10 @@ class LinearProjectionLoRA(Layer):
 
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor: # training = True
         # 我的Method
-        #x = self.batch_norm(inputs,training=training)
-        #x = self.conv(x)
-        #return self.relu(x)
-        #
         x = self.conv(inputs)    
         return x + self.lora(inputs)
 
     def build(self, input_shape):
-        #print(f"[DEBUG]: {self.name} -- input shape : {input_shape}")
-        super().build(input_shape) 
         self.built = True
         if self.activate_lora and self.trainable:
             self.conv.trainable = False
@@ -187,6 +186,7 @@ class LinearProjectionLoRA(Layer):
         else:
             self.lora.trainable = False
             self.conv.trainable = False
+        super().build(input_shape) 
     
     """
     @classmethod

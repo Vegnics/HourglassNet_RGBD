@@ -560,13 +560,13 @@ def tf_validation_map_affine(
                             [15.0,1.0],
                             [17.0,1.0]],dtype=tf.float32)
     
-    _affines = tf.reshape(tf.constant([0.0,0.0,0.0,13.0,15.0,17.0],dtype=tf.float32),shape=(6,1))
+    _affines = tf.reshape(tf.constant([0.0,5.0,8.0,13.0,20.0,25.0],dtype=tf.float32),shape=(6,1))
     _signaffines = tf.math.sign(tf.random.uniform(shape=(6,1),dtype=tf.float32)-0.5)
     _affines = _affines*_signaffines
     onesaffines = tf.ones(shape=(6,1),dtype=tf.float32)
     affines = tf.concat([_affines,onesaffines],axis=1)
 
-    saffines = tf.gather(affines, tf.random.shuffle(tf.range(6))[:3])
+    saffines = tf.gather(affines, tf.random.shuffle(tf.range(6))[:2])
 
     annotated = tf.cast(tf.reduce_sum(coordinates,axis=-1),dtype=tf.float32)
     annotated = tf.where(annotated<0.0,0.0,1.0)
@@ -620,7 +620,7 @@ def tf_validation_map_affine(
     #_bboxf = tf.constant([1.13,1.14,1.15,1.17,1.19,1.21],dtype=tf.float32)
     _bboxf = tf.constant([1.12,1.18,1.23,1.13,1.2,1.15],dtype=tf.float32)
     bboxf = 0.02*2.0*(tf.random.uniform(shape=(6,))-0.5)+_bboxf
-    sbboxf = tf.gather(bboxf,tf.random.shuffle(tf.range(6))[:3])
+    sbboxf = tf.gather(bboxf,tf.random.shuffle(tf.range(6))[:2])
     
     _zipped = tf.map_fn(
         fn=(
@@ -643,9 +643,9 @@ def tf_validation_map_affine(
     _coordinates: a Tensor (R,C,2) of coordinates for several rotations
     _visibilities: a Tensor (R,C), just copy the visibility values
     """
-    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[3,input_size,input_size,4])
-    _coords = tf.reshape(_zipped[1],[3,njoints,2])
-    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[3,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
+    _images = tf.reshape(tf.cast(_zipped[0],dtype=tf.float32),[2,input_size,input_size,4])
+    _coords = tf.reshape(_zipped[1],[2,njoints,2])
+    _visibilities = tf.reshape(tf.cast(_zipped[2],dtype=tf.int32),[2,njoints])*tf.cast(tf.reshape(annotated,shape=(1,-1)),dtype=tf.int32)
     return (_images,_coords,_visibilities)
     #if task_mode=="train":
     #    return (_images,_coords,_visibilities)
@@ -718,6 +718,7 @@ def tf_test_map_affine(
     #mask0 = tf.expand_dims(mask0,axis=0)
     mask1 = 1.0-mask0
     _visibilities  = _coordinates_map[:,:,2]*enable_vis + (1.0-enable_vis) #*0.0+1.0 #*mask0+mask1
+    _visibilities = _visibilities*mask0 + mask1
     
     #_visibilities = _visibilities* mask0 + mask1 #* mask0 + mask1
     _coordinates = _coordinates_map[:,:,0:2]
@@ -1390,6 +1391,18 @@ def tf_single_stage_heatmaps(
         parallel_iterations=10,
     )
     heatmaps = tf.transpose(heatmaps, [1, 2, 0])
+
+    attention_guide = tf.map_fn(
+        fn=(
+            lambda joint: tf_bivariate_normal_pdf(
+                joint[:2],joint[2], stddev_tensor*1.8, shape_tensor, precision=precision
+            )
+        ),
+        elems=joints,
+        dtype=precision,
+        parallel_iterations=10,
+    )
+    attention_guide = tf.transpose(attention_guide, [1, 2, 0])
     
     #"""
     limb_hms = tf.map_fn(
@@ -1405,7 +1418,10 @@ def tf_single_stage_heatmaps(
     
     limb_hms = tf.transpose(limb_hms,[1,2,0])
 
-    hms = tf.concat([heatmaps,limb_hms],axis=-1)
+    attention_guide = tf.reduce_sum(tf.sqrt(attention_guide+0.01),axis=-1,keepdims=True)
+    attention_guide = tf.clip_by_value(attention_guide,0,2.5) #/(tf.reduce_max(attention_guide,axis=[0,1],keepdims=True)+0.00001)
+    attention_guide = tf.repeat(attention_guide,repeats=4,axis=-1)
+    hms = tf.concat([heatmaps,limb_hms,attention_guide],axis=-1)
     #"""
 
     return hms #heatmaps
@@ -1455,6 +1471,12 @@ def tf_train_map_heatmaps(
     new_coordinates = tf.cast(coordinates * tf.cast(output_size, dtype=tf.float64),precision)
     new_coordinates = tf.cast(new_coordinates,dtype=precision)
     visibility = tf.cast(tf.reshape(visibility, (-1, 1)), dtype=precision)*tf.cast(enable_vis,tf.float32)+(1.0-tf.cast(enable_vis,tf.float32))
+   
+    # Mask the visibility of the head to ensure PCKh metric
+    mask0 = tf.constant([1,1,1,1,1,1,1,1,1,1,1,1,0,0],dtype=tf.float32)
+    mask0 = tf.expand_dims(mask0,axis=0)
+    mask1 = 1.0-mask0
+    visibility = visibility*mask0+1.0*mask1
 
     # First we concat joint coordinate and visibility
     # to have a [NUN_JOINTS, 3] tensor

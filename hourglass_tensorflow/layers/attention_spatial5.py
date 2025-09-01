@@ -1,3 +1,4 @@
+from os import name
 from turtle import pos
 from annotated_types import T
 from cv2 import repeat
@@ -11,6 +12,7 @@ from keras.saving import register_keras_serializable
 from keras import constraints
 from keras import initializers
 import keras
+from hourglass_tensorflow.handlers import train
 from hourglass_tensorflow.layers.sequential_layer import SequentialLayer
 from positional_encodings.tf_encodings import TFPositionalEncoding2D 
 from keras import ops
@@ -249,6 +251,74 @@ class AddPosEncodingLayer(Layer):
         }
     
 @register_keras_serializable(package="lattentionSpatial") 
+class GlobalExtractor(Layer):
+    def __init__(self,
+        K_size: int = 32,
+        rank: int = 6,
+        name: str = None,
+        trainable: bool = True,
+    ) -> None:
+        super().__init__(name=name, trainable=trainable)
+        self.K_size = K_size
+        self.rank = rank
+        self.trainable = trainable
+        
+        self.Vgen1 = layers.Dense(
+                units=self.K_size//2,
+                activation= None,
+                use_bias=True,
+                bias_initializer="zeros",
+                kernel_initializer='glorot_uniform',
+                name = "Vgen_FC1",
+                trainable=self.trainable,
+                )
+        
+        # FC for the horizontal components (column vectors)
+        self.Hgen1 = layers.Dense(self.K_size//2,
+                activation=None,
+                use_bias=True,
+                bias_initializer="zeros",
+                kernel_initializer='glorot_uniform',
+                name = "Hgen_FC1",
+                trainable=self.trainable,
+                )
+
+        self.pos_encoding_xy = AddPosEncodingLayer(name="add_pos_encoding_3",ndim=16)
+        self.downsample = layers.MaxPool2D(pool_size=(2,2),name="mpool_2")
+        # Dropout applied to the vertical comp.
+        self.dropout_v = layers.Dropout(0.1,name="dpout_v")
+        # Dropout applied to the horizontal comp.
+        self.dropout_h = layers.Dropout(0.1,name="dpout_h")
+
+        self.upsample_deconv = layers.Conv2DTranspose(name="upsample_deconv",
+                                                    kernel_size=(3,3),
+                                                    filters= 8,
+                                                    strides=(2,2),
+                                                    trainable=self.trainable,
+                                                    padding="same",)
+    def get_config(self):
+        return {
+            **super().get_config(),
+            **{
+                "K_size": self.K_size,
+                "rank": self.rank,
+            },
+        }
+    def call(self, inputs: tf.Tensor, training: bool = False) -> tf.Tensor:
+        B = tf.shape(inputs)[0] 
+        desc = tf.reshape(inputs,shape=(B,(self.K_size//2)**2,self.rank))
+        desc = tf.transpose(desc,perm=[0,2,1])
+        V = self.Vgen1(desc) # Vertical components : (B,R,K)
+        H = self.Hgen1(desc) # Horizontal components : (B,R,K)  
+        V = self.dropout_v(V,training=training)
+        H = self.dropout_h(H,training=training)
+        global_map = tf.expand_dims(tf.nn.gelu(tf.matmul(V,H,transpose_a=True)),axis=-1)
+        global_map = tf.reshape(global_map,shape=(B,self.K_size//2,self.K_size//2,1))
+        return self.upsample_deconv(global_map) # B,K,K,1
+    def build(self, input_shape):
+        super().build(input_shape)  
+    
+@register_keras_serializable(package="lattentionSpatial") 
 class SpatialEnergyHead(Layer):
     """
     This layer generates a low-rank single-channel spatial representation.  
@@ -270,9 +340,9 @@ class SpatialEnergyHead(Layer):
         self.pos_encoding_xy = TFPositionalEncoding2D(16)
 
 
-        # Using a linear projection layer
+        # Using a linear projection layer (Use NonNeg() constraint ?)
         #"""
-        self.in_proj = layers.Conv2D(filters=4,
+        self.in_proj = layers.Conv2D(filters=8,
                                     kernel_size=(1,1),
                                     strides=(1,1),
                                     padding="same",
@@ -281,7 +351,7 @@ class SpatialEnergyHead(Layer):
                                     kernel_initializer="glorot_uniform",
                                     bias_initializer=tf.constant_initializer(0.0),
                                     #kernel_constraint=constraints.NonNeg(),
-                                    use_bias=False,
+                                    use_bias=True,
                                     trainable=self.trainable)
         #"""
 
@@ -328,8 +398,6 @@ class SpatialEnergyHead(Layer):
                 
                 #layers.AveragePooling2D(pool_size=(2,2),name="mpool_1"),
 
-                #SpatialSoftMax(name="head_softmax1"),
-
                 layers.Conv2D(
                     filters=8,#8,
                     kernel_size=(3,3),
@@ -341,6 +409,10 @@ class SpatialEnergyHead(Layer):
                     bias_initializer=tf.constant_initializer(0.0),
                     use_bias=True,
                     trainable = self.trainable),
+                
+                #AddPosEncodingLayer(name="add_pos_encoding_2",ndim=8),
+
+                #GlobalExtractor(name="global_extractor", K_size=self.K_size ,rank=8,trainable=self.trainable),
 
                 layers.UpSampling2D(size=(2,2),interpolation="bilinear",name="upsample1"),
 
@@ -349,6 +421,11 @@ class SpatialEnergyHead(Layer):
             name="head_localx2",
             trainable=self.trainable
         )
+
+
+
+        # Add positional encoding to the concatenated features (local paths)????
+        #self.add_pos_encoding = 
         
         """
         self.score_gen = SequentialLayer(
@@ -419,12 +496,18 @@ class SpatialEnergyHead(Layer):
         #_inputsmean = tf.reduce_mean(inputs,axis=-1,keepdims=True) #B,H,W,c
         #_inputsmax = tf.reduce_max(inputs,axis=-1,keepdims=True) #B,H,W,1
         #_inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
+        
+        # Layer Normalization before projection ???
         _inputs = self.out_ln(inputs)
-        _inputs = self.in_proj(_inputs) # B,H,W,16
+        _inputs = self.in_proj(_inputs) # B,H,W,16 (Use NonNeg() constraint ?)
+        
 
         local_map = self.local_path(_inputs,training=training)
         local_map2 = self.local_x2(_inputs,training=training)
+        #local_map2 = self.add_pos_encoding(local_map2) # Add positional encoding ???
         local_map_concat = tf.concat([local_map,local_map2],axis=-1) #local_map + local_map2
+        
+
         #local_map_concat = local_map + local_map2 #local_map_concat
 
         weights = tf.ones((1,16))
@@ -488,27 +571,6 @@ class SpatialAttentionMechanism(Layer):
         self.tau = self.add_weight(shape=[],initializer="zeros",dtype=tf.float32)
         # Create layers
 
-        self.channel_down = layers.Conv2D(filters=8,
-                                         kernel_size=(1,1),
-                                         strides=(1,1),
-                                         padding="same",
-                                         name="channel_low",
-                                         activation=None,
-                                         kernel_initializer="glorot_uniform",
-                                         kernel_constraint=constraints.NonNeg(),
-                                         use_bias=False,
-                                         trainable=self.trainable)
-        
-        self.channel_up = layers.Conv2D(filters=self.filters,
-                                         kernel_size=(1,1),
-                                         strides=(1,1),
-                                         padding="same",
-                                         name="channel_up",
-                                         activation=None,
-                                         kernel_initializer="glorot_uniform",
-                                         use_bias=False,
-                                         trainable=self.trainable)
-
         # Spatial Attention heads
         self.spatial_heads = [SpatialEnergyHead(K_size=self.feat_size,
                                                 trainable=self.trainable,
@@ -534,7 +596,7 @@ class SpatialAttentionMechanism(Layer):
                 kernel_constraint=ConvexComb(),
                 kernel_initializer= "glorot_uniform",
                 #bias_initializer=tf.constant_initializer(0.0001),
-                use_bias=False,
+                use_bias= False, #False,
                 trainable = self.trainable
             ),
             ],
@@ -581,12 +643,6 @@ class SpatialAttentionMechanism(Layer):
         C = tf.shape(inputs)[-1] 
         K = self.feat_size # Width or Height
         splitted = tf.split(inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
-        #_inputs = self.channel_down(inputs) # B,H,W,8
-        #_inputs_rec = self.channel_up(_inputs) # B,H,W,filters
-
-        # Reconstruction loss
-        #rec_penalty = tf.reduce_mean(tf.square(inputs-_inputs_rec))    
-        #self.add_loss(1e-5*rec_penalty)
 
         # Compute the local descriptors from the spatial heads
         #heads_outs = [self.spatial_heads[u](_inputs,training=training) for u in range(self.head_num)]
@@ -631,16 +687,6 @@ class SpatialAttentionMechanism(Layer):
         #self.add_loss(tf.minimum(attention_loss,1e-4))
         #self.add_loss(tf.reduce_mean(heads_losses))
         
-        # Enforce higher variance at the heads' features
-        #latent_mean = tf.reduce_mean(stacked_outs_local,axis=-1,keepdims=True)
-        #latent_var = tf.reduce_mean(tf.square(stacked_outs_local-latent_mean),axis=-1)
-        #var_reg = tf.reduce_mean(1/tf.maximum(latent_var,0.001))
-        #self.add_loss(tf.minimum((self.feat_size/64.0)*1e-4*var_reg,1e-4))
-        
-        # Compute the final attention scores
-        #scores = self.score_gen(tf.reduce_sum(stacked_outs,axis=-1))
-        #stack_norm = self.ln(stacked_outs_local)
-        #scores = tf.nn.sigmoid(self.score_gen(stacked_out_mean)*alpha)
 
         #group_c = self.filters//self.head_num
         #scores_l = []
@@ -648,22 +694,14 @@ class SpatialAttentionMechanism(Layer):
         #    att_map = tf.expand_dims(stacked_outs_local[:,:,:,u],axis=-1) # B,H,W,1
         #    scores_l.append(att_map*tf.ones(shape=(1,1,1,group_c)))
         #scores = tf.concat(scores_l,axis=-1) # B,H,W,filters
-        #stacked_view = tf.nn.sigmoid(stacked_view/2.0)
+        
+        stacked_view = tf.nn.sigmoid(1.5*stacked_view)
         #scores = tf.nn.sigmoid(scores/2.0)
-        scores = self.score_gen(tf.nn.sigmoid(stacked_outs_local/2.0))
         
-        #tf.print("Spatial Attention Scores Shape:",scores.shape)
-        
-        #tau = 1.0 #tf.maximum(tf.reduce_sum(self.temp_sig),1e-3) # 0.01
-        #shift = 1.0 #tf.reduce_sum(self.shift_sig)
-        #scores = tf.reduce_sum(stacked_outs_local,axis=-1,keepdims=True) # B,H,W,1
-        #scores = tf.nn.sigmoid((scores-shift)/tau)
-        #scores = tf.nn.sigmoid(tf.reduce_sum(stacked_outs_local,axis=-1,keepdims=True))
-        #scores = 1.0+0.5*tf.nn.tanh(tf.reduce_sum(stacked_outs_local,axis=-1,keepdims=True))
-        
-        #scores = tf.exp(-1.0*tf.nn.relu(tf.reduce_sum(stacked_outs_local,axis=-1,keepdims=True))) # B,H,W,1
-        #scores = tf.exp(-1.0*tf.nn.relu(self.score_gen(stacked_outs_local)))
-        
+        #scores = tf.nn.sigmoid(self.score_gen(stacked_outs_local)/2.0)
+
+        # Use linear (No Convex Comb) for combination and then sigmoid
+        scores = self.score_gen(tf.nn.sigmoid(1.5*stacked_outs_local))
         #return tf.nn.sigmoid(scores/2.0),tf.concat([stacked_view,scores],axis=-1) #stacked_outs_local #scores_raw # (B,K,K,1)=(B,H,W,1)
         return scores,stacked_view
 

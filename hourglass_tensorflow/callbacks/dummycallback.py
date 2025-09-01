@@ -1,7 +1,6 @@
 from multiprocessing import dummy
 import tensorflow as tf
 import numpy as np
-from hourglass_tensorflow.models.hourglass import HourglassModel
 from hourglass_tensorflow.metrics.correct_keypoints import PercentageOfCorrectKeypoints
 from hourglass_tensorflow.metrics.distance import OverallMeanDistance,SoftargmaxMeanDist
 from hourglass_tensorflow.losses import MAE_custom

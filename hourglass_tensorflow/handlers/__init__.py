@@ -179,9 +179,9 @@ class HTFManager(ObjectLogger):
             
             hmp = tf.expand_dims(data[1],axis=0)#.numpy()
             #cntld = 0
-            #for i in range(14): #16
-            #    plt.imshow(hmp[0,-1,:,:,i],cmap="jet",vmin=0.0,vmax=1.0)
-            #    plt.show()
+            for i in range(27,30): #16
+                plt.imshow(hmp[0,-1,:,:,i],cmap="jet") #,vmin=0.0,vmax=1.0)
+                plt.show()
             #    val = np.max(hmp[0,-1,:,:,i])
             #    if val>0.8:
             #        cntld += 1

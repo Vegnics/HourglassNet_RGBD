@@ -54,7 +54,7 @@ pt_model_name = "/home/quinoa/Downloads/myModel_SLP_Colab_BL_1B_Depth4C_d23_resu
 loading_mode =  "Partial_Train_Attention" #"Full_Train" # # # #"Full_Train"# # # #"Partial_Downsampling_frozen" # # # #  # #"Partial_Train_F2S" # ## # # #"Partial_Train_Skip" ##  # ## # # # # # # # # # # # # #"Partial_Train_S2FF2S" # # # # # # # # # # #  #  ##"Partial_Train_Skip" # # # ## #  # # # # # # # #  # ## # # #"Partial_Train_Attention"  # ### #"Full_Train" # # # # # # # # # # # # # #  # # ## #  # #"Partial_Train_Attention" ###  # ## # # # # # # # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
-skip_AM = "SAM"    
+skip_AM = "NoAM"    
 s2f_AM =  "FAM" 
 f2s_AM = "NoAM" 
 

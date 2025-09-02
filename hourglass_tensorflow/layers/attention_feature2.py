@@ -26,7 +26,7 @@ class FeatureAttentionHead(Layer):
         self.trainable = trainable
         self.kernel_reg = kernel_reg
 
-        self.ln = layers.LayerNormalization(axis=-1,trainable=self.trainable, name="head_ln")
+        self.ln = layers.LayerNormalization(axis=-1,trainable=self.trainable, name="head_ln",epsilon=0.1)
 
         self.layer_seq = SequentialLayer(
             layer_list = [    
@@ -39,7 +39,7 @@ class FeatureAttentionHead(Layer):
                     name = "head_dense_A",
                     ),
                 layers.Dense(self.filters//16,
-                    activation= None, #None,
+                    activation= "gelu", #None,
                     use_bias=True,
                     bias_initializer= "zeros",#tf.random_uniform_initializer(minval=-0.01, maxval=0.01),
                     kernel_initializer='glorot_uniform',
@@ -52,8 +52,8 @@ class FeatureAttentionHead(Layer):
             trainable=self.trainable
             )
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        x = self.ln(inputs,training=training)
-        energy_tensor = tf.reduce_mean(tf.math.square(x),axis=[1,2])# per-channel mean energy
+        #x = self.ln(inputs,training=training)
+        energy_tensor = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])# per-channel mean energy
         x = self.layer_seq(energy_tensor,training=training)
         return x
     
@@ -179,7 +179,8 @@ class FeatureAttentionMechanism(Layer):
         width = tf.shape(inputs)[2]
         stack_out = tf.ones(shape=[batch_size, height, width, 4], dtype=inputs.dtype)
 
-        splitted = tf.split(inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
+        _inputs = self.in_ln(inputs,training=training)
+        splitted = tf.split(_inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
         head_outs = [self.heads[i](splitted[i],training=training) for i in range(self.head_num)]
         # Input the Mean Energy Tensor to the Feature Attention heads 
         head_outs = []
@@ -188,13 +189,13 @@ class FeatureAttentionMechanism(Layer):
         head_out = tf.concat(head_outs,axis=-1)
         
         # Heads' output orthogonality regularization
-        head_stack = tf.stack(head_outs,axis=-1) # Stacking heads' output -> B,d_out,N_head
-        normed_heads = tf.nn.l2_normalize(head_stack, axis=1) # along d_head (B,d_head,N_heads)
-        similarity = tf.matmul(tf.transpose(normed_heads,perm=[0,2,1]), normed_heads)  # cosine similarity between head's outputs (B,N_heads,N_heads)
-        mask = 1.0 - tf.eye(self.head_num)
-        penalty = tf.reduce_sum(tf.square(similarity * mask),axis=[1,2])/(tf.reduce_sum(mask))
-        penalty = tf.reduce_mean(penalty)
-        self.add_loss(1e-3 * penalty)
+        #head_stack = tf.stack(head_outs,axis=-1) # Stacking heads' output -> B,d_out,N_head
+        #normed_heads = tf.nn.l2_normalize(head_stack, axis=1) # along d_head (B,d_head,N_heads)
+        #similarity = tf.matmul(tf.transpose(normed_heads,perm=[0,2,1]), normed_heads)  # cosine similarity between head's outputs (B,N_heads,N_heads)
+        #mask = 1.0 - tf.eye(self.head_num)
+        #penalty = tf.reduce_sum(tf.square(similarity * mask),axis=[1,2])/(tf.reduce_sum(mask))
+        #penalty = tf.reduce_mean(penalty)
+        #self.add_loss(1e-3 * penalty)
         
         # Raw scores computation -> (B,1,1,C) 
         #_head_out = self.norm_layer(_head_out)

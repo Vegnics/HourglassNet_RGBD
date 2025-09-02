@@ -498,8 +498,8 @@ class SpatialEnergyHead(Layer):
         #_inputs = tf.concat([_inputsmean,_inputsmax],axis=-1)
         
         # Layer Normalization before projection ???
-        _inputs = self.out_ln(inputs)
-        _inputs = self.in_proj(_inputs) # B,H,W,16 (Use NonNeg() constraint ?)
+        #_inputs = self.out_ln(inputs)
+        _inputs = self.in_proj(inputs) # B,H,W,16 (Use NonNeg() constraint ?)
         
 
         local_map = self.local_path(_inputs,training=training)
@@ -642,7 +642,8 @@ class SpatialAttentionMechanism(Layer):
         B = tf.shape(inputs)[0]
         C = tf.shape(inputs)[-1] 
         K = self.feat_size # Width or Height
-        splitted = tf.split(inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
+        _inputs = self.ln(inputs) # Lets try LN before splitting
+        splitted = tf.split(_inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
 
         # Compute the local descriptors from the spatial heads
         #heads_outs = [self.spatial_heads[u](_inputs,training=training) for u in range(self.head_num)]

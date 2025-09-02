@@ -17,8 +17,6 @@ class FeatureAttentionHead(Layer):
     def __init__(
         self,
         filters: int,
-        activation: str = None,
-        kernel_initializer: str = "glorot_uniform",
         trainable: bool = True,
         kernel_reg: bool = False,
         name: str = None,
@@ -41,7 +39,7 @@ class FeatureAttentionHead(Layer):
                     name = "head_dense_A",
                     ),
                 layers.Dense(self.filters//16,
-                    activation= "gelu", #None,
+                    activation= None, #None,
                     use_bias=True,
                     bias_initializer= "zeros",#tf.random_uniform_initializer(minval=-0.01, maxval=0.01),
                     kernel_initializer='glorot_uniform',

@@ -56,6 +56,8 @@ class FeatureAttentionHead(Layer):
         energy_tensor = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])# per-channel mean energy
         x = self.layer_seq(energy_tensor,training=training)
         return x
+    def build(self, input_shape):
+        super().build(input_shape)
     
     def get_config(self):
         return {

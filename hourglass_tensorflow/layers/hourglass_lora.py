@@ -334,7 +334,7 @@ class HourglassLayerLora(Layer):
                     nblocks=self.residual_nblocks,
                     name=f"ResidualWithBNRC",
                     trainable=trainable,
-                    attention= "NoAM",#self.f2s_att, #"NoAM"
+                    attention= self.f2s_att, #"NoAM",#, #"NoAM"
                     feat_size = 64,
                     activate_lora = self.activate_lora,
                 )
@@ -350,7 +350,7 @@ class HourglassLayerLora(Layer):
                                                            feat_size = 2**(i+3),
                                                            activate_lora = self.activate_lora,) 
             self.__setattr__(f"dstep_{i}_up_1", _downsampl["up_1"])
-            
+
             _downsampl["low_"] = layers.MaxPool2D(
                 pool_size=(2, 2),
                 padding="valid",

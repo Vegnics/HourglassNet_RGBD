@@ -124,7 +124,7 @@ model:
     intermediate_supervision: true
     skip_AM: NoAM
     s2f_AM: FAM
-    f2s_AM: NoAM
+    f2s_AM: SAM
     use_2jointHM: false
     use_kernel_regularization: false
     freeze_attention_weights: false
@@ -141,7 +141,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 8.0e-05
+  learning_rate: 4.0e-06
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -159,6 +159,7 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 1.0e-08
+      clipvalue: 0.4
   metrics:
   - source: hourglass_tensorflow.metrics.OverallMeanDistance
     params:
@@ -203,5 +204,5 @@ train:
       update_freq: epoch
   - source: tensorflow.keras.callbacks.CSVLogger
     params:
-      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S4.keras_14:03:19.csv
+      filename: logs/myModelLogs_SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S4.keras_20:56:56.csv
 test: null

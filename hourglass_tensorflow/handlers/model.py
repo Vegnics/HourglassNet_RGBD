@@ -150,10 +150,10 @@ class HTFModelHandler(_HTFModelHandler):
                 if self.config.loading_style == "Partial_Train_Joints":
                     print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR JOINTS <<<<<<<<<<<<<<")
                     for layer in model.layers:
-                        if isinstance(layer,DownSamplingLayer):
+                        if isinstance(layer,DownSamplingLayerLora):
                             print(f"Freezing {layer.name}")
                             layer.trainable = False
-                        elif isinstance(layer,HourglassLayer):
+                        elif isinstance(layer,HourglassLayerLora):
                             main_name = layer.name
                             # Freeze the main hourglass
                             for _,val in layer.layer_list.items():
@@ -162,17 +162,14 @@ class HTFModelHandler(_HTFModelHandler):
                                         print(f"Freezing {main_name}/{v.name}")
                                         v.trainable = False
                             print(f"Freezing {main_name}/{layer.residual_brc.name}")
-                            layer.residual_brc.trainable = False
+                            layer.residual_brc.trainable = True
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_inputs.name}")
-                            layer.ln_inputs.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_main.name}")
-                            layer.ln_main.trainable = False
                             print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
-                            layer.ln_feats1j.trainable = False 
+                            layer.bn_feats_1j.trainable = False 
+                            layer.residual_2j.activate_lora = False
                
                 elif self.config.loading_style == "Partial_Train_Attention":
                     print(">>>>>>>>>> [LOADING] PARTIAL TRAINING FOR ATTENTION <<<<<<<<<<<<<<")

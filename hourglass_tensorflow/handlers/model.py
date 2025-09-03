@@ -166,9 +166,11 @@ class HTFModelHandler(_HTFModelHandler):
                             print(f"Freezing {main_name}/{layer.merge_feats_main.name}")
                             layer.merge_feats_main.trainable = False
                             print(f"Freezing {main_name}/{layer.merge_feats_1j.name}")
+                            layer.hm1_output.trainable = False 
+                            layer.hm2_output.trainable = True 
                             layer.merge_feats_1j.trainable = False
-                            print(f"Freezing {main_name}/{layer.ln_feats1j.name}")
                             layer.bn_feats_1j.trainable = False 
+                            layer.residual_2j.trainable = True
                             layer.residual_2j.activate_lora = False
                
                 elif self.config.loading_style == "Partial_Train_Attention":

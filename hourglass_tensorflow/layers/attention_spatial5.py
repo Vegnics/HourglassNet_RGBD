@@ -350,7 +350,7 @@ class SpatialEnergyHead(Layer):
                                     activation=None,
                                     kernel_initializer="glorot_uniform",
                                     bias_initializer=tf.constant_initializer(0.0),
-                                    #kernel_constraint=constraints.NonNeg(),
+                                    kernel_constraint=constraints.NonNeg(),
                                     use_bias=True,
                                     trainable=self.trainable)
         #"""
@@ -395,9 +395,7 @@ class SpatialEnergyHead(Layer):
         # Local attetion path at half the original resolution
         self.local_x2 = SequentialLayer(
             [
-                
-                #layers.AveragePooling2D(pool_size=(2,2),name="mpool_1"),
-
+    
                 layers.Conv2D(
                     filters=8,#8,
                     kernel_size=(3,3),
@@ -642,8 +640,8 @@ class SpatialAttentionMechanism(Layer):
         B = tf.shape(inputs)[0]
         C = tf.shape(inputs)[-1] 
         K = self.feat_size # Width or Height
-        #_inputs = self.ln(inputs) # Lets try LN before splitting
-        splitted = tf.split(inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
+        _inputs = self.ln(inputs) # Lets try LN before splitting
+        splitted = tf.split(_inputs, num_or_size_splits=self.head_num, axis=-1) # B,H,W,filters/self.head_num
 
         # Compute the local descriptors from the spatial heads
         #heads_outs = [self.spatial_heads[u](_inputs,training=training) for u in range(self.head_num)]
@@ -696,13 +694,13 @@ class SpatialAttentionMechanism(Layer):
         #    scores_l.append(att_map*tf.ones(shape=(1,1,1,group_c)))
         #scores = tf.concat(scores_l,axis=-1) # B,H,W,filters
         
-        stacked_view = tf.nn.sigmoid(1.5*stacked_view)
+        stacked_view = tf.nn.sigmoid(stacked_view)
         #scores = tf.nn.sigmoid(scores/2.0)
         
         #scores = tf.nn.sigmoid(self.score_gen(stacked_outs_local)/2.0)
 
         # Use linear (No Convex Comb) for combination and then sigmoid
-        scores = self.score_gen(tf.nn.sigmoid(1.5*stacked_outs_local))
+        scores = self.score_gen(tf.nn.sigmoid(stacked_outs_local))
         #return tf.nn.sigmoid(scores/2.0),tf.concat([stacked_view,scores],axis=-1) #stacked_outs_local #scores_raw # (B,K,K,1)=(B,H,W,1)
         return scores,stacked_view
 

@@ -419,7 +419,7 @@ class HourglassLayerLora(Layer):
 
             self.layer_list[f"STEP_{i}"] = dict(_downsampl)
         ndowns = self.downsamplings
-        self.score_ups = [layers.UpSampling2D((2**(ndowns-i),2**(ndowns-i)),
+        self.score_ups = [layers.UpSampling2D((2**(ndowns-i-1),2**(ndowns-i-1)),
                                              interpolation="nearest",
                                                name=f"Score_Upsampling_{i}") for i in range(self.downsamplings)]
         # endregion
@@ -464,7 +464,7 @@ class HourglassLayerLora(Layer):
         if step == 3:
             self.capture = 1.0*step_layers["low_3"].scores_heads
         
-        interm = tf.reduce_sum(step_layers["low_3"].scores_heads,axis=[3,4]) #Sum along the heads
+        interm = tf.reduce_sum(step_layers["up_1"].scores_heads,axis=[3,4]) #Sum along the heads
         self.scores_agg.append(self.score_ups[step](tf.expand_dims(interm,axis=-1))[:,:,:,0]) # N H W 1 -> N H' W' 1 -> N H' W'
 
         up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
@@ -509,7 +509,8 @@ class HourglassLayerLora(Layer):
         #return self.relu(out_tensor), intermediate#tf.cast(tf.clip_by_value(tf.math.floor(intermediate),0.0,32767.0),dtype=tf.int16)
         return out_tensor,tf.concat([intermediate_1jhms,intermediate_2jhms,stacked_scores],axis=-1),self.capture
     def build(self, input_shape):
-        super().build(input_shape) 
+        super().build(input_shape)
+        self.residual_brc.attention = "SAM"  
 
     """
     @classmethod

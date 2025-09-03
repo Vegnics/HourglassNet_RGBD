@@ -46,7 +46,7 @@ residual_nblocks = 1
 activate_lora = True
 
 #learning_rate = 2.5e-4
-learning_rate = 0.4e-5 # 8.0e-5
+learning_rate = 4.0e-5 # 8.0e-5
 # Related to loading pre-trained models
 load_model = True
 #pt_model_name = "data/model_t/SLP_Colab_BL_Att99_1B_Depth4C_EXP2_S3.keras" #"/home/quinoa/Downloads/SLP_BL_1B_Depth4C_d9.keras" # # # #
@@ -54,9 +54,9 @@ pt_model_name = "/home/quinoa/Downloads/myModel_SLP_Colab_BL_1B_Depth4C_d23_resu
 loading_mode =  "Partial_Train_Attention" #"Full_Train" # # # #"Full_Train"# # # #"Partial_Downsampling_frozen" # # # #  # #"Partial_Train_F2S" # ## # # #"Partial_Train_Skip" ##  # ## # # # # # # # # # # # # #"Partial_Train_S2FF2S" # # # # # # # # # # #  #  ##"Partial_Train_Skip" # # # ## #  # # # # # # # #  # ## # # #"Partial_Train_Attention"  # ### #"Full_Train" # # # # # # # # # # # # # #  # # ## #  # #"Partial_Train_Attention" ###  # ## # # # # # # # # # # # #"Partial_Downsampling_frozen" # #"Full_Train" #"Partial_Downsampling_frozen"
 
 #Related to the attention mechanisms
-skip_AM = "NoAM"    
+skip_AM = "SAM"    
 s2f_AM =  "FAM" 
-f2s_AM = "SAM" 
+f2s_AM = "NoAM" 
 
 #Related to the loss
 W_1jnts = 1.00

@@ -141,7 +141,7 @@ train:
   epochs: 150
   epoch_size: 92
   batch_size: 20
-  learning_rate: 4.0e-06
+  learning_rate: 8.0e-06
   loss:
     source: hourglass_tensorflow.losses.MAE_custom
     params:
@@ -159,7 +159,7 @@ train:
       beta_1: 0.9
       beta_2: 0.989
       epsilon: 1.0e-08
-      clipvalue: 0.4
+      clipnorm: 1.0
   metrics:
   - source: hourglass_tensorflow.metrics.OverallMeanDistance
     params:

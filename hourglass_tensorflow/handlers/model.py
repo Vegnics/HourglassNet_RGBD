@@ -390,7 +390,7 @@ class HTFModelHandler(_HTFModelHandler):
                 elif self.config.loading_style == "Partial_Downsampling":
                     print(">>>>>>> [LOADING] PARTIAL TRAINING DOWNSAMPLING <<<<<<<<<")
                     for layer in model.layers:
-                        if isinstance(layer,DownSamplingLayer):
+                        if isinstance(layer,DownSamplingLayerLora):
                             layer.trainable = True
                         else:
                             print(f"Freezing {layer.name}")

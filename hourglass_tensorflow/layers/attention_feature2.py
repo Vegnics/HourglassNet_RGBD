@@ -26,8 +26,6 @@ class FeatureAttentionHead(Layer):
         self.trainable = trainable
         self.kernel_reg = kernel_reg
 
-        self.ln = layers.LayerNormalization(axis=-1,trainable=self.trainable, name="head_ln",epsilon=0.1)
-
         self.layer_seq = SequentialLayer(
             layer_list = [    
                 layers.Dense(self.filters//8,
@@ -51,11 +49,12 @@ class FeatureAttentionHead(Layer):
             name = "FeatureAttentionHead",
             trainable=self.trainable
             )
+        
     def call(self, inputs: tf.Tensor, training: bool = True) -> tf.Tensor:
-        #x = self.ln(inputs,training=training)
         energy_tensor = tf.reduce_mean(tf.math.square(inputs),axis=[1,2])# per-channel mean energy
         x = self.layer_seq(energy_tensor,training=training)
         return x
+    
     def build(self, input_shape):
         super().build(input_shape)
     
@@ -80,13 +79,6 @@ class FeatureAttentionMechanism(Layer):
     def __init__(
         self,
         filters: int,
-        kernel_size: int,
-        strides: int = 1,
-        padding: str = "same",
-        activation: str = None,
-        kernel_initializer: str = "glorot_uniform",
-        momentum: float = 0.9,
-        epsilon: float = 1e-3,
         outmax: float = 1.0,
         name: str = None,
         headnum: int = 4,
@@ -96,13 +88,13 @@ class FeatureAttentionMechanism(Layer):
         super().__init__(name=name,trainable=trainable)
         # Store config
         self.filters = filters
-        self.kernel_size = kernel_size
-        self.strides = strides
-        self.padding = padding
-        self.activation = activation
-        self.kernel_initializer = kernel_initializer
-        self.momentum = momentum
-        self.epsilon = epsilon
+        #self.kernel_size = kernel_size
+        #self.strides = strides
+        #self.padding = padding
+        #self.activation = activation
+        #self.kernel_initializer = kernel_initializer
+        #self.momentum = momentum
+        #self.epsilon = epsilon
         self.outmax = outmax
         self.head_num = headnum
         self.trainable = trainable
@@ -129,7 +121,7 @@ class FeatureAttentionMechanism(Layer):
             self.__setattr__(f"fam_{k}", layer)
 
         # Dropout previous to the raw score generation layer
-        self.dropout_last = layers.Dropout(0.08)
+        #self.dropout_last = layers.Dropout(0.08)
 
         # Raw score generation layer (aka Last projection)
         self.last_projection = SequentialLayer(
@@ -161,13 +153,13 @@ class FeatureAttentionMechanism(Layer):
             **super().get_config(),
             **{
                 "filters": self.filters,
-                "kernel_size": self.kernel_size,
-                "strides": self.strides,
-                "padding": self.padding,
-                "activation": self.activation,
-                "kernel_initializer": self.kernel_initializer,
-                "momentum": self.momentum,
-                "epsilon": self.epsilon,
+                #"kernel_size": self.kernel_size,
+                #"strides": self.strides,
+                #"padding": self.padding,
+                #"activation": self.activation,
+                #"kernel_initializer": self.kernel_initializer,
+                #"momentum": self.momentum,
+                #"epsilon": self.epsilon,
                 "outmax":self.outmax,
                 "headnum":self.head_num,
                 "kernel_reg":self.kernel_reg,
@@ -191,31 +183,12 @@ class FeatureAttentionMechanism(Layer):
             head_outs.append(self.heads[i](splitted[i],training=training)) # B,filters/self.head_num
         head_out = tf.concat(head_outs,axis=-1)
         
-        # Heads' output orthogonality regularization
-        #head_stack = tf.stack(head_outs,axis=-1) # Stacking heads' output -> B,d_out,N_head
-        #normed_heads = tf.nn.l2_normalize(head_stack, axis=1) # along d_head (B,d_head,N_heads)
-        #similarity = tf.matmul(tf.transpose(normed_heads,perm=[0,2,1]), normed_heads)  # cosine similarity between head's outputs (B,N_heads,N_heads)
-        #mask = 1.0 - tf.eye(self.head_num)
-        #penalty = tf.reduce_sum(tf.square(similarity * mask),axis=[1,2])/(tf.reduce_sum(mask))
-        #penalty = tf.reduce_mean(penalty)
-        #self.add_loss(1e-3 * penalty)
-        
-        # Raw scores computation -> (B,1,1,C) 
-        #_head_out = self.norm_layer(_head_out)
-        #_head_out = self.dropout_last(head_out,training=training)
         _head_out = self.in_ln(head_out)
         scores_raw = self.last_projection(_head_out)
         scores_raw = tf.expand_dims(scores_raw,axis=1)
         scores_raw = tf.expand_dims(scores_raw,axis=1)
         scores = tf.nn.sigmoid(scores_raw)#1.0 + 0.5*tf.nn.tanh(scores_raw)
 
-        #scores = tf.clip_by_value(scores_raw,-2.2,2.2)
-        #scores = (tf.nn.sigmoid(scores)-tf.nn.sigmoid(-2.2))/(tf.nn.sigmoid(2.2)-tf.nn.sigmoid(-2.2))
-
-        #scores_mean = tf.reduce_mean(scores,axis=-1,keepdims=True)
-        #scores_var = tf.reduce_mean(tf.square(scores-scores_mean),axis=-1)
-        #var_reg = tf.reduce_mean(1/tf.maximum(scores_var,0.001))
-        #self.add_loss(1e-6*var_reg)
         return scores,stack_out #scores_raw # The raw scores are input to an activation function f: R -> (0,1)   
     def build(self, input_shape):
         super().build(input_shape)

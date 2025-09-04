@@ -50,18 +50,15 @@ class ResidualBlock(Layer):
             self.attention_block = SpatialAttentionMechanism(
                 name="AttentionBlock",
                 filters = self.output_filters,
-                kernel_size = 1,
                 kernel_reg = False,
                 trainable = self.trainable,
                 feat_size = self.feat_size,
-                include_metric=include_metric
             )
             
         elif self.attention_type == "FAM":
             self.attention_block = FeatureAttentionMechanism(
                 name="AttentionBlock",
                 filters = self.output_filters,
-                kernel_size = 1,
                 kernel_reg = False,
                 trainable = self.trainable
             )

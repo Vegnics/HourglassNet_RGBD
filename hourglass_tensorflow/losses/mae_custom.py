@@ -99,5 +99,5 @@ class MAE_custom(keras.losses.Loss):
         
         #tf.debugging.check_numerics(loss_2jnt,"loss_2jnt has invalid numeric values")
         #loss_2jnt = tf.reduce_mean(loss_2jnt,axis=1)
-        Loss_final = self.wl2_j1*tf.reduce_mean(loss_1jnt)#+self.wcoords*loss_coords+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
+        Loss_final = self.wl2_j1*tf.reduce_mean(loss_1jnt)+self.wcoords*loss_coords+self.wl2_j2*tf.cast(self.use2joints,dtype=tf.float32)*tf.reduce_mean(loss_2jnt)
         return Loss_final + 0.00003*Aux_loss #+ 1e-3*cum_loss

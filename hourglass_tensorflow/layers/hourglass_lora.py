@@ -264,6 +264,7 @@ class HourglassLayerLora(Layer):
 
         # Used to capture the heads' attention results for visualization
         self.capture = None
+        self.sam_pos = None
         
         # Create Layers
         self.hm1_output = LinearProjection(
@@ -419,9 +420,26 @@ class HourglassLayerLora(Layer):
 
             self.layer_list[f"STEP_{i}"] = dict(_downsampl)
         ndowns = self.downsamplings
-        self.score_ups = [layers.UpSampling2D((2**(ndowns-i),2**(ndowns-i)),
-                                             interpolation="nearest",
-                                               name=f"Score_Upsampling_{i}") for i in range(self.downsamplings)]
+
+        
+        # Manage the attention map upsampling according to the attention mechanisms used
+        if self.f2s_att == "SAM" or self.s2f_att == "SAM":
+            self.score_ups = [layers.UpSampling2D((2**(ndowns-i),2**(ndowns-i)),
+                                                interpolation="bilinear",
+                                                name=f"Score_Upsampling_{i}") for i in range(self.downsamplings)]
+            self.sam_pos = "low_1" if self.s2f_att == "SAM" else "low_3"
+        
+        elif self.skip_att == "SAM":
+            self.score_ups = [layers.UpSampling2D((2**(ndowns-i-1),2**(ndowns-i-1)),
+                                                interpolation="bilinear",
+                                                name=f"Score_Upsampling_{i}") for i in range(self.downsamplings)]
+            self.sam_pos = "up_1"
+        
+        else:
+            self.score_ups = [layers.UpSampling2D((2**(ndowns-i),2**(ndowns-i)),
+                                                interpolation="nearest",
+                                                name=f"Score_Upsampling_{i}") for i in range(self.downsamplings)]
+            self.sam_pos = "low_1"
         # endregion
     
     
@@ -463,9 +481,19 @@ class HourglassLayerLora(Layer):
         
         if step == 3:
             self.capture = 1.0*step_layers["low_3"].scores_heads
+
+        interm = tf.reduce_sum(tf.zeros_like(step_layers[self.sam_pos].scores_heads),axis=[3,4]) # No attention mechanism used
         
-        interm = tf.reduce_sum(step_layers["low_3"].scores_heads,axis=[3,4]) #Sum along the heads
-        self.scores_agg.append(self.score_ups[step](tf.expand_dims(interm,axis=-1))[:,:,:,0]) # N H W 1 -> N H' W' 1 -> N H' W'
+        if self.s2f_att == "SAM":
+            interm = tf.reduce_sum(step_layers["low_1"].scores_heads,axis=[3,4])
+        elif self.f2s_att == "SAM":
+            interm = tf.reduce_sum(step_layers["low_3"].scores_heads,axis=[3,4])
+        elif self.skip_att == "SAM":
+            interm = tf.reduce_sum(step_layers["up_1"].scores_heads,axis=[3,4])
+            
+        #interm = tf.reduce_sum(step_layers["low_3"].scores_heads,axis=[3,4]) #Sum along the heads
+        if self.built:
+            self.scores_agg.append(self.score_ups[step](tf.expand_dims(interm,axis=-1))[:,:,:,0]) # N H W 1 -> N H' W' 1 -> N H' W'
 
         up_2  = step_layers["up_2"](low_3, training=training) # Upsampling
         out = step_layers["out"]([up_1, up_2], training=training) # Add  

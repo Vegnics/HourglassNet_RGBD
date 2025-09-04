@@ -218,7 +218,7 @@ class HTFModelHandler(_HTFModelHandler):
                             #print(f"Freezing {main_name}/{layer.bn_feats_1j.name}")
                             layer.bn_feats_1j.trainable = False
                             print(f"Freezing {main_name}/{layer.hm1_output.name}")
-                            layer.hm1_output.trainable = True #False
+                            layer.hm1_output.trainable = False #False
                             print(f"Freezing {main_name}/{layer.hm2_output.name}")
                             layer.hm2_output.trainable = False
                             print(f"Freezing {main_name}/{layer.features_hm2.name}")

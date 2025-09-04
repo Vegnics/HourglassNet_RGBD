@@ -38,7 +38,7 @@ class FeatureAttentionHead(Layer):
                     kernel_regularizer=L2(1e-6) if self.kernel_reg else None,
                     name = "head_dense_A",
                     ),
-                layers.Dense(self.filters//16,
+                layers.Dense(self.filters//4,
                     activation= "gelu", #None,
                     use_bias=True,
                     bias_initializer= "zeros",#tf.random_uniform_initializer(minval=-0.01, maxval=0.01),
@@ -114,6 +114,7 @@ class FeatureAttentionMechanism(Layer):
         #                                       name="main_LN"
         #                                       )
         self.in_ln = layers.LayerNormalization(axis=-1,trainable=self.trainable, name="in_ln")
+        self.out_ln = layers.LayerNormalization(axis=-1,trainable=self.trainable, name="out_ln")
 
         # Feature Attention heads (FC->FC->LN)
         self.heads = [
@@ -201,7 +202,8 @@ class FeatureAttentionMechanism(Layer):
         
         # Raw scores computation -> (B,1,1,C) 
         #_head_out = self.norm_layer(_head_out)
-        _head_out = self.dropout_last(head_out,training=training)
+        #_head_out = self.dropout_last(head_out,training=training)
+        _head_out = self.in_ln(head_out)
         scores_raw = self.last_projection(_head_out)
         scores_raw = tf.expand_dims(scores_raw,axis=1)
         scores_raw = tf.expand_dims(scores_raw,axis=1)

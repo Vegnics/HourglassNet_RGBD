@@ -27,6 +27,8 @@ from hourglass_tensorflow.layers.conv_batch_norm_relu import ConvBatchNormReluLa
 from hourglass_tensorflow.layers.dummy_layers import zeroLayer,IdentityLayer
 from hourglass_tensorflow.layers.linear_projection import LinearProjectionLoRA as LinearProjection
 from hourglass_tensorflow.utils.loaders.weight_loader import recursive_weight_transfer
+from hourglass_tensorflow.layers.attention_feature2 import FeatureAttentionMechanism
+from hourglass_tensorflow.layers.attention_spatial4 import SpatialAttentionMechanism
 
 
 def load_wrapped_model(fpath: str = None, compile:bool=False):
@@ -48,30 +50,34 @@ def load_wrapped_model(fpath: str = None, compile:bool=False):
                                             "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
                                             "MAE_custom":MAE_custom,
                                             "OverallMeanDistance":OverallMeanDistance,
-                                            "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=compile)
+                                            "SoftargmaxMeanDist":SoftargmaxMeanDist,
+                                            "FeatureAttentionMechanism":FeatureAttentionMechanism,
+                                            "SpatialAttentionMechanism":SpatialAttentionMechanism},compile=compile)
     return wmodel
 
 def load_basemodel_weights(ftmodel:keras.models.Model = None, basepath: str = None, compile:bool=False):
     basemodel = keras.models.load_model(basepath,
                 custom_objects= {
                     "HourglassModelLora": HourglassModelLora,
-                    "HourglassLayerLora": HourglassLayerLora,
-                    "ConvBlockLoRALayer": ConvBlockLoRALayer,
-                    "ResidualLayer": ResidualLayer,
-                    "ResidualLayerIn": ResidualLayerIn,
-                    "ResidualBlock": ResidualBlock,
-                    "ResidualBlockIn": ResidualBlockIn,
-                    "SkipLayer": SkipLayer,
-                    "DownSamplingLayerLora": DownSamplingLayerLora,
-                    "BatchNormReluConvLayer": BatchNormReluConvLayer,
-                    "ConvBatchNormReluLayer": ConvBatchNormReluLayer,
-                    "IdentityLayer": IdentityLayer,
-                    "zeroLayer": zeroLayer,
-                    "LinearProjection": LinearProjection,
-                    "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
-                    "MAE_custom":MAE_custom,
-                    "OverallMeanDistance":OverallMeanDistance,
-                    "SoftargmaxMeanDist":SoftargmaxMeanDist},compile=compile)
+                                            "HourglassLayerLora": HourglassLayerLora,
+                                            "ConvBlockLoRALayer": ConvBlockLoRALayer,
+                                            "ResidualLayer": ResidualLayer,
+                                            "ResidualLayerIn": ResidualLayerIn,
+                                            "ResidualBlock": ResidualBlock,
+                                            "ResidualBlockIn": ResidualBlockIn,
+                                            "SkipLayer": SkipLayer,
+                                            "DownSamplingLayerLora": DownSamplingLayerLora,
+                                            "BatchNormReluConvLayer": BatchNormReluConvLayer,
+                                            "ConvBatchNormReluLayer": ConvBatchNormReluLayer,
+                                            "IdentityLayer": IdentityLayer,
+                                            "zeroLayer": zeroLayer,
+                                            "LinearProjection": LinearProjection,
+                                            "PercentageOfCorrectKeypoints":PercentageOfCorrectKeypoints,
+                                            "MAE_custom":MAE_custom,
+                                            "OverallMeanDistance":OverallMeanDistance,
+                                            "SoftargmaxMeanDist":SoftargmaxMeanDist,
+                                            "FeatureAttentionMechanism":FeatureAttentionMechanism,
+                                            "SpatialAttentionMechanism":SpatialAttentionMechanism},compile=compile)
     #lazyInput = tf.ones(shape=(160,256,256,1),dtype=tf.float32)
     #lazydataset  = tf.data.Dataset.from_tensor_slices(lazyInput).batch(40)
     #basemodel.predict(lazydataset)
